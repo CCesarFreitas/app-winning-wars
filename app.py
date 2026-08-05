@@ -7,7 +7,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
-    page_title="Winning Wars - Competição Mensal", page_icon="⚔️", layout="wide"
+    page_title="Competição Mensal dos Passes", page_icon="⚔️", layout="wide"
 )
 
 # --- FUNÇÃO DE SEGURANÇA (HASH DE SENHA) ---
@@ -91,10 +91,11 @@ st.markdown(
 
 # --- CABEÇALHO ---
 st.title("⚔️ Clã Winning Wars - Competição Mensal")
-st.write("Acompanhe o ranking em tempo real e dispute o Passe Dourado!")
+
+st.write("Acompanhe o ranking em tempo real da disputa do Passe Dourado!")
 
 tab_ranking, tab_tabela, tab_admin = st.tabs(
-    ["🏆 Ranking ao Vivo", "📋 Tabela Detalhada", "🔐 Área Admin"]
+    ["🏆 Ranking ao Vivo", "📋 Tabela Detalhada", "🔐 Área de Admin"]
 )
 
 # --- ABA 1: RANKING AO VIVO ---
@@ -126,7 +127,6 @@ with tab_ranking:
                     <div class="podium-title">🥇 1º LUGAR</div>
                     <div class="podium-name">{df_rank.iloc[0]['Nome']}</div>
                     <div class="podium-score">{int(df_rank.iloc[0]['Total'])} pts</div>
-                    <small>Garantidor do Passe Dourado</small>
                 </div>
             """,
             unsafe_allow_html=True,
@@ -140,7 +140,6 @@ with tab_ranking:
                     <div class="podium-title">🥈 2º LUGAR</div>
                     <div class="podium-name">{df_rank.iloc[1]['Nome']}</div>
                     <div class="podium-score">{int(df_rank.iloc[1]['Total'])} pts</div>
-                    <small>Garantidor do Passe Dourado</small>
                 </div>
             """,
             unsafe_allow_html=True,
@@ -154,7 +153,6 @@ with tab_ranking:
                     <div class="podium-title">🥉 3º LUGAR</div>
                     <div class="podium-name">{df_rank.iloc[2]['Nome']}</div>
                     <div class="podium-score">{int(df_rank.iloc[2]['Total'])} pts</div>
-                    <small>Garantidor do Passe Dourado</small>
                 </div>
             """,
             unsafe_allow_html=True,
