@@ -92,7 +92,7 @@ st.markdown(
 # --- CABEÇALHO ---
 st.title("⚔️ Clã Winning Wars - Competição Mensal")
 st.image("winning.png", width=200)
-st.write("Acompanhe o ranking em tempo real da disputa do Passe Dourado!")
+st.title("Acompanhe por aqui o ranking em tempo real da disputa dos Passes Dourados!")
 
 tab_ranking, tab_tabela, tab_admin = st.tabs(
     ["🏆 Ranking ao Vivo", "📋 Tabela Detalhada", "🔐 Área de Admin"]
