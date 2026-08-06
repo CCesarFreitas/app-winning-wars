@@ -9,7 +9,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
-    page_title="Winning Wars - Competição Mensal dos Membros", page_icon="⚔️", layout="wide"
+    page_title="Winning Wars - Competição Mensal", page_icon="⚔️", layout="wide"
 )
 
 
@@ -53,7 +53,7 @@ def conectar_banco():
     sheet_estado.append_row(["mes_finalizado", "FALSE"])
     sheet_estado.append_row(["sorteio_realizado", "FALSE"])
 
-  # Aba de Layouts (Persistência Global)
+  # Aba de Layouts
   try:
     sheet_layouts = spreadsheet.worksheet("Layouts")
   except gspread.WorksheetNotFound:
@@ -115,51 +115,118 @@ def carregar_layouts():
 
 df_layouts = carregar_layouts()
 
-# --- ESTILIZAÇÃO CSS CUSTOMIZADA ---
+# --- ESTILIZAÇÃO CSS CUSTOMIZADA (TEMA CLASH OF CLANS) ---
 st.markdown(
     """
     <style>
-    .main { background-color: #0b0e14; }
-    h1, h2, h3 { color: #facc15 !important; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    
-    .main-title { text-align: center; margin-top: 10px; margin-bottom: 5px; }
-    .main-subtitle { text-align: center; color: #94a3b8; margin-bottom: 25px; }
-    
-    /* PÓDIO */
-    .podium-card { padding: 22px; border-radius: 16px; text-align: center; margin-bottom: 25px; color: #ffffff; box-shadow: 0 8px 25px rgba(0,0,0,0.4); }
-    .gold { background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%); border: 2px solid #facc15; }
-    .silver { background: linear-gradient(135deg, #94a3b8 0%, #475569 100%); border: 2px solid #cbd5e1; }
-    .bronze { background: linear-gradient(135deg, #d97706 0%, #78350f 100%); border: 2px solid #f97316; }
+    @import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@600;800&display=swap');
 
-    /* BOTÕES DE LINK E NAVEGAÇÃO */
+    .main { 
+        background: radial-gradient(circle, #1e293b 0%, #0b0e14 100%); 
+    }
+
+    /* TÍTULOS COM FONTE TEMÁTICA */
+    h1, h2, h3 { 
+        font-family: 'Luckiest Guy', cursive !important; 
+        color: #facc15 !important; 
+        letter-spacing: 1px;
+        text-shadow: 2px 2px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000;
+    }
+    
+    .main-title { 
+        text-align: center; 
+        margin-top: 10px; 
+        margin-bottom: 5px; 
+        font-size: 2.5rem;
+    }
+    .main-subtitle { 
+        text-align: center; 
+        color: #94a3b8; 
+        font-family: 'Nunito', sans-serif;
+        font-weight: 600;
+        margin-bottom: 25px; 
+    }
+    
+    /* BOTÕES COM DESIGN ESTILO CLASH (3D/CARTOON) */
+    div.stButton > button {
+        background: linear-gradient(180deg, #22c55e 0%, #15803d 100%) !important;
+        color: #ffffff !important;
+        font-family: 'Luckiest Guy', cursive, sans-serif !important;
+        font-size: 1.05rem !important;
+        border: 2px solid #86efac !important;
+        border-radius: 10px !important;
+        box-shadow: 0px 4px 0px #14532d !important;
+        transition: all 0.1s ease;
+        text-shadow: 1px 1px 0px #000;
+    }
+    div.stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0px 6px 0px #14532d !important;
+        background: linear-gradient(180deg, #4ade80 0%, #16a34a 100%) !important;
+    }
+    div.stButton > button:active {
+        transform: translateY(2px);
+        box-shadow: 0px 1px 0px #14532d !important;
+    }
+
+    /* PÓDIO */
+    .podium-card { 
+        padding: 22px; 
+        border-radius: 16px; 
+        text-align: center; 
+        margin-bottom: 25px; 
+        color: #ffffff; 
+        box-shadow: 0 8px 25px rgba(0,0,0,0.6); 
+        font-family: 'Nunito', sans-serif;
+    }
+    .podium-title {
+        font-family: 'Luckiest Guy', cursive;
+        font-size: 1.4rem;
+        margin-bottom: 8px;
+        text-shadow: 1px 1px 0px #000;
+    }
+    .podium-name {
+        font-size: 1.3rem;
+        font-weight: 800;
+    }
+    .podium-score {
+        font-size: 1.1rem;
+        margin-top: 4px;
+    }
+    .gold { background: linear-gradient(135deg, #f59e0b 0%, #78350f 100%); border: 3px solid #facc15; }
+    .silver { background: linear-gradient(135deg, #64748b 0%, #1e293b 100%); border: 3px solid #cbd5e1; }
+    .bronze { background: linear-gradient(135deg, #d97706 0%, #451a03 100%); border: 3px solid #f97316; }
+
+    /* BOTÕES DE LINK E NAVEGAÇÃO EXTERNA */
     .btn-layout-copy {
         display: inline-block;
         width: 100%;
         max-width: 380px;
         text-align: center;
-        background-color: #2563eb;
+        background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
         color: white !important;
         padding: 10px 18px;
         border-radius: 8px;
         text-decoration: none;
-        font-weight: bold;
-        border: 1px solid #3b82f6;
+        font-family: 'Luckiest Guy', cursive;
+        border: 2px solid #93c5fd;
+        box-shadow: 0px 4px 0px #1e3a8a;
     }
-    .btn-layout-copy:hover { background-color: #1d4ed8; }
+    .btn-layout-copy:hover { transform: translateY(-2px); }
 
     .btn-external-link {
         display: block;
         width: 100%;
         text-align: center;
-        background-color: #16a34a;
+        background: linear-gradient(180deg, #16a34a 0%, #15803d 100%);
         color: white !important;
         padding: 8px 16px;
         border-radius: 8px;
         text-decoration: none;
-        font-weight: bold;
-        border: 1px solid #22c55e;
+        font-family: 'Luckiest Guy', cursive;
+        border: 2px solid #86efac;
+        box-shadow: 0px 4px 0px #14532d;
     }
-    .btn-external-link:hover { background-color: #15803d; }
 
     /* CARDS DE INFORMAÇÃO E REGULAMENTO */
     .info-card {
@@ -167,14 +234,17 @@ st.markdown(
         border-radius: 12px;
         padding: 20px;
         margin-bottom: 15px;
-        border-left: 4px solid #facc15;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        border: 2px solid #334155;
+        border-left: 5px solid #facc15;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        font-family: 'Nunito', sans-serif;
     }
     .info-card-header {
         font-size: 1.1rem;
         font-weight: bold;
         color: #facc15;
         margin-bottom: 10px;
+        font-family: 'Luckiest Guy', cursive;
     }
     .info-card-list {
         color: #e2e8f0;
@@ -186,23 +256,24 @@ st.markdown(
     /* CARDS DE REGRAS OFICIAIS */
     .rule-card {
         background: #1e293b;
-        border: 1px solid #334155;
+        border: 2px solid #334155;
         border-radius: 10px;
         padding: 16px 20px;
         margin-bottom: 12px;
         display: flex;
         align-items: center;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        font-family: 'Nunito', sans-serif;
     }
     .rule-number {
+        font-family: 'Luckiest Guy', cursive;
         font-size: 1.3rem;
-        font-weight: bold;
         color: #facc15;
         background: #0f172a;
-        border: 1px solid #facc15;
+        border: 2px solid #facc15;
         border-radius: 50%;
-        width: 40px;
-        height: 40px;
+        width: 42px;
+        height: 42px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -213,6 +284,7 @@ st.markdown(
         color: #f8fafc;
         font-size: 1rem;
         line-height: 1.4;
+        font-weight: 600;
     }
     </style>
 """,
@@ -353,7 +425,6 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
                 f"**👑 Admin:** {row['Autor']} | **📌 Foco:** {row['Descricao']}"
             )
 
-            # EXIBIÇÃO TRATADA DA IMAGEM
             img_url_limpa = str(row["ImagemUrl"]).strip()
 
             if img_url_limpa:
@@ -371,7 +442,6 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
                 except Exception:
                   st.caption("⚠️ *(Não foi possível carregar esta imagem)*")
 
-            # Botão Direto para copiar
             c_btn, c_del = st.columns([3, 1])
             with c_btn:
               st.markdown(
@@ -540,7 +610,7 @@ else:
                 f' class="podium-name">{df_rank.iloc[0]["Nome"]}</div><div'
                 ' class="podium-score">'
                 f'{int(df_rank.iloc[0]["Total"])} pts</div><small>Garantidor do'
-                " Passe Dourado</small></div>",
+                " Passe Dourado 🎟️</small></div>",
                 unsafe_allow_html=True,
             )
         if len(df_rank) >= 2:
@@ -551,7 +621,7 @@ else:
                 f' class="podium-name">{df_rank.iloc[1]["Nome"]}</div><div'
                 ' class="podium-score">'
                 f'{int(df_rank.iloc[1]["Total"])} pts</div><small>Garantidor do'
-                " Passe Dourado</small></div>",
+                " Passe Dourado 🎟️</small></div>",
                 unsafe_allow_html=True,
             )
         if len(df_rank) >= 3:
@@ -562,7 +632,7 @@ else:
                 f' class="podium-name">{df_rank.iloc[2]["Nome"]}</div><div'
                 ' class="podium-score">'
                 f'{int(df_rank.iloc[2]["Total"])} pts</div><small>Garantidor do'
-                " Passe Dourado</small></div>",
+                " Passe Dourado 🎟️</small></div>",
                 unsafe_allow_html=True,
             )
         st.write("---")
@@ -583,15 +653,15 @@ else:
         pos = str(row["Posição"])
         if "🥇" in pos:
           return [
-              "background-color: #382403; color: #facc15; font-weight: bold;"
+              "background-color: #78350f; color: #facc15; font-weight: bold;"
           ] * 3
         elif "🥈" in pos:
           return [
-              "background-color: #1e293b; color: #cbd5e1; font-weight: bold;"
+              "background-color: #334155; color: #cbd5e1; font-weight: bold;"
           ] * 3
         elif "🥉" in pos:
           return [
-              "background-color: #2e1805; color: #f97316; font-weight: bold;"
+              "background-color: #451a03; color: #f97316; font-weight: bold;"
           ] * 3
         return [""] * 3
 
@@ -728,7 +798,7 @@ else:
               st.success(f"{player_rem} removido!")
               st.rerun()
 
-      # ABA 2: EDIÇÃO DE PONTUAÇÕES EM LOTE (ESTILO EXCEL)
+      # ABA 2: EDIÇÃO DE PONTUAÇÕES EM LOTE
       with sub_tab2:
         st.markdown("#### Criar Novas Rodadas / Colunas")
         col_add1, col_add2, col_add3 = st.columns(3)
@@ -765,21 +835,19 @@ else:
         st.markdown("#### 📝 Planilha de Edição Rápida (Em Lote)")
         st.info(
             "💡 **Como usar:** Altere os pontos de qualquer jogador"
-            " diretamente nas células abaixo (Guerras Normais, Liga, Raides,"
-            " etc.) e clique no botão **💾 Salvar Todas as Alterações**."
+            " diretamente nas células abaixo e clique em **💾 Salvar Todas as"
+            " Alterações**."
         )
 
         if not df.empty:
-          # Exclui a coluna Total se existir, pois ela é calculada automaticamente
           df_editavel = df.drop(columns=["Total"], errors="ignore").copy()
 
-          # Exibe o editor de dados do Streamlit
           df_editado = st.data_editor(
               df_editavel,
               use_container_width=True,
               hide_index=True,
               num_rows="fixed",
-              disabled=["ID"],  # Bloqueia apenas a coluna ID para edição
+              disabled=["ID"],
               key="editor_pontos_lote",
           )
 
@@ -787,10 +855,7 @@ else:
               "💾 Salvar Todas as Alterações na Planilha", type="primary"
           ):
             try:
-              # Garante que os números vazios viraram 0
               df_editado = df_editado.fillna(0)
-
-              # Converte para lista e atualiza o Google Sheets de uma só vez
               novos_dados = [
                   df_editado.columns.values.tolist()
               ] + df_editado.values.tolist()
@@ -843,7 +908,7 @@ else:
         <div class="info-card">
             <div class="info-card-header">🏆 Premiação Mensal</div>
             <ul class="info-card-list">
-                <li><b>Top 3 Destaques:</b> Garantem <b>1 Passe Dourado</b> cada um no final do mês.</li>
+                <li><b>Top 3 Destaques:</b> Garantem <b>1 Passe Dourado 🎟️</b> cada um no final do mês.</li>
                 <li><b>Em caso de Empate:</b> Havendo empate de pontos no 3º lugar, haverá sorteio de desempate e/ou análise de engajamento pela liderança.</li>
             </ul>
         </div>
