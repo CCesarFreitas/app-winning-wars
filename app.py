@@ -97,6 +97,7 @@ st.markdown(
     .main { background-color: #0b0e14; }
     h1, h2, h3 { color: #facc15 !important; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     
+    /* PÓDIO */
     .podium-card {
         padding: 22px;
         border-radius: 16px;
@@ -112,6 +113,39 @@ st.markdown(
     .podium-title { font-size: 1.1rem; font-weight: bold; letter-spacing: 1px; }
     .podium-name { font-size: 1.8rem; font-weight: 800; text-shadow: 2px 2px 4px rgba(0,0,0,0.6); margin: 8px 0; }
     .podium-score { font-size: 1.5rem; color: #facc15; font-weight: bold; }
+
+    /* SEÇÃO DE REGRAS E PREMIAÇÃO NO RODAPÉ */
+    .info-box {
+        background-color: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 12px;
+        padding: 20px;
+        margin-top: 10px;
+        color: #e6edf3;
+    }
+    .info-title {
+        color: #facc15;
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .info-list {
+        list-style-type: none;
+        padding-left: 0;
+        margin-bottom: 0;
+    }
+    .info-list li {
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+        line-height: 1.4;
+    }
+    .highlight-gold {
+        color: #facc15;
+        font-weight: bold;
+    }
     </style>
 """,
     unsafe_allow_html=True,
@@ -480,3 +514,72 @@ with tab_admin:
             sheet_admins.append_row([u_novo.strip(), gerar_hash(s_nova)])
             st.success(f"Admin {u_novo} criado com sucesso!")
             st.rerun()
+
+# --- SEÇÃO EXPLICATIVA DE REGRAS E PREMIAÇÃO (RODAPÉ) ---
+st.write("---")
+st.markdown("## 📜 Regulamento & Sistema de Premiação")
+st.markdown(
+    "A ideia é simples: **valorizar quem joga bem, participa e ajuda o clã a"
+    " crescer.**"
+)
+
+info_col1, info_col2, info_col3 = st.columns(3)
+
+with info_col1:
+  st.markdown(
+      """
+        <div class="info-box">
+            <div class="info-title">🏆 Prêmio Mensal</div>
+            <ul class="info-list">
+                <li>Todo mês, os <b>3 principais destaques</b> do clã levam <span class="highlight-gold">1 Passe Dourado</span> cada um!</li>
+            </ul>
+        </div>
+    """,
+      unsafe_allow_html=True,
+  )
+
+with info_col2:
+  st.markdown(
+      """
+        <div class="info-box">
+            <div class="info-title">📊 Como Pontuar</div>
+            <ul class="info-list">
+                <li>⚔️ <b>Ataques em Guerras:</b> 1 ponto por estrela (⭐)</li>
+                <li>🎯 <b>Jogos do Clã e Eventos:</b> Meta = 5 pts / Completou = 10 pts</li>
+                <li>🛡️ <b>Raides de Fim de Semana:</b> 6 ataques realizados = 10 pts</li>
+            </ul>
+        </div>
+    """,
+      unsafe_allow_html=True,
+  )
+
+with info_col3:
+  st.markdown(
+      """
+        <div class="info-box">
+            <div class="info-title">📜 Regras Rápidas</div>
+            <ul class="info-list">
+                <li>👤 Vale apenas a <b>conta principal</b>.</li>
+                <li>🚫 Nada de trapaça ou conduta antidesportiva.</li>
+                <li>📱 É obrigatório estar no <b>grupo do WhatsApp</b>.</li>
+                <li>📊 Tudo será registrado em nossa tabela mensal.</li>
+                <li>🎲 Em caso de empate, teremos premiação/sorteio para 1º, 2º e 3º lugar.</li>
+            </ul>
+        </div>
+    """,
+      unsafe_allow_html=True,
+  )
+
+st.markdown(
+    """
+    <br>
+    <div style="text-align: center; background-color: #1e293b; padding: 15px; border-radius: 10px; border: 1px solid #334155;">
+        <span style="font-size: 1.1rem; color: #facc15; font-weight: bold;">
+            🔥 Resumindo: jogue bem, participe, ajude o clã, tenha esforço para melhorar e você pode levar o prêmio!
+        </span>
+        <br>
+        <span style="font-size: 0.95rem; color: #cbd5e1;">Bora evoluir, fortalecer o clã e buscar o topo 💪</span>
+    </div>
+""",
+    unsafe_allow_html=True,
+)
