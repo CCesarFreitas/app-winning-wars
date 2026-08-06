@@ -165,7 +165,7 @@ if "pagina_atual" not in st.session_state:
 df_layouts = pd.DataFrame(obter_layouts_cached())
 df_fama = pd.DataFrame(obter_galeria_cached())
 
-# --- ESTILIZAÇÃO CSS CUSTOMIZADA ---
+# --- ESTILIZAÇÃO CSS CUSTOMIZADA COM RESPONSIVIDADE MOBILE ---
 st.markdown(
     """
     <style>
@@ -178,58 +178,91 @@ st.markdown(
         color: #facc15 !important; 
         letter-spacing: 1px;
         text-shadow: 2px 2px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000;
+        word-break: break-word;
     }
     
-    .main-title { text-align: center; margin-top: 5px; margin-bottom: 5px; font-size: 2.5rem; }
-    .main-subtitle { text-align: center; color: #94a3b8; font-family: 'Nunito', sans-serif; font-weight: 600; margin-bottom: 20px; }
+    .main-title { 
+        text-align: center; 
+        margin-top: 5px; 
+        margin-bottom: 5px; 
+        font-size: 2.2rem; 
+        line-height: 1.2;
+    }
+
+    .main-subtitle { 
+        text-align: center; 
+        color: #94a3b8; 
+        font-family: 'Nunito', sans-serif; 
+        font-weight: 600; 
+        margin-bottom: 20px; 
+        font-size: 1rem;
+        padding: 0 10px;
+    }
     
     div.stButton > button {
         background: linear-gradient(180deg, #22c55e 0%, #15803d 100%) !important;
         color: #ffffff !important;
         font-family: 'Luckiest Guy', cursive, sans-serif !important;
-        font-size: 1.05rem !important;
+        font-size: 0.95rem !important;
         border: 2px solid #86efac !important;
         border-radius: 10px !important;
         box-shadow: 0px 4px 0px #14532d !important;
         transition: all 0.1s ease;
         text-shadow: 1px 1px 0px #000;
+        white-space: normal !important;
+        height: auto !important;
+        padding: 8px 12px !important;
     }
+
     div.stButton > button:hover {
         transform: translateY(-2px);
         box-shadow: 0px 6px 0px #14532d !important;
         background: linear-gradient(180deg, #4ade80 0%, #16a34a 100%) !important;
     }
 
-    .podium-card { padding: 22px; border-radius: 16px; text-align: center; margin-bottom: 25px; color: #ffffff; box-shadow: 0 8px 25px rgba(0,0,0,0.6); font-family: 'Nunito', sans-serif; }
-    .podium-title { font-family: 'Luckiest Guy', cursive; font-size: 1.4rem; margin-top: 8px; margin-bottom: 8px; text-shadow: 1px 1px 0px #000; }
-    .podium-name { font-size: 1.3rem; font-weight: 800; }
-    .podium-score { font-size: 1.1rem; margin-top: 4px; }
+    .podium-card { 
+        padding: 16px; 
+        border-radius: 16px; 
+        text-align: center; 
+        margin-bottom: 15px; 
+        color: #ffffff; 
+        box-shadow: 0 8px 25px rgba(0,0,0,0.6); 
+        font-family: 'Nunito', sans-serif; 
+    }
+    .podium-title { font-family: 'Luckiest Guy', cursive; font-size: 1.2rem; margin-top: 6px; margin-bottom: 6px; text-shadow: 1px 1px 0px #000; }
+    .podium-name { font-size: 1.1rem; font-weight: 800; word-break: break-word; }
+    .podium-score { font-size: 1rem; margin-top: 4px; }
     .gold { background: linear-gradient(135deg, #f59e0b 0%, #78350f 100%); border: 3px solid #facc15; }
     .silver { background: linear-gradient(135deg, #64748b 0%, #1e293b 100%); border: 3px solid #cbd5e1; }
     .bronze { background: linear-gradient(135deg, #d97706 0%, #451a03 100%); border: 3px solid #f97316; }
 
     .btn-layout-copy {
-        display: inline-block; width: 100%; max-width: 380px; text-align: center;
+        display: inline-block; width: 100%; max-width: 100%; text-align: center;
         background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%); color: white !important;
-        padding: 10px 18px; border-radius: 8px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
-        border: 2px solid #93c5fd; box-shadow: 0px 4px 0px #1e3a8a;
+        padding: 10px 14px; border-radius: 8px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
+        border: 2px solid #93c5fd; box-shadow: 0px 4px 0px #1e3a8a; font-size: 0.9rem;
     }
     .btn-external-link {
         display: block; width: 100%; text-align: center;
         background: linear-gradient(180deg, #16a34a 0%, #15803d 100%); color: white !important;
-        padding: 8px 16px; border-radius: 8px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
-        border: 2px solid #86efac; box-shadow: 0px 4px 0px #14532d;
+        padding: 8px 12px; border-radius: 8px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
+        border: 2px solid #86efac; box-shadow: 0px 4px 0px #14532d; font-size: 0.9rem;
     }
 
     .mural-banner {
-        background: #1e293b; border-radius: 12px; padding: 15px; margin-bottom: 20px;
+        background: #1e293b; border-radius: 12px; padding: 12px 15px; margin-bottom: 20px;
         border: 2px solid #334155; border-left: 6px solid #facc15;
         box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-family: 'Nunito', sans-serif;
     }
-    .mural-header { font-family: 'Luckiest Guy', cursive; color: #facc15; font-size: 1.1rem; margin-bottom: 5px; }
+    .mural-header { font-family: 'Luckiest Guy', cursive; color: #facc15; font-size: 1rem; margin-bottom: 4px; }
 
-    .badge-highlight {
-        background: #0f172a; border: 2px solid #38bdf8; border-radius: 8px; padding: 8px 12px; margin: 4px; display: inline-block; font-family: 'Nunito', sans-serif; font-weight: bold; color: #e0f2fe;
+    /* AJUSTES ESPECÍFICOS PARA DISPOSITIVOS MÓVEIS (TELAS PEQUENAS) */
+    @media (max-width: 768px) {
+        .main-title { font-size: 1.6rem !important; }
+        .main-subtitle { font-size: 0.88rem !important; }
+        .mural-banner { padding: 10px !important; }
+        .podium-card { padding: 12px !important; }
+        div.stButton > button { font-size: 0.85rem !important; padding: 6px 8px !important; }
     }
     </style>
 """,
@@ -324,7 +357,7 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
       th_img_url = cv_map[cv_nome]
       col_header1, col_header2 = st.columns([1, 8])
       with col_header1:
-        st.image(th_img_url, width=60)
+        st.image(th_img_url, width=50)
       with col_header2:
         st.subheader(f"Base de {tipo_layout} - {cv_nome}")
 
@@ -385,7 +418,7 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
             img_url_limpa = str(row["ImagemUrl"]).strip()
             if img_url_limpa:
               try:
-                st.image(img_url_limpa, caption=f"Layout {cv_nome}", width=380)
+                st.image(img_url_limpa, caption=f"Layout {cv_nome}", width=320)
               except Exception:
                 pass
 
@@ -417,7 +450,7 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
 
 
 # ==============================================================================
-# PÁGINA: GALERIA DA FAMA
+# PÁGINA EXCLUSIVA: GALERIA DA FAMA
 # ==============================================================================
 def renderizar_galeria_fama():
   if st.button("⬅️ Voltar ao Início"):
@@ -425,13 +458,12 @@ def renderizar_galeria_fama():
     st.rerun()
 
   st.markdown(
-      "<h1 style='text-align: center;'>🌟 Galeria da Fama - Campeões dos"
-      " Meses Anteriores</h1>",
+      "<h1 style='text-align: center;'>🌟 Galeria da Fama</h1>",
       unsafe_allow_html=True,
   )
   st.markdown(
-      "<p style='text-align: center; color: #94a3b8;'>Eternizando os guerreiros"
-      " que conquistaram o Passe Dourado na história do Clã!</p><br>",
+      "<p class='main-subtitle'>Histórico dos grandes guerreiros do clã que"
+      " conquistaram o Passe Dourado!</p>",
       unsafe_allow_html=True,
   )
 
@@ -458,7 +490,7 @@ else:
   st.markdown(
       """
     <div style="text-align: center; margin-bottom: 10px;">
-        <img src="https://i.ibb.co/yBShz18b/winning.png" width="130" style="filter: drop-shadow(0px 6px 12px rgba(0,0,0,0.6));">
+        <img src="https://i.ibb.co/yBShz18b/winning.png" width="110" style="filter: drop-shadow(0px 6px 12px rgba(0,0,0,0.6));">
     </div>
     """,
       unsafe_allow_html=True,
@@ -480,7 +512,7 @@ else:
         f"""
         <div class="mural-banner">
             <div class="mural-header">📢 MURAL DA LIDERANÇA</div>
-            <div style="color: #e2e8f0;">{mural_recado}</div>
+            <div style="color: #e2e8f0; font-size: 0.95rem;">{mural_recado}</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -524,29 +556,6 @@ else:
   # ABA 1: RANKING AO VIVO
   with tab_ranking:
     if not df.empty and "Total" in df.columns:
-      # DESTAQUES / BADGES AUTOMÁTICAS
-      cols_war_all = colunas_guerras + colunas_liga
-      if cols_war_all:
-        df["WarTotal"] = df[cols_war_all].sum(axis=1)
-        top_war = df.sort_values(by="WarTotal", ascending=False).iloc[0]
-        if top_war["WarTotal"] > 0:
-          st.markdown(
-              f'<div class="badge-highlight">🗡️ O Rei da Guerra:'
-              f' {top_war["Nome"]} ({int(top_war["WarTotal"])}⭐)</div>',
-              unsafe_allow_html=True,
-          )
-
-      if "JogosCla" in df.columns:
-        top_jogos = df.sort_values(by="JogosCla", ascending=False).iloc[0]
-        if top_jogos["JogosCla"] > 0:
-          st.markdown(
-              f'<div class="badge-highlight">🎯 Mestre dos Jogos:'
-              f' {top_jogos["Nome"]} ({int(top_jogos["JogosCla"])} pts)</div>',
-              unsafe_allow_html=True,
-          )
-
-      st.write("")
-
       if mes_finalizado:
         st.success(
             "🔒 **O MÊS FOI FINALIZADO PELO ADMIN! CONFIRA OS CAMPEÕES:**"
@@ -556,7 +565,7 @@ else:
           with col1:
             st.markdown(
                 f'<div class="podium-card gold"><img'
-                ' src="https://i.ibb.co/mkC43vT/goldenpass.png" width="60"><div'
+                ' src="https://i.ibb.co/mkC43vT/goldenpass.png" width="50"><div'
                 ' class="podium-title">🥇 1º LUGAR</div><div'
                 f' class="podium-name">{df_rank.iloc[0]["Nome"]}</div><div'
                 ' class="podium-score">'
@@ -568,7 +577,7 @@ else:
           with col2:
             st.markdown(
                 f'<div class="podium-card silver"><img'
-                ' src="https://i.ibb.co/mkC43vT/goldenpass.png" width="60"><div'
+                ' src="https://i.ibb.co/mkC43vT/goldenpass.png" width="50"><div'
                 ' class="podium-title">🥈 2º LUGAR</div><div'
                 f' class="podium-name">{df_rank.iloc[1]["Nome"]}</div><div'
                 ' class="podium-score">'
@@ -580,7 +589,7 @@ else:
           with col3:
             st.markdown(
                 f'<div class="podium-card bronze"><img'
-                ' src="https://i.ibb.co/mkC43vT/goldenpass.png" width="60"><div'
+                ' src="https://i.ibb.co/mkC43vT/goldenpass.png" width="50"><div'
                 ' class="podium-title">🥉 3º LUGAR</div><div'
                 f' class="podium-name">{df_rank.iloc[2]["Nome"]}</div><div'
                 ' class="podium-score">'
