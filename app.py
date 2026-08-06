@@ -250,14 +250,19 @@ if st.session_state["pagina_atual"] == "layouts_guerra":
     with tabs_cv[idx]:
       st.subheader(f"Base de Guerra - {cv_nome}")
 
-      # Form exclusivo para Administradores
+      # Form exclusivo para Administradores com keys únicas
       if eh_admin:
         with st.expander(
             f"➕ [ADMIN] Adicionar Novo Layout de Guerra ({cv_nome})"
         ):
           with st.form(key=f"form_guerra_{cv_nome}"):
-            link_layout = st.text_input("Link Oficial do Layout")
-            descricao = st.text_input("Descrição / Foco (ex: Anti-3, Anti-2)")
+            link_layout = st.text_input(
+                "Link Oficial do Layout", key=f"input_link_guerra_{cv_nome}"
+            )
+            descricao = st.text_input(
+                "Descrição / Foco (ex: Anti-3, Anti-2)",
+                key=f"input_desc_guerra_{cv_nome}",
+            )
             btn_enviar = st.form_submit_button("Publicar Layout")
 
             if btn_enviar:
@@ -336,15 +341,18 @@ elif st.session_state["pagina_atual"] == "layouts_rankeada":
     with tabs_cv[idx]:
       st.subheader(f"Base de Rankeada - {cv_nome}")
 
-      # Form exclusivo para Administradores
+      # Form exclusivo para Administradores com keys únicas
       if eh_admin:
         with st.expander(
             f"➕ [ADMIN] Adicionar Novo Layout de Rankeada ({cv_nome})"
         ):
           with st.form(key=f"form_rankeada_{cv_nome}"):
-            link_layout = st.text_input("Link Oficial do Layout")
+            link_layout = st.text_input(
+                "Link Oficial do Layout", key=f"input_link_rankeada_{cv_nome}"
+            )
             descricao = st.text_input(
-                "Descrição / Foco (ex: Push Lendária, Proteção de Dark)"
+                "Descrição / Foco (ex: Push Lendária, Proteção de Dark)",
+                key=f"input_desc_rankeada_{cv_nome}",
             )
             btn_enviar = st.form_submit_button("Publicar Layout")
 
@@ -771,6 +779,7 @@ else:
             st.rerun()
 
       # 3. NOVO ADMIN
+      sub_tab3 = sub_tab3
       with sub_tab3:
         st.markdown("#### Cadastrar Novo Administrador")
         u_novo = st.text_input("Novo Usuário")
