@@ -140,7 +140,6 @@ st.markdown(
 
 # --- TRATAMENTO DOS DADOS E SOMA DAS COLUNAS DINÂMICAS ---
 if not df.empty:
-  # Identifica colunas de Raides e Guerras
   colunas_raides = [c for c in df.columns if c.startswith("Raide_")]
   colunas_guerras = [c for c in df.columns if c.startswith("Guerra_")]
   colunas_pontos = ["JogosCla", "Eventos"] + colunas_raides + colunas_guerras
@@ -167,7 +166,6 @@ tab_ranking, tab_tabela, tab_admin = st.tabs(
 # --- ABA 1: RANKING AO VIVO ---
 with tab_ranking:
   if not df.empty:
-    # EXIBIÇÃO DO PÓDIO APENAS SE O MÊS FOR FINALIZADO
     if mes_finalizado:
       st.success("🔒 **O MÊS FOI FINALIZADO PELO ADMIN! CONFIRA OS CAMPEÕES:**")
       st.subheader("🥇 Pódio dos Premiados com Passe Dourado")
@@ -224,8 +222,19 @@ with tab_ranking:
 
     st.subheader("📊 Classificação em Tempo Real")
 
-    # TABELA COM DESIGN MODERNO EM HTML
-    html_table = """<table class="modern-table"><thead><tr><th>Posição</th><th>Jogador</th><th>Pontuação Total</th></tr></thead><tbody>"""
+    # TABELA COM DESIGN MODERNO EM HTML E ENVOLTÓRIO RESPONSIVO
+    html_table = """
+    <div style="overflow-x: auto;">
+        <table class="modern-table">
+            <thead>
+                <tr>
+                    <th>Posição</th>
+                    <th>Jogador</th>
+                    <th>Pontuação Total</th>
+                </tr>
+            </thead>
+            <tbody>
+    """
 
     for _, row in df_rank.iterrows():
       pos_str = row["Posição"]
@@ -246,7 +255,13 @@ with tab_ranking:
                 <td>{int(row['Total'])} pts</td>
             </tr>
             """
-    html_table += "</tbody></table>"
+
+    html_table += """
+            </tbody>
+        </table>
+    </div>
+    """
+
     st.markdown(html_table, unsafe_allow_html=True)
 
   else:
@@ -312,8 +327,7 @@ with tab_admin:
     with c_fin2:
       st.markdown("#### 🎲 Verificação de Empate no Top 3")
       if not df_rank.empty and len(df_rank) >= 3:
-        p3_score = df_rank.iloc[2]["Total"]  # Nota do 3º colocado
-        # Busca jogadores empatados na linha de corte do Top 3
+        p3_score = df_rank.iloc[2]["Total"]
         empatados_corte = df_rank[df_rank["Total"] == p3_score]
 
         if len(empatados_corte) > 1 and df_rank.iloc[0]["Total"] != df_rank.iloc[2]["Total"]:
@@ -353,7 +367,6 @@ with tab_admin:
             st.error("Limite máximo de 50 jogadores atingido!")
           elif novo_nome.strip() != "":
             novo_id = len(dados) + 1
-            # Cria linha preenchendo zeros para as colunas existentes
             linha_nova = [novo_id, novo_nome.strip()] + [0] * (len(df.columns) - 2)
             sheet_dados.append_row(linha_nova)
             st.success(f"{novo_nome} adicionado!")
@@ -401,20 +414,17 @@ with tab_admin:
         col_lan1, col_lan2 = st.columns(2)
 
         with col_lan1:
-          # Jogos do Clã
           val_jogos = st.selectbox(
               "Jogos do Clã",
               options=[0, 5, 10],
               index=[0, 5, 10].index(int(dados_p["JogosCla"])),
               format_func=lambda x: f"{x} pts",
           )
-          # Eventos Conjuntos
           val_eventos = st.number_input(
               "Eventos Conjuntos", value=int(dados_p["Eventos"]), step=10
           )
 
         with col_lan2:
-          # Seletor dinâmico para Raides e Guerras
           evento_tipo = st.radio(
               "Selecione o tipo de atividade para atualizar:",
               ["Guerras", "Raides"],
@@ -438,13 +448,11 @@ with tab_admin:
             )
 
         if st.button("Salvar Registro"):
-          # Atualiza Jogos e Eventos
           col_idx_jogos = df.columns.get_loc("JogosCla") + 1
           col_idx_eventos = df.columns.get_loc("Eventos") + 1
           sheet_dados.update_cell(linha_p, col_idx_jogos, val_jogos)
           sheet_dados.update_cell(linha_p, col_idx_eventos, val_eventos)
 
-          # Atualiza Guerra ou Raide selecionada
           if evento_tipo == "Guerras" and colunas_guerras:
             col_idx_guerra = df.columns.get_loc(guerra_sel) + 1
             sheet_dados.update_cell(linha_p, col_idx_guerra, val_guerra_item)
