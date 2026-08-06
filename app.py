@@ -273,16 +273,10 @@ st.markdown(
         border: 2px solid #93c5fd; box-shadow: 0px 4px 0px #1e3a8a; font-size: 0.9rem;
     }
     .btn-external-link {
-        display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; text-align: center;
+        display: block; width: 100%; text-align: center;
         background: linear-gradient(180deg, #16a34a 0%, #15803d 100%); color: white !important;
-        padding: 8px 10px; border-radius: 8px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
-        border: 2px solid #86efac; box-shadow: 0px 4px 0px #14532d; font-size: 0.88rem;
-    }
-    .btn-scid {
-        display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; text-align: center;
-        background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%); color: white !important;
-        padding: 8px 10px; border-radius: 8px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
-        border: 2px solid #60a5fa; box-shadow: 0px 4px 0px #1e3a8a; font-size: 0.88rem;
+        padding: 8px 12px; border-radius: 8px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
+        border: 2px solid #86efac; box-shadow: 0px 4px 0px #14532d; font-size: 0.9rem;
     }
 
     .mural-banner {
@@ -322,10 +316,10 @@ st.markdown(
 )
 
 # --- TOPO DA PÁGINA: MENU DE NAVEGAÇÃO + LOGIN ADMIN NO CANTO DIREITO ---
-col_nav, col_admin_top = st.columns([5, 1])
+col_nav, col_admin_top = st.columns([4, 1])
 
 with col_nav:
-  b1, b2, b3, b4, b5, b6 = st.columns(6)
+  b1, b2, b3, b4, b5 = st.columns(5)
   with b1:
     if st.button("🛡️ Layouts Guerra", use_container_width=True):
       st.session_state["pagina_atual"] = "layouts_guerra"
@@ -347,16 +341,6 @@ with col_nav:
         '<a'
         ' href="https://link.clashofclans.com/pt?action=OpenClanProfile&tag=2YPL9GU8Y"'
         ' target="_blank" class="btn-external-link">🏰 Clã Vastaya ↗</a>',
-        unsafe_allow_html=True,
-    )
-  with b6:
-    st.markdown(
-        '<a'
-        ' href="https://link.clashofclans.com/?action=OpenSCID&p=25-1cb8481f-3a79-4681-90f9-8914acef2d63"'
-        ' target="_blank" class="btn-scid"><img'
-        ' src="https://i.ibb.co/fzPGy6fr/bg-hero-scid-landing-0.webp"'
-        ' height="20" style="border-radius: 4px; object-fit:'
-        ' cover;"> Add Godoy ↗</a>',
         unsafe_allow_html=True,
     )
 
