@@ -1,6 +1,5 @@
 import hashlib
 import json
-import random
 from datetime import datetime
 import gspread
 import pandas as pd
@@ -42,7 +41,7 @@ def conectar_banco():
     sheet_admins.append_row(["Usuario", "SenhaHash"])
     sheet_admins.append_row(["admin", gerar_hash("winning123")])
 
-  # Aba de Estado do Mês
+  # Aba de Estado e Recados
   try:
     sheet_estado = spreadsheet.worksheet("EstadoMes")
   except gspread.WorksheetNotFound:
@@ -51,7 +50,7 @@ def conectar_banco():
     )
     sheet_estado.append_row(["Chave", "Valor"])
     sheet_estado.append_row(["mes_finalizado", "FALSE"])
-    sheet_estado.append_row(["sorteio_realizado", "FALSE"])
+    sheet_estado.append_row(["mural_recado", "Bem-vindos ao aplicativo oficial!"])
 
   # Aba de Layouts
   try:
@@ -64,7 +63,7 @@ def conectar_banco():
         ["Tipo", "CV", "Autor", "Link", "Descricao", "ImagemUrl", "Tag"]
     )
 
-  # Aba de Logs de Alterações
+  # Aba de Logs
   try:
     sheet_logs = spreadsheet.worksheet("Logs")
   except gspread.WorksheetNotFound:
@@ -115,12 +114,33 @@ def registrar_log(admin: str, acao: str):
     pass
 
 
-# --- CARREGAR DADOS ---
-try:
-  dados = sheet_dados.get_all_records()
-  df = pd.DataFrame(dados)
-except Exception:
-  df = pd.DataFrame()
+# --- CARREGAR DADOS COM CACHE DE DESEMPENHO (120 SEGUNDOS) ---
+@st.cache_data(ttl=120)
+def obter_dados_cached():
+  try:
+    return sheet_dados.get_all_records()
+  except Exception:
+    return []
+
+
+@st.cache_data(ttl=120)
+def obter_layouts_cached():
+  try:
+    return sheet_layouts.get_all_records()
+  except Exception:
+    return []
+
+
+@st.cache_data(ttl=120)
+def obter_galeria_cached():
+  try:
+    return sheet_fama.get_all_records()
+  except Exception:
+    return []
+
+
+dados = obter_dados_cached()
+df = pd.DataFrame(dados) if dados else pd.DataFrame()
 
 try:
   dados_admins = sheet_admins.get_all_records()
@@ -133,35 +153,17 @@ except Exception:
 try:
   dados_estado = dict(sheet_estado.get_all_values())
   mes_finalizado = dados_estado.get("mes_finalizado", "FALSE") == "TRUE"
+  mural_recado = dados_estado.get("mural_recado", "")
 except Exception:
   mes_finalizado = False
+  mural_recado = ""
 
 # ESTADO DE NAVEGAÇÃO
 if "pagina_atual" not in st.session_state:
   st.session_state["pagina_atual"] = "principal"
 
-
-# --- CARREGAR LAYOUTS E GALERIA DA FAMA ---
-def carregar_layouts():
-  try:
-    registros = sheet_layouts.get_all_records()
-    return pd.DataFrame(registros)
-  except Exception:
-    return pd.DataFrame(
-        columns=["Tipo", "CV", "Autor", "Link", "Descricao", "ImagemUrl", "Tag"]
-    )
-
-
-def carregar_galeria():
-  try:
-    registros = sheet_fama.get_all_records()
-    return pd.DataFrame(registros)
-  except Exception:
-    return pd.DataFrame(columns=["MesAno", "Primeiro", "Segundo", "Terceiro"])
-
-
-df_layouts = carregar_layouts()
-df_fama = carregar_galeria()
+df_layouts = pd.DataFrame(obter_layouts_cached())
+df_fama = pd.DataFrame(obter_galeria_cached())
 
 # --- ESTILIZAÇÃO CSS CUSTOMIZADA ---
 st.markdown(
@@ -179,7 +181,7 @@ st.markdown(
     }
     
     .main-title { text-align: center; margin-top: 5px; margin-bottom: 5px; font-size: 2.5rem; }
-    .main-subtitle { text-align: center; color: #94a3b8; font-family: 'Nunito', sans-serif; font-weight: 600; margin-bottom: 25px; }
+    .main-subtitle { text-align: center; color: #94a3b8; font-family: 'Nunito', sans-serif; font-weight: 600; margin-bottom: 20px; }
     
     div.stButton > button {
         background: linear-gradient(180deg, #22c55e 0%, #15803d 100%) !important;
@@ -219,9 +221,12 @@ st.markdown(
         border: 2px solid #86efac; box-shadow: 0px 4px 0px #14532d;
     }
 
-    .info-card { background: #1e293b; border-radius: 12px; padding: 20px; margin-bottom: 15px; border: 2px solid #334155; border-left: 5px solid #facc15; box-shadow: 0 4px 12px rgba(0,0,0,0.4); font-family: 'Nunito', sans-serif; }
-    .info-card-header { font-size: 1.1rem; font-weight: bold; color: #facc15; margin-bottom: 10px; font-family: 'Luckiest Guy', cursive; }
-    .info-card-list { color: #e2e8f0; margin: 0; padding-left: 20px; line-height: 1.6; }
+    .mural-banner {
+        background: #1e293b; border-radius: 12px; padding: 15px; margin-bottom: 20px;
+        border: 2px solid #334155; border-left: 6px solid #facc15;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-family: 'Nunito', sans-serif;
+    }
+    .mural-header { font-family: 'Luckiest Guy', cursive; color: #facc15; font-size: 1.1rem; margin-bottom: 5px; }
 
     .badge-highlight {
         background: #0f172a; border: 2px solid #38bdf8; border-radius: 8px; padding: 8px 12px; margin: 4px; display: inline-block; font-family: 'Nunito', sans-serif; font-weight: bold; color: #e0f2fe;
@@ -355,6 +360,7 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
                     st.session_state["admin_logado"],
                     f"Adicionou layout {tipo_layout} para {cv_nome}",
                 )
+                st.cache_data.clear()
                 st.success("Layout publicado!")
                 st.rerun()
 
@@ -402,6 +408,7 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
                         st.session_state["admin_logado"],
                         f"Excluiu layout de {cv_nome}",
                     )
+                    st.cache_data.clear()
                     st.success("Removido!")
                     st.rerun()
             st.divider()
@@ -410,7 +417,7 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
 
 
 # ==============================================================================
-# PÁGINA: GALERIA DA FAMA (HISTÓRICO)
+# PÁGINA: GALERIA DA FAMA
 # ==============================================================================
 def renderizar_galeria_fama():
   if st.button("⬅️ Voltar ao Início"):
@@ -466,6 +473,18 @@ else:
       " mês, os Top 3 garantem o Passe Dourado!</p>",
       unsafe_allow_html=True,
   )
+
+  # MURAL DE RECADOS DA LIDERANÇA
+  if mural_recado.strip():
+    st.markdown(
+        f"""
+        <div class="mural-banner">
+            <div class="mural-header">📢 MURAL DA LIDERANÇA</div>
+            <div style="color: #e2e8f0;">{mural_recado}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
   if not df.empty:
     colunas_raides = [c for c in df.columns if c.startswith("Raide_")]
@@ -570,12 +589,25 @@ else:
                 unsafe_allow_html=True,
             )
 
+      # BARRA DE BUSCA DE JOGADORES (UX)
+      busca_player = st.text_input(
+          "🔍 Buscar Jogador no Ranking:",
+          placeholder="Digite o nome do membro...",
+      )
+
       st.subheader("📊 Classificação em Tempo Real")
       df_exibicao = df_rank[["Posição", "Nome", "Total"]].copy()
       df_exibicao["Total"] = df_exibicao["Total"].astype(int)
       df_exibicao.rename(
           columns={"Nome": "Jogador", "Total": "Pontuação Total"}, inplace=True
       )
+
+      if busca_player.strip():
+        df_exibicao = df_exibicao[
+            df_exibicao["Jogador"]
+            .str.lower()
+            .str.contains(busca_player.strip().lower())
+        ]
 
       def destacar_podio(row):
         pos = str(row["Posição"])
@@ -642,11 +674,12 @@ else:
       st.write("---")
       st.success(f"Sessão Ativa: **{st.session_state['admin_logado']}**")
 
-      sub_tab1, sub_tab2, sub_tab3, sub_tab4 = st.tabs([
+      sub_tab1, sub_tab2, sub_tab3, sub_tab4, sub_tab5 = st.tabs([
           "➕ Players",
           "✏️ Editar Pontos",
-          "📜 Arquivar Mês (Galeria)",
+          "📢 Recado / Arquivar Mês",
           "📜 Logs do Sistema",
+          "💾 Backup de Dados",
       ])
 
       with sub_tab1:
@@ -664,20 +697,30 @@ else:
                   st.session_state["admin_logado"],
                   f"Cadastrou player {novo_nome}",
               )
+              st.cache_data.clear()
               st.success("Adicionado!")
               st.rerun()
         with c2:
           if not df.empty and "Nome" in df.columns:
-            player_rem = st.selectbox("Remover", df["Nome"].tolist())
+            player_rem = st.selectbox("Remover Player", df["Nome"].tolist())
+            confirmar_rem = st.checkbox(
+                "⚠️ Confirmar exclusão permanente deste jogador"
+            )
             if st.button("Remover Player", type="primary"):
-              cell = sheet_dados.find(player_rem)
-              sheet_dados.delete_rows(cell.row)
-              registrar_log(
-                  st.session_state["admin_logado"],
-                  f"Removeu player {player_rem}",
-              )
-              st.success("Removido!")
-              st.rerun()
+              if confirmar_rem:
+                cell = sheet_dados.find(player_rem)
+                sheet_dados.delete_rows(cell.row)
+                registrar_log(
+                    st.session_state["admin_logado"],
+                    f"Removeu player {player_rem}",
+                )
+                st.cache_data.clear()
+                st.success("Removido com sucesso!")
+                st.rerun()
+              else:
+                st.warning(
+                    "Marque a caixa de confirmação para poder remover."
+                )
 
       with sub_tab2:
         if not df.empty:
@@ -697,10 +740,27 @@ else:
                 st.session_state["admin_logado"],
                 "Atualizou a planilha de pontos em lote",
             )
+            st.cache_data.clear()
             st.success("Salvo com sucesso!")
             st.rerun()
 
       with sub_tab3:
+        st.markdown("#### 📢 Atualizar Mural de Recados")
+        novo_recado = st.text_area("Recado para o topo da tela:", mural_recado)
+        if st.button("Publicar Recado"):
+          cell_recado = sheet_estado.find("mural_recado")
+          if cell_recado:
+            sheet_estado.update_cell(cell_recado.row, 2, novo_recado.strip())
+          else:
+            sheet_estado.append_row(["mural_recado", novo_recado.strip()])
+          registrar_log(
+              st.session_state["admin_logado"], "Atualizou mural de recados"
+          )
+          st.success("Recado publicado!")
+          st.rerun()
+
+        st.divider()
+
         st.markdown("#### 🌟 Salvar Mês na Galeria da Fama")
         mes_ano_ref = st.text_input("Mês/Ano de Referência (Ex: Janeiro/2026)")
         if st.button("🏆 Arquivar Campeões do Mês"):
@@ -715,6 +775,7 @@ else:
                 st.session_state["admin_logado"],
                 f"Arquivou campeões de {mes_ano_ref}",
             )
+            st.cache_data.clear()
             st.success("Registrado na Galeria da Fama!")
             st.rerun()
 
@@ -727,3 +788,18 @@ else:
           )
         except Exception:
           st.info("Nenhum log registrado ainda.")
+
+      with sub_tab5:
+        st.markdown("#### 💾 Exportar Backup do Banco de Dados")
+        if not df.empty:
+          csv_backup = df.to_csv(index=False).encode("utf-8")
+          st.download_button(
+              label="📥 Baixar Backup Atual em CSV",
+              data=csv_backup,
+              file_name=(
+                  f"winningwars_backup_{datetime.now().strftime('%Y%m%d')}.csv"
+              ),
+              mime="text/csv",
+          )
+        else:
+          st.info("Nenhum dado disponível para backup.")
