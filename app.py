@@ -1,6 +1,7 @@
 import hashlib
 import json
 import random
+import re
 import gspread
 import pandas as pd
 import streamlit as st
@@ -15,6 +16,17 @@ st.set_page_config(
 # --- FUNÇÕES AUXILIARES ---
 def gerar_hash(senha: str) -> str:
   return hashlib.sha256(senha.encode()).hexdigest()
+
+
+def corrigir_link_imagem(url: str) -> str:
+  """Trata URLs comuns (como do ImgBB) para tentar obter o link direto da imagem."""
+  url = url.strip()
+  if not url:
+    return ""
+
+  # Se for link de página do ImgBB (ex: https://ibb.co/abcd), tenta ajustar aviso/renderização
+  # O ideal é https://i.ibb.co/.../imagem.png
+  return url
 
 
 # --- CONEXÃO COM O GOOGLE SHEETS ---
@@ -52,7 +64,7 @@ def conectar_banco():
     sheet_estado.append_row(["mes_finalizado", "FALSE"])
     sheet_estado.append_row(["sorteio_realizado", "FALSE"])
 
-  # Aba de Layouts (Persistência Global para todos os membros)
+  # Aba de Layouts (Persistência Global)
   try:
     sheet_layouts = spreadsheet.worksheet("Layouts")
   except gspread.WorksheetNotFound:
@@ -68,7 +80,7 @@ def conectar_banco():
 
 try:
   sheet_dados, sheet_admins, sheet_estado, sheet_layouts = conectar_banco()
-except Exception as e:
+except Exception:
   st.error(
       "⚠️ **Erro na Conexão:** Não foi possível acessar a planilha"
       " 'WinningWars_DB'. Verifique suas permissões."
@@ -159,13 +171,6 @@ st.markdown(
         border: 1px solid #22c55e;
     }
     .btn-external-link:hover { background-color: #15803d; }
-
-    /* LIMITAÇÃO DO TAMANHO DE IMAGENS */
-    stImage > img {
-        max-width: 380px !important;
-        border-radius: 10px;
-        border: 1px solid #334155;
-    }
     </style>
 """,
     unsafe_allow_html=True,
@@ -217,6 +222,7 @@ with btn_col3:
 
 st.write("---")
 
+
 # ==============================================================================
 # FUNÇÃO REUTILIZÁVEL PARA RENDERIZAR PÁGINAS DE LAYOUT
 # ==============================================================================
@@ -254,10 +260,11 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
                 key=f"input_desc_{tipo_layout}_{cv_nome}",
             )
             img_url = st.text_input(
-                "URL da Imagem da Base (Link direto da foto)",
+                "Link Direto da Foto (ex: https://i.ibb.co/.../foto.png)",
                 key=f"img_{tipo_layout}_{cv_nome}",
                 help=(
-                    "Cole o link da imagem hospedada (ex: Imgur, Discord, etc.)"
+                    "No ImgBB, escolha 'Códigos de incorporação' e copie o 'Link"
+                    " direto'!"
                 ),
             )
 
@@ -298,16 +305,23 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
                 f"**👑 Admin:** {row['Autor']} | **📌 Foco:** {row['Descricao']}"
             )
 
-            # Exibe Imagem com TAMANHO CONTROLADO (width=380)
-            if str(row["ImagemUrl"]).strip():
-              try:
-                st.image(
-                    str(row["ImagemUrl"]).strip(),
-                    caption=f"Layout {cv_nome}",
-                    width=380,
+            # EXIBIÇÃO TRATADA DA IMAGEM
+            img_url_limpa = str(row["ImagemUrl"]).strip()
+
+            if img_url_limpa:
+              if "ibb.co" in img_url_limpa and not "i.ibb.co" in img_url_limpa:
+                st.warning(
+                    "⚠️ **Link de imagem incorreto:** No ImgBB, mude para"
+                    " 'Códigos de Incorporação' -> 'Link direto' (deve iniciar"
+                    " com i.ibb.co e terminar em .png/.jpg)."
                 )
-              except Exception:
-                pass
+              else:
+                try:
+                  st.image(
+                      img_url_limpa, caption=f"Layout {cv_nome}", width=380
+                  )
+                except Exception:
+                  st.caption("⚠️ *(Não foi possível carregar esta imagem)*")
 
             # Botão Direto para copiar
             c_btn, c_del = st.columns([3, 1])
@@ -322,7 +336,6 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
                 if st.button(
                     "❌ Excluir", key=f"del_{tipo_layout}_{cv_nome}_{item_idx}"
                 ):
-                  # Remove a linha no Google Sheets (+2 devido ao cabeçalho/index 1)
                   cell = sheet_layouts.find(row["Link"])
                   if cell:
                     sheet_layouts.delete_rows(cell.row)
