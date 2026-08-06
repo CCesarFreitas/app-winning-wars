@@ -94,7 +94,7 @@ except Exception:
 if "pagina_atual" not in st.session_state:
   st.session_state["pagina_atual"] = "principal"
 
-# ARMAZENAMENTO TEMPORÁRIO DE LAYOUTS (EM SESSÃO)
+# ARMAZENAMENTO DE LAYOUTS (EM SESSÃO)
 if "layouts_guerra" not in st.session_state:
   st.session_state["layouts_guerra"] = {
       f"CV {i}": [] for i in range(18, 11, -1)
@@ -221,125 +221,173 @@ st.write("---")
 # PÁGINA 1: LAYOUTS DE GUERRA
 # ==============================================================================
 if st.session_state["pagina_atual"] == "layouts_guerra":
-  if st.button("⬅️ Voltar ao Inicio"):
+  if st.button("⬅️ Voltar ao Início"):
     st.session_state["pagina_atual"] = "principal"
     st.rerun()
 
   st.markdown(
-      "<h1 style='text-align: center;'>🛡️ Layouts de Guerra Atualizados</h1>",
+      "<h1 style='text-align: center;'>🛡️ Layouts Oficiais de Guerra</h1>",
       unsafe_allow_html=True,
   )
   st.markdown(
-      "<p style='text-align: center; color: #94a3b8;'>Selecione o seu Centro de"
-      " Vila (CV) para ver ou enviar novos layouts defensivos para"
-      " guerras.</p>",
+      "<p style='text-align: center; color: #94a3b8;'>Layouts defensivos"
+      " oficiais selecionados pelos administradores para guerras e liga.</p>",
       unsafe_allow_html=True,
   )
+
+  eh_admin = "admin_logado" in st.session_state
+
+  if not eh_admin:
+    st.info(
+        "💡 **Apenas a administração do clã pode publicar novos layouts.**"
+        " Selecione o seu CV abaixo para copiar a base."
+    )
 
   cv_list = [f"CV {i}" for i in range(18, 11, -1)]
   tabs_cv = st.tabs(cv_list)
 
   for idx, cv_nome in enumerate(cv_list):
     with tabs_cv[idx]:
-      st.subheader(f"Layouts de Guerra - {cv_nome}")
+      st.subheader(f"Base de Guerra - {cv_nome}")
 
-      # Form para adicionar layout
-      with st.form(key=f"form_guerra_{cv_nome}"):
-        autor = st.text_input("Seu Nome / Autor do Layout")
-        link_layout = st.text_input("Link do Layout (Clash of Clans)")
-        descricao = st.text_input("Descrição / Foco (ex: Anti-3 Estrelas)")
-        btn_enviar = st.form_submit_button("Enviar Layout")
+      # Form exclusivo para Administradores
+      if eh_admin:
+        with st.expander(
+            f"➕ [ADMIN] Adicionar Novo Layout de Guerra ({cv_nome})"
+        ):
+          with st.form(key=f"form_guerra_{cv_nome}"):
+            link_layout = st.text_input("Link Oficial do Layout")
+            descricao = st.text_input("Descrição / Foco (ex: Anti-3, Anti-2)")
+            btn_enviar = st.form_submit_button("Publicar Layout")
 
-        if btn_enviar:
-          if link_layout.strip():
-            st.session_state["layouts_guerra"][cv_nome].append({
-                "autor": autor if autor.strip() else "Anônimo",
-                "link": link_layout.strip(),
-                "descricao": descricao if descricao.strip() else "Sem descrição",
-            })
-            st.success("Layout adicionado com sucesso!")
-            st.rerun()
-          else:
-            st.error("Por favor, cole um link válido de layout.")
+            if btn_enviar:
+              if link_layout.strip():
+                st.session_state["layouts_guerra"][cv_nome].append({
+                    "autor": st.session_state["admin_logado"],
+                    "link": link_layout.strip(),
+                    "descricao": (
+                        descricao.strip()
+                        if descricao.strip()
+                        else "Layout Recomendado"
+                    ),
+                })
+                st.success("Layout publicado com sucesso!")
+                st.rerun()
+              else:
+                st.error("Insira um link de layout válido.")
 
-      st.write("---")
-      st.markdown("### 📋 Layouts Compartilhados")
+      # Lista de Layouts disponíveis
       lista_l = st.session_state["layouts_guerra"][cv_nome]
 
       if lista_l:
-        for item in lista_l:
-          c_a, c_b, c_c = st.columns([2, 3, 2])
+        st.markdown("### 📋 Layouts Disponíveis")
+        for item_idx, item in enumerate(lista_l):
+          c_a, c_b, c_c, c_d = st.columns([2, 3, 2, 1])
           with c_a:
-            st.write(f"👤 **{item['autor']}**")
+            st.write(f"👑 Admin: **{item['autor']}**")
           with c_b:
-            st.write(f"📝 {item['descricao']}")
+            st.write(f"📌 {item['descricao']}")
           with c_c:
             st.markdown(f"[📥 Copiar Layout]({item['link']})")
+          with c_d:
+            if eh_admin:
+              if st.button(
+                  "❌ Excluir", key=f"del_guerra_{cv_nome}_{item_idx}"
+              ):
+                st.session_state["layouts_guerra"][cv_nome].pop(item_idx)
+                st.success("Layout removido!")
+                st.rerun()
           st.divider()
       else:
-        st.info(f"Nenhum layout cadastrado ainda para o {cv_nome}.")
+        st.info(f"Nenhum layout oficial cadastrado ainda para o {cv_nome}.")
 
 # ==============================================================================
 # PÁGINA 2: LAYOUTS DE RANKEADA
 # ==============================================================================
 elif st.session_state["pagina_atual"] == "layouts_rankeada":
-  if st.button("⬅️ Voltar ao Inicio"):
+  if st.button("⬅️ Voltar ao Início"):
     st.session_state["pagina_atual"] = "principal"
     st.rerun()
 
   st.markdown(
-      "<h1 style='text-align: center;'>🏆 Layouts de Rankeada Atualizados</h1>",
+      "<h1 style='text-align: center;'>🏆 Layouts Oficiais de Rankeada /"
+      " Farm</h1>",
       unsafe_allow_html=True,
   )
   st.markdown(
-      "<p style='text-align: center; color: #94a3b8;'>Selecione o seu Centro de"
-      " Vila (CV) para ver ou enviar layouts focado em subida de troféus e"
-      " Vila Lendária.</p>",
+      "<p style='text-align: center; color: #94a3b8;'>Layouts oficiais"
+      " recomendados para subida de troféus, Vila Lendária e proteção de"
+      " recursos.</p>",
       unsafe_allow_html=True,
   )
+
+  eh_admin = "admin_logado" in st.session_state
+
+  if not eh_admin:
+    st.info(
+        "💡 **Apenas a administração do clã pode publicar novos layouts.**"
+        " Selecione o seu CV abaixo para copiar a base."
+    )
 
   cv_list = [f"CV {i}" for i in range(18, 11, -1)]
   tabs_cv = st.tabs(cv_list)
 
   for idx, cv_nome in enumerate(cv_list):
     with tabs_cv[idx]:
-      st.subheader(f"Layouts de Rankeada - {cv_nome}")
+      st.subheader(f"Base de Rankeada - {cv_nome}")
 
-      # Form para adicionar layout
-      with st.form(key=f"form_rankeada_{cv_nome}"):
-        autor = st.text_input("Seu Nome / Autor do Layout")
-        link_layout = st.text_input("Link do Layout (Clash of Clans)")
-        descricao = st.text_input("Descrição / Foco (ex: Proteção de Recursos)")
-        btn_enviar = st.form_submit_button("Enviar Layout")
+      # Form exclusivo para Administradores
+      if eh_admin:
+        with st.expander(
+            f"➕ [ADMIN] Adicionar Novo Layout de Rankeada ({cv_nome})"
+        ):
+          with st.form(key=f"form_rankeada_{cv_nome}"):
+            link_layout = st.text_input("Link Oficial do Layout")
+            descricao = st.text_input(
+                "Descrição / Foco (ex: Push Lendária, Proteção de Dark)"
+            )
+            btn_enviar = st.form_submit_button("Publicar Layout")
 
-        if btn_enviar:
-          if link_layout.strip():
-            st.session_state["layouts_rankeada"][cv_nome].append({
-                "autor": autor if autor.strip() else "Anônimo",
-                "link": link_layout.strip(),
-                "descricao": descricao if descricao.strip() else "Sem descrição",
-            })
-            st.success("Layout adicionado com sucesso!")
-            st.rerun()
-          else:
-            st.error("Por favor, cole um link válido de layout.")
+            if btn_enviar:
+              if link_layout.strip():
+                st.session_state["layouts_rankeada"][cv_nome].append({
+                    "autor": st.session_state["admin_logado"],
+                    "link": link_layout.strip(),
+                    "descricao": (
+                        descricao.strip()
+                        if descricao.strip()
+                        else "Layout Recomendado"
+                    ),
+                })
+                st.success("Layout publicado com sucesso!")
+                st.rerun()
+              else:
+                st.error("Insira um link de layout válido.")
 
-      st.write("---")
-      st.markdown("### 📋 Layouts Compartilhados")
+      # Lista de Layouts disponíveis
       lista_l = st.session_state["layouts_rankeada"][cv_nome]
 
       if lista_l:
-        for item in lista_l:
-          c_a, c_b, c_c = st.columns([2, 3, 2])
+        st.markdown("### 📋 Layouts Disponíveis")
+        for item_idx, item in enumerate(lista_l):
+          c_a, c_b, c_c, c_d = st.columns([2, 3, 2, 1])
           with c_a:
-            st.write(f"👤 **{item['autor']}**")
+            st.write(f"👑 Admin: **{item['autor']}**")
           with c_b:
-            st.write(f"📝 {item['descricao']}")
+            st.write(f"📌 {item['descricao']}")
           with c_c:
             st.markdown(f"[📥 Copiar Layout]({item['link']})")
+          with c_d:
+            if eh_admin:
+              if st.button(
+                  "❌ Excluir", key=f"del_rankeada_{cv_nome}_{item_idx}"
+              ):
+                st.session_state["layouts_rankeada"][cv_nome].pop(item_idx)
+                st.success("Layout removido!")
+                st.rerun()
           st.divider()
       else:
-        st.info(f"Nenhum layout cadastrado ainda para o {cv_nome}.")
+        st.info(f"Nenhum layout oficial cadastrado ainda para o {cv_nome}.")
 
 # ==============================================================================
 # PÁGINA PRINCIPAL (RANKING & APLICAÇÃO)
