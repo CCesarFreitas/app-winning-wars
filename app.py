@@ -73,7 +73,7 @@ df_admins = pd.DataFrame(dados_admins)
 dados_estado = dict(sheet_estado.get_all_values())
 mes_finalizado = dados_estado.get("mes_finalizado", "FALSE") == "TRUE"
 
-# --- ESTILIZAÇÃO CSS CUSTOMIZADA (DESIGN MODERNO) ---
+# --- ESTILIZAÇÃO CSS CUSTOMIZADA (CARTÕES E PÓDIO) ---
 st.markdown(
     """
     <style>
@@ -96,43 +96,6 @@ st.markdown(
     .podium-title { font-size: 1.1rem; font-weight: bold; letter-spacing: 1px; }
     .podium-name { font-size: 1.8rem; font-weight: 800; text-shadow: 2px 2px 4px rgba(0,0,0,0.6); margin: 8px 0; }
     .podium-score { font-size: 1.5rem; color: #facc15; font-weight: bold; }
-
-    /* TABELA DE RANKING MODERNA */
-    .modern-table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0 10px;
-        margin-top: 15px;
-    }
-    .modern-table th {
-        background-color: #1e293b;
-        color: #facc15;
-        padding: 14px 18px;
-        text-align: left;
-        font-size: 1rem;
-        text-transform: uppercase;
-        border-bottom: 2px solid #334155;
-    }
-    .modern-table td {
-        background-color: #161e2e;
-        color: #f1f5f9;
-        padding: 14px 18px;
-        font-size: 1.05rem;
-        border-top: 1px solid #273549;
-        border-bottom: 1px solid #273549;
-    }
-    .modern-table tr td:first-child { border-top-left-radius: 10px; border-bottom-left-radius: 10px; font-weight: bold; color: #facc15; }
-    .modern-table tr td:last-child { border-top-right-radius: 10px; border-bottom-right-radius: 10px; font-weight: bold; text-align: right; }
-    
-    .badge-pos {
-        background: #334155;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 0.9rem;
-    }
-    .badge-top1 { background: #b45309; color: #facc15; }
-    .badge-top2 { background: #475569; color: #ffffff; }
-    .badge-top3 { background: #78350f; color: #fdba74; }
     </style>
 """,
     unsafe_allow_html=True,
@@ -222,47 +185,14 @@ with tab_ranking:
 
     st.subheader("📊 Classificação em Tempo Real")
 
-    # TABELA COM DESIGN MODERNO EM HTML E ENVOLTÓRIO RESPONSIVO
-    html_table = """
-    <div style="overflow-x: auto;">
-        <table class="modern-table">
-            <thead>
-                <tr>
-                    <th>Posição</th>
-                    <th>Jogador</th>
-                    <th>Pontuação Total</th>
-                </tr>
-            </thead>
-            <tbody>
-    """
+    # RENDERIZAÇÃO NATIVA E LIMPA DA TABELA
+    df_exibicao = df_rank[["Posição", "Nome", "Total"]].copy()
+    df_exibicao["Total"] = df_exibicao["Total"].apply(lambda x: f"{int(x)} pts")
+    df_exibicao.rename(
+        columns={"Nome": "Jogador", "Total": "Pontuação Total"}, inplace=True
+    )
 
-    for _, row in df_rank.iterrows():
-      pos_str = row["Posição"]
-      badge_class = (
-          "badge-top1"
-          if pos_str == "1º"
-          else (
-              "badge-top2"
-              if pos_str == "2º"
-              else "badge-top3" if pos_str == "3º" else "badge-pos"
-          )
-      )
-
-      html_table += f"""
-            <tr>
-                <td><span class="{badge_class}">{pos_str}</span></td>
-                <td><strong>{row['Nome']}</strong></td>
-                <td>{int(row['Total'])} pts</td>
-            </tr>
-            """
-
-    html_table += """
-            </tbody>
-        </table>
-    </div>
-    """
-
-    st.markdown(html_table, unsafe_allow_html=True)
+    st.dataframe(df_exibicao, use_container_width=True, hide_index=True)
 
   else:
     st.info("Nenhum jogador cadastrado ainda.")
