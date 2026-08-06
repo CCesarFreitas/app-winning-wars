@@ -52,16 +52,26 @@ def conectar_banco():
     sheet_estado.append_row(["mes_finalizado", "FALSE"])
     sheet_estado.append_row(["sorteio_realizado", "FALSE"])
 
-  return sheet_dados, sheet_admins, sheet_estado
+  # Aba de Layouts (Persistência Global para todos os membros)
+  try:
+    sheet_layouts = spreadsheet.worksheet("Layouts")
+  except gspread.WorksheetNotFound:
+    sheet_layouts = spreadsheet.add_worksheet(
+        title="Layouts", rows="500", cols="6"
+    )
+    sheet_layouts.append_row(
+        ["Tipo", "CV", "Autor", "Link", "Descricao", "ImagemUrl"]
+    )
+
+  return sheet_dados, sheet_admins, sheet_estado, sheet_layouts
 
 
 try:
-  sheet_dados, sheet_admins, sheet_estado = conectar_banco()
-except Exception:
+  sheet_dados, sheet_admins, sheet_estado, sheet_layouts = conectar_banco()
+except Exception as e:
   st.error(
       "⚠️ **Erro na Conexão:** Não foi possível acessar a planilha"
-      " 'WinningWars_DB'. Verifique se as permissões e as chaves em Secrets"
-      " estão corretas."
+      " 'WinningWars_DB'. Verifique suas permissões."
   )
   st.stop()
 
@@ -90,16 +100,19 @@ except Exception:
 if "pagina_atual" not in st.session_state:
   st.session_state["pagina_atual"] = "principal"
 
-# ARMAZENAMENTO DE LAYOUTS (EM SESSÃO)
-if "layouts_guerra" not in st.session_state:
-  st.session_state["layouts_guerra"] = {
-      f"CV {i}": [] for i in range(18, 11, -1)
-  }
 
-if "layouts_rankeada" not in st.session_state:
-  st.session_state["layouts_rankeada"] = {
-      f"CV {i}": [] for i in range(18, 11, -1)
-  }
+# --- CARREGAR LAYOUTS DO BANCO DE DADOS ---
+def carregar_layouts():
+  try:
+    registros = sheet_layouts.get_all_records()
+    return pd.DataFrame(registros)
+  except Exception:
+    return pd.DataFrame(
+        columns=["Tipo", "CV", "Autor", "Link", "Descricao", "ImagemUrl"]
+    )
+
+
+df_layouts = carregar_layouts()
 
 # --- ESTILIZAÇÃO CSS CUSTOMIZADA ---
 st.markdown(
@@ -108,26 +121,11 @@ st.markdown(
     .main { background-color: #0b0e14; }
     h1, h2, h3 { color: #facc15 !important; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     
-    .main-title {
-        text-align: center;
-        margin-top: 10px;
-        margin-bottom: 5px;
-    }
-    .main-subtitle {
-        text-align: center;
-        color: #94a3b8;
-        margin-bottom: 25px;
-    }
+    .main-title { text-align: center; margin-top: 10px; margin-bottom: 5px; }
+    .main-subtitle { text-align: center; color: #94a3b8; margin-bottom: 25px; }
     
     /* PÓDIO */
-    .podium-card {
-        padding: 22px;
-        border-radius: 16px;
-        text-align: center;
-        margin-bottom: 25px;
-        color: #ffffff;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.4);
-    }
+    .podium-card { padding: 22px; border-radius: 16px; text-align: center; margin-bottom: 25px; color: #ffffff; box-shadow: 0 8px 25px rgba(0,0,0,0.4); }
     .gold { background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%); border: 2px solid #facc15; }
     .silver { background: linear-gradient(135deg, #94a3b8 0%, #475569 100%); border: 2px solid #cbd5e1; }
     .bronze { background: linear-gradient(135deg, #d97706 0%, #78350f 100%); border: 2px solid #f97316; }
@@ -136,6 +134,7 @@ st.markdown(
     .btn-layout-copy {
         display: inline-block;
         width: 100%;
+        max-width: 380px;
         text-align: center;
         background-color: #2563eb;
         color: white !important;
@@ -145,9 +144,7 @@ st.markdown(
         font-weight: bold;
         border: 1px solid #3b82f6;
     }
-    .btn-layout-copy:hover {
-        background-color: #1d4ed8;
-    }
+    .btn-layout-copy:hover { background-color: #1d4ed8; }
 
     .btn-external-link {
         display: block;
@@ -161,8 +158,13 @@ st.markdown(
         font-weight: bold;
         border: 1px solid #22c55e;
     }
-    .btn-external-link:hover {
-        background-color: #15803d;
+    .btn-external-link:hover { background-color: #15803d; }
+
+    /* LIMITAÇÃO DO TAMANHO DE IMAGENS */
+    stImage > img {
+        max-width: 380px !important;
+        border-radius: 10px;
+        border: 1px solid #334155;
     }
     </style>
 """,
@@ -170,7 +172,7 @@ st.markdown(
 )
 
 
-# --- COMPONENTE: LOGIN DE ADMIN NAS PÁGINAS DE LAYOUT ---
+# --- LOGIN RÁPIDO DE ADMIN NAS PÁGINAS DE LAYOUT ---
 def renderizar_login_admin_layout(prefixo: str):
   if "admin_logado" not in st.session_state:
     with st.expander("🔐 É Administrador? Clique aqui para fazer Login"):
@@ -216,217 +218,132 @@ with btn_col3:
 st.write("---")
 
 # ==============================================================================
-# PÁGINA 1: LAYOUTS DE GUERRA
+# FUNÇÃO REUTILIZÁVEL PARA RENDERIZAR PÁGINAS DE LAYOUT
+# ==============================================================================
+def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
+  if st.button("⬅️ Voltar ao Início"):
+    st.session_state["pagina_atual"] = "principal"
+    st.rerun()
+
+  st.markdown(
+      f"<h1 style='text-align: center;'>{titulo}</h1>", unsafe_allow_html=True
+  )
+
+  eh_admin = "admin_logado" in st.session_state
+  renderizar_login_admin_layout(tipo_layout.lower())
+
+  cv_list = [f"CV {i}" for i in range(18, 11, -1)]
+  tabs_cv = st.tabs(cv_list)
+
+  for idx, cv_nome in enumerate(cv_list):
+    with tabs_cv[idx]:
+      st.subheader(f"Base de {tipo_layout} - {cv_nome}")
+
+      # Form exclusivo para Administradores
+      if eh_admin:
+        with st.expander(
+            f"➕ [ADMIN] Adicionar Novo Layout de {tipo_layout} ({cv_nome})"
+        ):
+          with st.form(key=f"form_{tipo_layout}_{cv_nome}"):
+            link_layout = st.text_input(
+                "Link Oficial do Layout (URL)",
+                key=f"input_link_{tipo_layout}_{cv_nome}",
+            )
+            descricao = st.text_input(
+                "Descrição / Foco (ex: Anti-3, Anti-2, Push)",
+                key=f"input_desc_{tipo_layout}_{cv_nome}",
+            )
+            img_url = st.text_input(
+                "URL da Imagem da Base (Link direto da foto)",
+                key=f"img_{tipo_layout}_{cv_nome}",
+                help=(
+                    "Cole o link da imagem hospedada (ex: Imgur, Discord, etc.)"
+                ),
+            )
+
+            btn_enviar = st.form_submit_button("Publicar Layout")
+
+            if btn_enviar:
+              if link_layout.strip():
+                sheet_layouts.append_row([
+                    tipo_layout,
+                    cv_nome,
+                    st.session_state["admin_logado"],
+                    link_layout.strip(),
+                    (
+                        descricao.strip()
+                        if descricao.strip()
+                        else "Layout Recomendado"
+                    ),
+                    img_url.strip(),
+                ])
+                st.success("Layout publicado no banco de dados!")
+                st.rerun()
+              else:
+                st.error("Insira um link de layout válido.")
+
+      # Filtrar layouts salvos da planilha
+      if not df_layouts.empty:
+        layouts_filtrados = df_layouts[
+            (df_layouts["Tipo"] == tipo_layout) & (df_layouts["CV"] == cv_nome)
+        ]
+      else:
+        layouts_filtrados = pd.DataFrame()
+
+      if not layouts_filtrados.empty:
+        st.markdown("### 📋 Layouts Disponíveis")
+        for item_idx, row in layouts_filtrados.iterrows():
+          with st.container():
+            st.markdown(
+                f"**👑 Admin:** {row['Autor']} | **📌 Foco:** {row['Descricao']}"
+            )
+
+            # Exibe Imagem com TAMANHO CONTROLADO (width=380)
+            if str(row["ImagemUrl"]).strip():
+              try:
+                st.image(
+                    str(row["ImagemUrl"]).strip(),
+                    caption=f"Layout {cv_nome}",
+                    width=380,
+                )
+              except Exception:
+                pass
+
+            # Botão Direto para copiar
+            c_btn, c_del = st.columns([3, 1])
+            with c_btn:
+              st.markdown(
+                  f'<a href="{row["Link"]}" target="_blank"'
+                  ' class="btn-layout-copy">📲 COPIAR LAYOUT DIRETO NO CLASH</a>',
+                  unsafe_allow_html=True,
+              )
+            with c_del:
+              if eh_admin:
+                if st.button(
+                    "❌ Excluir", key=f"del_{tipo_layout}_{cv_nome}_{item_idx}"
+                ):
+                  # Remove a linha no Google Sheets (+2 devido ao cabeçalho/index 1)
+                  cell = sheet_layouts.find(row["Link"])
+                  if cell:
+                    sheet_layouts.delete_rows(cell.row)
+                    st.success("Removido com sucesso!")
+                    st.rerun()
+
+            st.divider()
+      else:
+        st.info(f"Nenhum layout oficial cadastrado ainda para o {cv_nome}.")
+
+
+# ==============================================================================
+# PÁGINAS DE LAYOUT
 # ==============================================================================
 if st.session_state["pagina_atual"] == "layouts_guerra":
-  if st.button("⬅️ Voltar ao Início"):
-    st.session_state["pagina_atual"] = "principal"
-    st.rerun()
+  renderizar_pagina_layouts("Guerra", "🛡️ Layouts Oficiais de Guerra")
 
-  st.markdown(
-      "<h1 style='text-align: center;'>🛡️ Layouts Oficiais de Guerra</h1>",
-      unsafe_allow_html=True,
-  )
-
-  eh_admin = "admin_logado" in st.session_state
-  renderizar_login_admin_layout("guerra")
-
-  cv_list = [f"CV {i}" for i in range(18, 11, -1)]
-  tabs_cv = st.tabs(cv_list)
-
-  for idx, cv_nome in enumerate(cv_list):
-    with tabs_cv[idx]:
-      st.subheader(f"Base de Guerra - {cv_nome}")
-
-      # Form exclusivo para Administradores
-      if eh_admin:
-        with st.expander(
-            f"➕ [ADMIN] Adicionar Novo Layout de Guerra ({cv_nome})"
-        ):
-          with st.form(key=f"form_guerra_{cv_nome}"):
-            link_layout = st.text_input(
-                "Link Oficial do Layout (URL)",
-                key=f"input_link_guerra_{cv_nome}",
-            )
-            descricao = st.text_input(
-                "Descrição / Foco (ex: Anti-3, Anti-2)",
-                key=f"input_desc_guerra_{cv_nome}",
-            )
-            img_file = st.file_uploader(
-                "Upload da Foto da Base (Opcional)",
-                type=["png", "jpg", "jpeg"],
-                key=f"img_guerra_{cv_nome}",
-            )
-
-            btn_enviar = st.form_submit_button("Publicar Layout")
-
-            if btn_enviar:
-              if link_layout.strip():
-                # Guarda os bytes diretos da imagem
-                img_bytes = img_file.getvalue() if img_file else None
-
-                st.session_state["layouts_guerra"][cv_nome].append({
-                    "autor": st.session_state["admin_logado"],
-                    "link": link_layout.strip(),
-                    "descricao": (
-                        descricao.strip()
-                        if descricao.strip()
-                        else "Layout Recomendado"
-                    ),
-                    "imagem_bytes": img_bytes,
-                })
-                st.success("Layout publicado com sucesso!")
-                st.rerun()
-              else:
-                st.error("Insira um link de layout válido.")
-
-      # Lista de Layouts disponíveis
-      lista_l = st.session_state["layouts_guerra"][cv_nome]
-
-      if lista_l:
-        st.markdown("### 📋 Layouts Disponíveis")
-        for item_idx, item in enumerate(lista_l):
-          with st.container():
-            st.markdown(
-                f"**👑 Admin:** {item['autor']} | **📌 Foco:**"
-                f" {item['descricao']}"
-            )
-
-            # Exibe imagem usando os bytes direto
-            if item.get("imagem_bytes"):
-              st.image(
-                  item["imagem_bytes"],
-                  caption=f"Layout {cv_nome}",
-                  use_container_width=True,
-              )
-
-            # Botão Direto
-            c_btn, c_del = st.columns([4, 1])
-            with c_btn:
-              st.markdown(
-                  f'<a href="{item["link"]}" target="_blank"'
-                  ' class="btn-layout-copy">📲 COPIAR LAYOUT DIRETO NO CLASH</a>',
-                  unsafe_allow_html=True,
-              )
-            with c_del:
-              if eh_admin:
-                if st.button(
-                    "❌ Excluir", key=f"del_guerra_{cv_nome}_{item_idx}"
-                ):
-                  st.session_state["layouts_guerra"][cv_nome].pop(item_idx)
-                  st.success("Removido!")
-                  st.rerun()
-
-            st.divider()
-      else:
-        st.info(f"Nenhum layout oficial cadastrado ainda para o {cv_nome}.")
-
-# ==============================================================================
-# PÁGINA 2: LAYOUTS DE RANKEADA
-# ==============================================================================
 elif st.session_state["pagina_atual"] == "layouts_rankeada":
-  if st.button("⬅️ Voltar ao Início"):
-    st.session_state["pagina_atual"] = "principal"
-    st.rerun()
-
-  st.markdown(
-      "<h1 style='text-align: center;'>🏆 Layouts Oficiais de Rankeada /"
-      " Farm</h1>",
-      unsafe_allow_html=True,
+  renderizar_pagina_layouts(
+      "Rankeada", "🏆 Layouts Oficiais de Rankeada / Farm"
   )
-
-  eh_admin = "admin_logado" in st.session_state
-  renderizar_login_admin_layout("rankeada")
-
-  cv_list = [f"CV {i}" for i in range(18, 11, -1)]
-  tabs_cv = st.tabs(cv_list)
-
-  for idx, cv_nome in enumerate(cv_list):
-    with tabs_cv[idx]:
-      st.subheader(f"Base de Rankeada - {cv_nome}")
-
-      # Form exclusivo para Administradores
-      if eh_admin:
-        with st.expander(
-            f"➕ [ADMIN] Adicionar Novo Layout de Rankeada ({cv_nome})"
-        ):
-          with st.form(key=f"form_rankeada_{cv_nome}"):
-            link_layout = st.text_input(
-                "Link Oficial do Layout (URL)",
-                key=f"input_link_rankeada_{cv_nome}",
-            )
-            descricao = st.text_input(
-                "Descrição / Foco (ex: Push Lendária, Proteção de Dark)",
-                key=f"input_desc_rankeada_{cv_nome}",
-            )
-            img_file = st.file_uploader(
-                "Upload da Foto da Base (Opcional)",
-                type=["png", "jpg", "jpeg"],
-                key=f"img_rankeada_{cv_nome}",
-            )
-
-            btn_enviar = st.form_submit_button("Publicar Layout")
-
-            if btn_enviar:
-              if link_layout.strip():
-                # Guarda os bytes diretos da imagem
-                img_bytes = img_file.getvalue() if img_file else None
-
-                st.session_state["layouts_rankeada"][cv_nome].append({
-                    "autor": st.session_state["admin_logado"],
-                    "link": link_layout.strip(),
-                    "descricao": (
-                        descricao.strip()
-                        if descricao.strip()
-                        else "Layout Recomendado"
-                    ),
-                    "imagem_bytes": img_bytes,
-                })
-                st.success("Layout publicado com sucesso!")
-                st.rerun()
-              else:
-                st.error("Insira um link de layout válido.")
-
-      # Lista de Layouts disponíveis
-      lista_l = st.session_state["layouts_rankeada"][cv_nome]
-
-      if lista_l:
-        st.markdown("### 📋 Layouts Disponíveis")
-        for item_idx, item in enumerate(lista_l):
-          with st.container():
-            st.markdown(
-                f"**👑 Admin:** {item['autor']} | **📌 Foco:**"
-                f" {item['descricao']}"
-            )
-
-            # Exibe imagem usando os bytes direto
-            if item.get("imagem_bytes"):
-              st.image(
-                  item["imagem_bytes"],
-                  caption=f"Layout {cv_nome}",
-                  use_container_width=True,
-              )
-
-            # Botão Direto
-            c_btn, c_del = st.columns([4, 1])
-            with c_btn:
-              st.markdown(
-                  f'<a href="{item["link"]}" target="_blank"'
-                  ' class="btn-layout-copy">📲 COPIAR LAYOUT DIRETO NO CLASH</a>',
-                  unsafe_allow_html=True,
-              )
-            with c_del:
-              if eh_admin:
-                if st.button(
-                    "❌ Excluir", key=f"del_rankeada_{cv_nome}_{item_idx}"
-                ):
-                  st.session_state["layouts_rankeada"][cv_nome].pop(item_idx)
-                  st.success("Removido!")
-                  st.rerun()
-
-            st.divider()
-      else:
-        st.info(f"Nenhum layout oficial cadastrado ainda para o {cv_nome}.")
 
 # ==============================================================================
 # PÁGINA PRINCIPAL (RANKING & APLICAÇÃO)
