@@ -179,14 +179,10 @@ st.markdown(
         box-shadow: 0 8px 25px rgba(0,0,0,0.6); 
         font-family: 'Nunito', sans-serif;
     }
-    .podium-icon {
-        font-size: 2.5rem;
-        margin-bottom: 5px;
-    }
     .podium-title {
         font-family: 'Luckiest Guy', cursive;
         font-size: 1.4rem;
-        margin-top: 5px;
+        margin-top: 8px;
         margin-bottom: 8px;
         text-shadow: 1px 1px 0px #000;
     }
@@ -243,10 +239,6 @@ st.markdown(
         border-left: 5px solid #facc15;
         box-shadow: 0 4px 12px rgba(0,0,0,0.4);
         font-family: 'Nunito', sans-serif;
-    }
-    .info-card-badge {
-        font-size: 2.2rem;
-        margin-bottom: 8px;
     }
     .info-card-header {
         font-size: 1.1rem;
@@ -367,12 +359,28 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
   eh_admin = "admin_logado" in st.session_state
   renderizar_login_admin_layout(tipo_layout.lower())
 
-  cv_list = [f"CV {i}" for i in range(18, 11, -1)]
+  # Mapeamento dos Centros de Vila com imagens oficiais
+  cv_map = {
+      "CV 18": "https://i.ibb.co/fGLhwj76/Town-Hall18.webp",
+      "CV 17": "https://i.ibb.co/yc4LCWmS/cv17.webp",
+      "CV 16": "https://i.ibb.co/ym8MH1Q8/Giga-Inferno16.webp",
+      "CV 15": "https://i.ibb.co/7dzVK5L7/Giga-Inferno15.webp",
+      "CV 14": "https://i.ibb.co/x4LsVdM/Giga-Inferno14.webp",
+      "CV 13": "https://i.ibb.co/HTPNQtyp/TH-13-4-Clash-GFX.png",
+      "CV 12": "https://i.ibb.co/hFHnz1GW/TH-12-Clash-GFX.png",
+  }
+
+  cv_list = list(cv_map.keys())
   tabs_cv = st.tabs(cv_list)
 
   for idx, cv_nome in enumerate(cv_list):
     with tabs_cv[idx]:
-      st.subheader(f"Base de {tipo_layout} - {cv_nome}")
+      th_img_url = cv_map[cv_nome]
+      col_header1, col_header2 = st.columns([1, 8])
+      with col_header1:
+        st.image(th_img_url, width=60)
+      with col_header2:
+        st.subheader(f"Base de {tipo_layout} - {cv_nome}")
 
       # Form exclusivo para Administradores
       if eh_admin:
@@ -501,7 +509,7 @@ def renderizar_pagina_regras():
       "Contas Rushadas com heróis em nível baixo não serão aceitas no clã.",
       (
           "Se tiver dúvidas, pergunte ou peça ajuda! Nossos membros e líderes"
-          " estão aqui para nos ajudar mutuamente."
+          " estão aqui para nos ajudar mutually."
       ),
   ]
 
@@ -544,11 +552,11 @@ elif st.session_state["pagina_atual"] == "regras_cla":
 # PÁGINA PRINCIPAL (RANKING & APLICAÇÃO)
 # ==============================================================================
 else:
-  # BANNER E EMBLEMA OFICIAL DO CLÃ NO TOPO
+  # LOGO OFICIAL DO CLÃ NO TOPO CENTRALIZADO
   st.markdown(
       """
     <div style="text-align: center; margin-bottom: 10px;">
-        <img src="https://i.ibb.co/yBShz18b/winning.png" width="130" style="filter: drop-shadow(0px 6px 12px rgba(0,0,0,0.6));" onerror="this.style.display='none'">
+        <img src="https://i.ibb.co/yBShz18b/winning.png" width="130" style="filter: drop-shadow(0px 6px 12px rgba(0,0,0,0.6));">
     </div>
     """,
       unsafe_allow_html=True,
@@ -612,37 +620,37 @@ else:
         if len(df_rank) >= 1:
           with col1:
             st.markdown(
-                f'<div class="podium-card gold"><div'
-                ' class="podium-icon">🎟️</div><div class="podium-title">🥇 1º'
-                ' LUGAR</div><div'
+                f'<div class="podium-card gold"><img'
+                ' src="https://i.ibb.co/mkC43vT/goldenpass.png" width="60"><div'
+                ' class="podium-title">🥇 1º LUGAR</div><div'
                 f' class="podium-name">{df_rank.iloc[0]["Nome"]}</div><div'
                 ' class="podium-score">'
                 f'{int(df_rank.iloc[0]["Total"])} pts</div><small>Garantidor do'
-                " Passe Dourado!</small></div>",
+                " Passe Dourado 🎟️</small></div>",
                 unsafe_allow_html=True,
             )
         if len(df_rank) >= 2:
           with col2:
             st.markdown(
-                f'<div class="podium-card silver"><div'
-                ' class="podium-icon">🎟️</div><div class="podium-title">🥈 2º'
-                ' LUGAR</div><div'
+                f'<div class="podium-card silver"><img'
+                ' src="https://i.ibb.co/mkC43vT/goldenpass.png" width="60"><div'
+                ' class="podium-title">🥈 2º LUGAR</div><div'
                 f' class="podium-name">{df_rank.iloc[1]["Nome"]}</div><div'
                 ' class="podium-score">'
                 f'{int(df_rank.iloc[1]["Total"])} pts</div><small>Garantidor do'
-                " Passe Dourado!</small></div>",
+                " Passe Dourado 🎟️</small></div>",
                 unsafe_allow_html=True,
             )
         if len(df_rank) >= 3:
           with col3:
             st.markdown(
-                f'<div class="podium-card bronze"><div'
-                ' class="podium-icon">🎟️</div><div class="podium-title">🥉 3º'
-                ' LUGAR</div><div'
+                f'<div class="podium-card bronze"><img'
+                ' src="https://i.ibb.co/mkC43vT/goldenpass.png" width="60"><div'
+                ' class="podium-title">🥉 3º LUGAR</div><div'
                 f' class="podium-name">{df_rank.iloc[2]["Nome"]}</div><div'
                 ' class="podium-score">'
                 f'{int(df_rank.iloc[2]["Total"])} pts</div><small>Garantidor do'
-                " Passe Dourado!</small></div>",
+                " Passe Dourado 🎟️</small></div>",
                 unsafe_allow_html=True,
             )
         st.write("---")
@@ -896,7 +904,7 @@ else:
               st.success(f"Admin {u_novo} criado!")
               st.rerun()
 
-  # SEÇÃO EXPLICATIVA (RODAPÉ) - REGULAMENTO & PREMIAÇÃO COM EMBLEMAS ESTILIZADOS
+  # SEÇÃO EXPLICATIVA (RODAPÉ) - REGULAMENTO & PREMIAÇÃO COM ELEMENTOS OFICIAIS
   st.write("---")
   st.markdown(
       "<h2 style='text-align: center;'>📜 Regulamento & Sistema de"
@@ -916,7 +924,7 @@ else:
     st.markdown(
         """
         <div class="info-card" style="text-align: center;">
-            <div class="info-card-badge">🎟️</div>
+            <img src="https://i.ibb.co/mkC43vT/goldenpass.png" width="55" style="margin-bottom: 8px;">
             <div class="info-card-header">🏆 Premiação Mensal</div>
             <ul class="info-card-list" style="text-align: left;">
                 <li><b>Top 3 Destaques:</b> Garantem <b>1 Passe Dourado 🎟️</b> cada um no final do mês.</li>
@@ -931,7 +939,7 @@ else:
     st.markdown(
         """
         <div class="info-card" style="text-align: center;">
-            <div class="info-card-badge">⚔️</div>
+            <img src="https://i.ibb.co/3PPkJD8/War-League-Main-Banner.webp" width="70" style="margin-bottom: 8px;">
             <div class="info-card-header">📊 Sistema de Pontuação</div>
             <ul class="info-card-list" style="text-align: left;">
                 <li><b>⚔️ Guerras & Liga (CWL):</b> 1 Ponto por ⭐ conquistada.</li>
@@ -947,7 +955,7 @@ else:
     st.markdown(
         """
         <div class="info-card" style="text-align: center;">
-            <div class="info-card-badge">🏰</div>
+            <img src="https://i.ibb.co/YFbsJ97x/Clash-of-Clans-emblem.png" width="55" style="margin-bottom: 8px;">
             <div class="info-card-header">📜 Diretrizes Básicas</div>
             <ul class="info-card-list" style="text-align: left;">
                 <li><b>Conta Principal:</b> Válido estritamente para a conta principal.</li>
