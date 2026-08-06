@@ -868,34 +868,3 @@ else:
           )
         else:
           st.info("Nenhum dado disponível para backup.")
-
-# --- RODAPÉ COM O REGULAMENTO DA COMPETIÇÃO DO PASSE ---
-st.markdown(
-    """
-    <div class="rules-card">
-        <div class="rules-title">🎟️ Regulamento da Competição do Passe Dourado</div>
-        <p style="margin-bottom: 12px; font-style: italic; color: #94a3b8;">A ideia é simples: valorizar quem joga bem, participa e ajuda o clã a crescer.</p>
-        
-        <p>🏆 <b>Prêmio:</b><br>
-        Todo mês, os 3 principais destaques do clã levam <b>1 Passe Dourado</b>.</p>
-        
-        <p>📊 <b>Como pontuar:</b></p>
-        <ul>
-            <li>Ataques em guerras (1 ponto por ⭐)</li>
-            <li>Jogos do clã e eventos (meta = 5 / completou = 10 pontos)</li>
-            <li>Raides de fim de semana (6 ataques = 10 pontos)</li>
-            <li><i>Obs:</i> Alguns eventos de colaboração do clã terão premiação atribuída e serão informados previamente pelos líderes com a meta de pontos.</li>
-        </ul>
-        
-        <p style="margin-top: 12px;">📜 <b>Regras rápidas:</b></p>
-        <ul>
-            <li>Vale só a <b>conta principal</b>.</li>
-            <li>Nada de trapaça 🚫.</li>
-            <li>Precisa obrigatoriamente estar no <b>grupo do WhatsApp</b>.</li>
-            <li>Tudo será registrado em uma tabela mensal.</li>
-            <li>Em caso de empate, podemos ter premiação para 1º, 2º e 3º lugar.</li>
-        </ul>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
