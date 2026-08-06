@@ -165,7 +165,7 @@ if "pagina_atual" not in st.session_state:
 df_layouts = pd.DataFrame(obter_layouts_cached())
 df_fama = pd.DataFrame(obter_galeria_cached())
 
-# --- ESTILIZAÇÃO CSS CUSTOMIZADA COM RESPONSIVIDADE MOBILE ---
+# --- ESTILIZAÇÃO CSS CUSTOMIZADA COM RESPONSIVIDADE MOBILE E ABAS DESTACADAS ---
 st.markdown(
     """
     <style>
@@ -199,6 +199,7 @@ st.markdown(
         padding: 0 10px;
     }
     
+    /* ESTILIZAÇÃO DOS BOTÕES GERAIS */
     div.stButton > button {
         background: linear-gradient(180deg, #22c55e 0%, #15803d 100%) !important;
         color: #ffffff !important;
@@ -220,6 +221,35 @@ st.markdown(
         background: linear-gradient(180deg, #4ade80 0%, #16a34a 100%) !important;
     }
 
+    /* DESTAQUE E FONTE MAIOR NAS ABAS (Ranking ao Vivo, Tabela Detalhada, Admin) */
+    button[data-baseweb="tab"] {
+        font-size: 1.15rem !important;
+        font-weight: 800 !important;
+        font-family: 'Nunito', sans-serif !important;
+        padding: 12px 20px !important;
+        background-color: #1e293b !important;
+        border: 2px solid #334155 !important;
+        border-radius: 10px 10px 0 0 !important;
+        color: #94a3b8 !important;
+        margin-right: 6px !important;
+        transition: all 0.2s ease !important;
+    }
+
+    button[data-baseweb="tab"][aria-selected="true"] {
+        background: linear-gradient(180deg, #facc15 0%, #ca8a04 100%) !important;
+        color: #000000 !important;
+        border-color: #fef08a !important;
+        text-shadow: none !important;
+        transform: translateY(-2px);
+        box-shadow: 0px 4px 12px rgba(250, 204, 21, 0.3) !important;
+    }
+
+    button[data-baseweb="tab"]:hover {
+        border-color: #facc15 !important;
+        color: #facc15 !important;
+    }
+
+    /* PODIUM E CARDS */
     .podium-card { 
         padding: 16px; 
         border-radius: 16px; 
@@ -269,65 +299,71 @@ st.markdown(
         .main-subtitle { font-size: 0.88rem !important; }
         .mural-banner { padding: 10px !important; }
         .podium-card { padding: 12px !important; }
-        div.stButton > button { font-size: 0.85rem !important; padding: 6px 8px !important; }
+        button[data-baseweb="tab"] { font-size: 0.9rem !important; padding: 8px 10px !important; }
     }
     </style>
 """,
     unsafe_allow_html=True,
 )
 
+# --- TOPO DA PÁGINA: MENU DE NAVEGAÇÃO + LOGIN ADMIN NO CANTO DIREITO ---
+col_nav, col_admin_top = st.columns([4, 1])
 
-def renderizar_login_admin_layout(prefixo: str):
-  if "admin_logado" not in st.session_state:
-    with st.expander("🔐 É Administrador? Clique aqui para fazer Login"):
-      with st.form(key=f"form_login_layout_{prefixo}"):
-        u_in = st.text_input("Usuário Admin", key=f"u_lay_{prefixo}")
-        s_in = st.text_input("Senha", type="password", key=f"s_lay_{prefixo}")
-        btn_l = st.form_submit_button("Entrar")
-        if btn_l:
-          h_in = gerar_hash(s_in)
-          val = df_admins[
-              (df_admins["Usuario"] == u_in) & (df_admins["SenhaHash"] == h_in)
-          ]
-          if not val.empty:
-            st.session_state["admin_logado"] = u_in
-            registrar_log(u_in, "Fez Login pela área de layouts")
-            st.success(f"Logado como {u_in}!")
-            st.rerun()
-          else:
-            st.error("Credenciais inválidas.")
+with col_nav:
+  b1, b2, b3, b4, b5 = st.columns(5)
+  with b1:
+    if st.button("🛡️ Layouts Guerra", use_container_width=True):
+      st.session_state["pagina_atual"] = "layouts_guerra"
+      st.rerun()
+  with b2:
+    if st.button("🏆 Layouts Rankeada", use_container_width=True):
+      st.session_state["pagina_atual"] = "layouts_rankeada"
+      st.rerun()
+  with b3:
+    if st.button("🌟 Galeria da Fama", use_container_width=True):
+      st.session_state["pagina_atual"] = "galeria_fama"
+      st.rerun()
+  with b4:
+    if st.button("📜 Regras do Clã", use_container_width=True):
+      st.session_state["pagina_atual"] = "regras_cla"
+      st.rerun()
+  with b5:
+    st.markdown(
+        '<a'
+        ' href="https://link.clashofclans.com/pt?action=OpenClanProfile&tag=2YPL9GU8Y"'
+        ' target="_blank" class="btn-external-link">🏰 Clã Vastaya ↗</a>',
+        unsafe_allow_html=True,
+    )
 
+with col_admin_top:
+  if "admin_logado" in st.session_state:
+    st.success(f"👤 **{st.session_state['admin_logado']}**")
+    if st.button("🚪 Sair", key="top_logout", use_container_width=True):
+      del st.session_state["admin_logado"]
+      st.rerun()
+  else:
+    with st.popover("🔐 Admin", use_container_width=True):
+      st.markdown("### 🔐 Acesso Restrito Admin")
+      with st.form("form_login_topo"):
+        u_top = st.text_input("Usuário Admin")
+        s_top = st.text_input("Senha", type="password")
+        btn_top_login = st.form_submit_button(
+            "Entrar", use_container_width=True
+        )
 
-# --- BOTÕES SUPERIORES DE NAVEGAÇÃO ---
-btn_col1, btn_col2, btn_col3, btn_col4, btn_col5 = st.columns(5)
-
-with btn_col1:
-  if st.button("🛡️ Layouts Guerra", use_container_width=True):
-    st.session_state["pagina_atual"] = "layouts_guerra"
-    st.rerun()
-
-with btn_col2:
-  if st.button("🏆 Layouts Rankeada", use_container_width=True):
-    st.session_state["pagina_atual"] = "layouts_rankeada"
-    st.rerun()
-
-with btn_col3:
-  if st.button("🌟 Galeria da Fama", use_container_width=True):
-    st.session_state["pagina_atual"] = "galeria_fama"
-    st.rerun()
-
-with btn_col4:
-  if st.button("📜 Regras do Clã", use_container_width=True):
-    st.session_state["pagina_atual"] = "regras_cla"
-    st.rerun()
-
-with btn_col5:
-  st.markdown(
-      '<a'
-      ' href="https://link.clashofclans.com/pt?action=OpenClanProfile&tag=2YPL9GU8Y"'
-      ' target="_blank" class="btn-external-link">🏰 Clã Vastaya ↗</a>',
-      unsafe_allow_html=True,
-  )
+        if btn_top_login:
+          if not df_admins.empty:
+            val = df_admins[
+                (df_admins["Usuario"] == u_top)
+                & (df_admins["SenhaHash"] == gerar_hash(s_top))
+            ]
+            if not val.empty:
+              st.session_state["admin_logado"] = u_top
+              registrar_log(u_top, "Logou pelo painel no canto superior direito")
+              st.success("Logado com sucesso!")
+              st.rerun()
+            else:
+              st.error("Usuário ou senha inválidos.")
 
 st.write("---")
 
@@ -344,7 +380,6 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
       f"<h1 style='text-align: center;'>{titulo}</h1>", unsafe_allow_html=True
   )
   eh_admin = "admin_logado" in st.session_state
-  renderizar_login_admin_layout(tipo_layout.lower())
 
   cv_map = {
       "CV 18": "https://i.ibb.co/fGLhwj76/Town-Hall18.webp",
@@ -591,8 +626,9 @@ else:
   else:
     colunas_raides, colunas_guerras, colunas_liga = [], [], []
 
+  # ABAS DESTACADAS DA PÁGINA PRINCIPAL
   tab_ranking, tab_tabela, tab_admin = st.tabs(
-      ["🏆 Ranking ao Vivo", "📋 Tabela Detalhada", "🔐 Área Admin"]
+      ["🏆 Ranking ao Vivo", "📋 Tabela Detalhada", "🔐 Painel Admin"]
   )
 
   # ABA 1: RANKING AO VIVO
@@ -640,7 +676,7 @@ else:
                 unsafe_allow_html=True,
             )
 
-      # BARRA DE BUSCA DE JOGADORES (UX)
+      # BARRA DE BUSCA DE JOGADORES
       busca_player = st.text_input(
           "🔍 Buscar Jogador no Ranking:",
           placeholder="Digite o nome do membro...",
@@ -704,26 +740,17 @@ else:
   # ABA 3: ÁREA ADMIN
   with tab_admin:
     st.subheader("🔐 Painel de Controle e Administração")
-    with st.form("form_login"):
-      usuario_input = st.text_input("Usuário Admin")
-      senha_input = st.text_input("Senha", type="password")
-      btn_login = st.form_submit_button("Acessar Painel")
 
-    if btn_login:
-      hash_input = gerar_hash(senha_input)
-      admin_valido = df_admins[
-          (df_admins["Usuario"] == usuario_input)
-          & (df_admins["SenhaHash"] == hash_input)
-      ]
-      if not admin_valido.empty:
-        st.session_state["admin_logado"] = usuario_input
-        registrar_log(usuario_input, "Logou no Painel Admin")
-        st.success(f"Bem-vindo, {usuario_input}!")
-        st.rerun()
-
-    if "admin_logado" in st.session_state:
-      st.write("---")
-      st.success(f"Sessão Ativa: **{st.session_state['admin_logado']}**")
+    if "admin_logado" not in st.session_state:
+      st.info(
+          "👉 Faça o login clicando no botão **'🔐 Admin'** no canto superior"
+          " direito da página para acessar os controles de gestão."
+      )
+    else:
+      st.success(
+          f"Sessão Ativa: **{st.session_state['admin_logado']}** (Gerenciamento"
+          " Liberado)"
+      )
 
       sub_tab1, sub_tab2, sub_tab3, sub_tab4, sub_tab5 = st.tabs([
           "➕ Players",
@@ -868,75 +895,34 @@ else:
           )
         else:
           st.info("Nenhum dado disponível para backup.")
-# SEÇÃO EXPLICATIVA (RODAPÉ) - REGULAMENTO & PREMIAÇÃO COM ELEMENTOS OFICIAIS
-  st.write("---")
+
+  # --- RODAPÉ COM O REGULAMENTO DA COMPETIÇÃO DO PASSE ---
   st.markdown(
-      "<h2 style='text-align: center;'>📜 Regulamento & Sistema de"
-      " Premiação</h2>",
+      """
+    <div class="rules-card">
+        <div class="rules-title">🎟️ Regulamento da Competição do Passe Dourado</div>
+        <p style="margin-bottom: 12px; font-style: italic; color: #94a3b8;">A ideia é simples: valorizar quem joga bem, participa e ajuda o clã a crescer.</p>
+        
+        <p>🏆 <b>Prêmio:</b><br>
+        Todo mês, os 3 principais destaques do clã levam <b>1 Passe Dourado</b>.</p>
+        
+        <p>📊 <b>Como pontuar:</b></p>
+        <ul>
+            <li>Ataques em guerras (1 ponto por ⭐)</li>
+            <li>Jogos do clã e eventos (meta = 5 / completou = 10 pontos)</li>
+            <li>Raides de fim de semana (6 ataques = 10 pontos)</li>
+            <li><i>Obs:</i> Alguns eventos de colaboração do clã terão premiação atribuída e serão informados previamente pelos líderes com a meta de pontos.</li>
+        </ul>
+        
+        <p style="margin-top: 12px;">📜 <b>Regras rápidas:</b></p>
+        <ul>
+            <li>Vale só a <b>conta principal</b>.</li>
+            <li>Nada de trapaça 🚫.</li>
+            <li>Precisa obrigatoriamente estar no <b>grupo do WhatsApp</b>.</li>
+            <li>Tudo será registrado em uma tabela mensal.</li>
+            <li>Em caso de empate, podemos ter premiação para 1º, 2º e 3º lugar.</li>
+        </ul>
+    </div>
+    """,
       unsafe_allow_html=True,
   )
-  st.markdown(
-      "<p style='text-align: center; color: #94a3b8;'>A ideia é simples:"
-      " valorizar quem joga bem, participa ativamente e ajuda o clã a"
-      " crescer!</p><br>",
-      unsafe_allow_html=True,
-  )
-
-  info_col1, info_col2, info_col3 = st.columns(3)
-
-  with info_col1:
-    st.markdown(
-        """
-        <div class="info-card" style="text-align: center;">
-            <img src="https://i.ibb.co/mkC43vT/goldenpass.png" width="55" style="margin-bottom: 8px;">
-            <div class="info-card-header">🏆 Premiação Mensal</div>
-            <ul class="info-card-list" style="text-align: left;">
-                <li><b>Top 3 Destaques:</b> Garantem <b>1 Passe Dourado 🎟️</b> cada um no final do mês.</li>
-                <li><b>Em caso de Empate:</b> Sorteio de desempate.</li>
-            </ul>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-  with info_col2:
-    st.markdown(
-        """
-        <div class="info-card" style="text-align: center;">
-            <img src="https://i.ibb.co/3PPkJD8/War-League-Main-Banner.webp" width="70" style="margin-bottom: 8px;">
-            <div class="info-card-header">📊 Sistema de Pontuação</div>
-            <ul class="info-card-list" style="text-align: left;">
-                <li><b>⚔️ Guerras & Liga (CWL):</b> 1 Ponto por ⭐ conquistada.</li>
-                <li><b>🎯 Jogos do Clã:</b> Meta = <b>5 pts</b> | Bateu limite total = <b>10 pts</b>.</li>
-                <li><b>🛡️ Raides (FDS):</b> Concluiu os 6 ataques = <b>10 pts</b>.</li>
-            </ul>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-  with info_col3:
-    st.markdown(
-        """
-        <div class="info-card" style="text-align: center;">
-            <img src="https://i.ibb.co/YFbsJ97x/Clash-of-Clans-emblem.png" width="55" style="margin-bottom: 8px;">
-            <div class="info-card-header">📜 Diretrizes Básicas</div>
-            <ul class="info-card-list" style="text-align: left;">
-                <li><b>Conta Principal:</b> Válido estritamente para a conta principal.</li>
-                <li><b>Zero Trapaça 🚫:</b> Qualquer ato antidesportivo anula a pontuação.</li>
-                <li><b>WhatsApp Obrigatório 📱:</b> Indispensável estar no grupo do clã.</li>
-            </ul>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-  st.write("")
-  c_btn_regras = st.columns([1, 2, 1])
-  with c_btn_regras[1]:
-    if st.button(
-        "📖 CLIQUE AQUI PARA VER AS REGRAS OFICIAIS COMPLETAS DO CLÃ",
-        use_container_width=True,
-    ):
-      st.session_state["pagina_atual"] = "regras_cla"
-      st.rerun()
