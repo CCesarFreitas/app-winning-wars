@@ -496,16 +496,16 @@ def renderizar_regras_cla():
   st.markdown(
       """
     <div class="rules-card">
-        <div class="rules-title">🛡️ Estatuto e Normas Internas</div>
+        <div class="rules-title">🛡️ Regras Oficiais do Clã</div>
         <ul>
-            <li><b>1.</b> Novatos serão testados antes de ir para as guerras.</li>
-            <li><b>2.</b> Guerras: Ataque o Centro de Vila (CV) do mesmo nível que o seu. (<b>NÃO</b> é espelho).</li>
-            <li><b>3.</b> Inatividade por 3 dias sem aviso prévio resultará em expulsão (kick).</li>
-            <li><b>4.</b> Jogos dos Clãs: Mínimo de 2.000 pontos. O descumprimento resultará em expulsão (kick).</li>
-            <li><b>5.</b> Cargos e promoções serão obtidos estritamente por mérito.</li>
-            <li><b>6.</b> WhatsApp é obrigatório para participar da Liga de Guerra e para disputar a premiação dos passes.</li>
-            <li><b>7.</b> Contas rushadas com heróis em níveis baixos não serão aceitas.</li>
-            <li><b>8.</b> Se tiver dúvida, pergunte ou peça ajuda! Estamos aqui para nos ajudar mutuamente.</li>
+            <li>1 - Novatos serão testados antes de ir para as guerras.</li>
+            <li>2 - Guerras: Ataque o CV do mesmo nível que o seu. (<b>NÃO</b> é espelho).</li>
+            <li>3 - Inatividade por 3 dias sem aviso prévio = kick.</li>
+            <li>4 - Jogos dos Clãs: Mínimo de 2.000 pontos. O descumprimento = kick.</li>
+            <li>5 - Cargos e promoções serão por mérito.</li>
+            <li>6 - WhatsApp obrigatório para participar da Liga / para disputar a premiação dos passes.</li>
+            <li>7 - Contas rushadas com heróis em nível baixo não serão aceitas.</li>
+            <li>8 - Se tem dúvida, pergunte / peça ajuda! Estamos aqui para nos ajudar.</li>
         </ul>
     </div>
     """,
