@@ -869,9 +869,9 @@ else:
         else:
           st.info("Nenhum dado disponível para backup.")
 
-  # --- RODAPÉ COM O REGULAMENTO DA COMPETIÇÃO DO PASSE ---
-  st.markdown(
-      """
+# --- RODAPÉ COM O REGULAMENTO DA COMPETIÇÃO DO PASSE ---
+st.markdown(
+    """
     <div class="rules-card">
         <div class="rules-title">🎟️ Regulamento da Competição do Passe Dourado</div>
         <p style="margin-bottom: 12px; font-style: italic; color: #94a3b8;">A ideia é simples: valorizar quem joga bem, participa e ajuda o clã a crescer.</p>
@@ -897,5 +897,5 @@ else:
         </ul>
     </div>
     """,
-      unsafe_allow_html=True,
-  )
+    unsafe_allow_html=True,
+)
