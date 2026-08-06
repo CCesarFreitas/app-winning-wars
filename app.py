@@ -257,10 +257,12 @@ st.markdown(
     .mural-header { font-family: 'Luckiest Guy', cursive; color: #facc15; font-size: 1rem; margin-bottom: 4px; }
 
     .rules-card {
-        background: #0f172a; border: 2px solid #334155; border-radius: 14px; padding: 20px; margin-top: 35px;
+        background: #0f172a; border: 2px solid #334155; border-radius: 14px; padding: 22px; margin-top: 35px;
         font-family: 'Nunito', sans-serif; color: #e2e8f0; box-shadow: 0 6px 18px rgba(0,0,0,0.4);
     }
     .rules-title { font-family: 'Luckiest Guy', cursive; color: #facc15; font-size: 1.3rem; margin-bottom: 12px; }
+    .rules-card ul { margin-bottom: 0px; padding-left: 20px; }
+    .rules-card li { margin-bottom: 10px; line-height: 1.5; }
 
     @media (max-width: 768px) {
         .main-title { font-size: 1.6rem !important; }
@@ -315,7 +317,7 @@ with btn_col3:
     st.rerun()
 
 with btn_col4:
-  if st.button("📜 Regras Clã", use_container_width=True):
+  if st.button("📜 Regras do Clã", use_container_width=True):
     st.session_state["pagina_atual"] = "regras_cla"
     st.rerun()
 
@@ -487,25 +489,23 @@ def renderizar_regras_cla():
     st.rerun()
 
   st.markdown(
-      "<h1 style='text-align: center;'>📜 Regras Oficiais do Clã</h1>",
+      "<h1 style='text-align: center;'>📜 Regras Oficiais do Clã Winning"
+      " Wars</h1>",
       unsafe_allow_html=True,
   )
   st.markdown(
       """
     <div class="rules-card">
-        <div class="rules-title">🛡️ Normas de Convivência e Atividade</div>
+        <div class="rules-title">🛡️ Normas de Conduta e Funcionamento do Clã</div>
         <ul>
-            <li><b>Respeito Acima de Tudo:</b> Brincadeiras são bem-vindas, mas falta de respeito ou toxicidade resultam em expulsão imediata.</li>
-            <li><b>Guerra de Clã:</b> Se colocar o status como <b>VERDE</b>, os ataques são obrigatórios. Deixar de atacar sem justificativa resulta em rebaixamento ou expulsão.</li>
-            <li><b>Jogos de Clã:</b> Participação ativa é essencial para ajudar o clã a atingir o topo das recompensas.</li>
-            <li><b>Doações:</b> Doe o que puder e mantenha um bom equilíbrio entre doações recebidas e enviadas.</li>
-        </ul>
-        <br>
-        <div class="rules-title">🎟️ Regras da Competição do Passe Dourado</div>
-        <ul>
-            <li><b>Pontuação Mensal:</b> A pontuação é acumulada através da participação em Guerras, Ligas, Raides de Capital e Eventos do Clã.</li>
-            <li><b>Premiação:</b> Ao término do mês civil, os <b>Top 3 membros</b> com maior pontuação no ranking ganham o Passe Dourado.</li>
-            <li><b>Transparência:</b> O ranking é atualizado e gerido pela liderança com total transparência através deste aplicativo.</li>
+            <li><b>1. Período de Teste para Novatos:</b> Novos membros serão testados e avaliados antes de serem escalados para as guerras de clã.</li>
+            <li><b>2. Estratégia em Guerras:</b> Ataque sempre o Centro de Vila (CV) do mesmo nível que o seu. <b>NÃO é permitido seguir o sistema de espelho.</b></li>
+            <li><b>3. Inatividade:</b> Inatividade superior a 3 dias consecutivos sem aviso prévio à liderança resultará em expulsão (kick) do clã.</li>
+            <li><b>4. Jogos dos Clãs:</b> O requisito mínimo de pontuação individual nos Jogos dos Clãs é de <b>2.000 pontos</b>. O descumprimento sem justificativa resultará em expulsão.</li>
+            <li><b>5. Cargos e Promoções:</b> Todos os cargos de liderança, ancião e promoções internas são conquistados estritamente por <b>mérito, dedicação e confiança</b>.</li>
+            <li><b>6. Grupo do WhatsApp Obrigatório:</b> A presença no grupo do WhatsApp é mandatória para participar da Liga de Guerra e para disputar a premiação do Passe Dourado.</li>
+            <li><b>7. Contas Rushadas:</b> Contas rushadas que possuam heróis com níveis muito baixos em relação ao Centro de Vila não serão aceitas.</li>
+            <li><b>8. Ajuda Mútua:</b> Se tiver qualquer dúvida sobre ataques, estratégias ou layouts, pergunte e peça ajuda! O clã existe para crescermos juntos.</li>
         </ul>
     </div>
     """,
@@ -869,15 +869,31 @@ else:
         else:
           st.info("Nenhum dado disponível para backup.")
 
-  # --- RODAPÉ COM AS REGRAS DA COMPETIÇÃO DO PASSE ---
+  # --- RODAPÉ COM O REGULAMENTO DETALHADO DA COMPETIÇÃO DO PASSE ---
   st.markdown(
       """
     <div class="rules-card">
-        <div class="rules-title">🎟️ Regras da Competição do Passe Dourado</div>
+        <div class="rules-title">🎟️ Regulamento da Competição do Passe Dourado</div>
+        <p style="margin-bottom: 12px; font-style: italic; color: #94a3b8;">A ideia é simples: valorizar quem joga bem, participa ativamente e ajuda o clã Winning Wars a crescer sempre!</p>
+        
         <ul>
-            <li><b>Acúmulo de Pontos:</b> A pontuação é somada com base nas participações e desempenho em Guerras, Ligas de Guerra, Raides de Capital e Eventos internos do clã.</li>
-            <li><b>Premiação Mensal:</b> Ao final do mês civil, os <b>Top 3 membros</b> com a maior pontuação total garantem o seu <b>Passe Dourado</b>.</li>
-            <li><b>Acompanhamento:</b> Verifique sua pontuação detalhada na aba <i>"Tabela Detalhada"</i> e mantenha-se no topo!</li>
+            <li><b>🏆 Prêmio Mensal:</b> Todo mês, os <b>3 principais destaques</b> do ranking levam <b>1 Passe Dourado</b> cada. Em caso de empate, critérios específicos da liderança definirão a premiação para o 1º, 2º e 3º lugares.</li>
+            <li><b>📊 Como Pontuar:</b>
+                <ul style="margin-top: 6px; list-style-type: circle;">
+                    <li><b>Ataques em Guerras:</b> 1 ponto por cada estrela conquistada (⭐).</li>
+                    <li><b>Jogos do Clã e Eventos:</b> Participação padrão rende 5 pontos, e quem completar a meta ganha 10 pontos.</li>
+                    <li><b>Raides de Fim de Semana:</b> Concluir os 6 ataques garante 10 pontos.</li>
+                    <li><b>Eventos de Colaboração:</b> Alguns eventos especiais contarão com pontuação e metas extras informadas previamente pelos líderes.</li>
+                </ul>
+            </li>
+            <li><b>📜 Regras Rápidas da Competição:</b>
+                <ul style="margin-top: 6px; list-style-type: circle;">
+                    <li>Vale apenas a <b>conta principal</b> de cada membro.</li>
+                    <li><b>Zero tolerância a trapaças</b> (uso de programas proibidos resulta em desclassificação imediata).</li>
+                    <li>O membro precisa obrigatoriamente estar presente no <b>grupo do WhatsApp</b> do clã.</li>
+                    <li>Toda a pontuação é rigorosamente registrada e atualizada em uma tabela mensal transparente.</li>
+                </ul>
+            </li>
         </ul>
     </div>
     """,
