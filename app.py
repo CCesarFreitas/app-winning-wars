@@ -65,7 +65,7 @@ except Exception as e:
   )
   st.stop()
 
-# --- CARREGAR DADOS COM TRATAMENTO DE ERRO ---
+# --- CARREGAR DADOS ---
 try:
   dados = sheet_dados.get_all_records()
   df = pd.DataFrame(dados)
@@ -73,12 +73,6 @@ except Exception as e:
   st.warning(
       "⚠️ **Atenção:** A planilha 'WinningWars_DB' precisa ter os cabeçalhos das"
       " colunas na primeira linha (Linha 1)."
-  )
-  st.info(
-      "Exemplo de cabeçalho na Linha 1:\n"
-      "| ID | Nome | JogosCla | Eventos |\n\n"
-      "Verifique se a Linha 1 possui textos e se não há colunas vazias entre"
-      " elas."
   )
   df = pd.DataFrame()
 
@@ -137,7 +131,19 @@ if not df.empty:
   df["Total"] = df[cols_somar].sum(axis=1) if cols_somar else 0
   df_rank = df.sort_values(by="Total", ascending=False).reset_index(drop=True)
   df_rank.index = df_rank.index + 1
-  df_rank["Posição"] = [f"{i}º" for i in df_rank.index]
+
+  # Adiciona ícones aos 3 primeiros da lista
+  posicoes = []
+  for i in df_rank.index:
+    if i == 1:
+      posicoes.append("🥇 1º")
+    elif i == 2:
+      posicoes.append("🥈 2º")
+    elif i == 3:
+      posicoes.append("🥉 3º")
+    else:
+      posicoes.append(f"  {i}º")
+  df_rank["Posição"] = posicoes
 
 # --- CABEÇALHO ---
 st.title("⚔️ Clã Winning Wars - Competição Mensal")
@@ -209,13 +215,46 @@ with tab_ranking:
 
     st.subheader("📊 Classificação em Tempo Real")
 
+    # --- MONTAGEM E ESTILIZAÇÃO AVANÇADA DA TABELA ---
     df_exibicao = df_rank[["Posição", "Nome", "Total"]].copy()
-    df_exibicao["Total"] = df_exibicao["Total"].apply(lambda x: f"{int(x)} pts")
+    df_exibicao["Total"] = df_exibicao["Total"].astype(int)
     df_exibicao.rename(
         columns={"Nome": "Jogador", "Total": "Pontuação Total"}, inplace=True
     )
 
-    st.dataframe(df_exibicao, use_container_width=True, hide_index=True)
+
+    # FUNÇÃO DE COLORINHO ESTILIZADO POR LINHA
+    def destacar_podio(row):
+      pos = str(row["Posição"])
+      if "🥇" in pos:
+        return [
+            "background-color: #382403; color: #facc15; font-weight: bold;",
+            "background-color: #382403; color: #facc15; font-weight: bold;",
+            "background-color: #382403; color: #facc15; font-weight: bold;",
+        ]
+      elif "🥈" in pos:
+        return [
+            "background-color: #1e293b; color: #cbd5e1; font-weight: bold;",
+            "background-color: #1e293b; color: #cbd5e1; font-weight: bold;",
+            "background-color: #1e293b; color: #cbd5e1; font-weight: bold;",
+        ]
+      elif "🥉" in pos:
+        return [
+            "background-color: #2e1805; color: #f97316; font-weight: bold;",
+            "background-color: #2e1805; color: #f97316; font-weight: bold;",
+            "background-color: #2e1805; color: #f97316; font-weight: bold;",
+        ]
+      return ["", "", ""]
+
+
+    st.dataframe(
+        df_exibicao.style.apply(destacar_podio, axis=1).format(
+            {"Pontuação Total": "{} pts"}
+        ),
+        use_container_width=True,
+        hide_index=True,
+        height=(len(df_exibicao) + 1) * 35 + 3,
+    )
 
   else:
     st.info("Nenhum jogador cadastrado ainda ou dados ausentes na planilha.")
@@ -324,7 +363,6 @@ with tab_admin:
             st.error("Limite máximo de 50 jogadores atingido!")
           elif novo_nome.strip() != "":
             novo_id = len(dados) + 1
-            # Descobre a quantidade exata de colunas da planilha
             cols_atuais = len(sheet_dados.row_values(1))
             linha_nova = [novo_id, novo_nome.strip()] + [0] * (cols_atuais - 2)
             sheet_dados.append_row(linha_nova)
@@ -341,12 +379,11 @@ with tab_admin:
             st.success(f"{player_rem} removido!")
             st.rerun()
 
-    # 2. LANÇAMENTO DINÂMICO DE GUERRAS E RAIDES (CORRIGIDO)
+    # 2. LANÇAMENTO DINÂMICO DE GUERRAS E RAIDES
     with sub_tab2:
       st.markdown("#### Criar Novas Rodadas de Eventos")
       col_add1, col_add2 = st.columns(2)
 
-      # Obtém o cabeçalho real direto da planilha para evitar colunas puladas
       cabecalho_real = sheet_dados.row_values(1)
 
       with col_add1:
