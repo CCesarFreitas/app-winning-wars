@@ -1,3 +1,4 @@
+import base64
 import hashlib
 import json
 import random
@@ -12,9 +13,18 @@ st.set_page_config(
 )
 
 
-# --- FUNÇÃO DE SEGURANÇA ---
+# --- FUNÇÕES AUXILIARES ---
 def gerar_hash(senha: str) -> str:
   return hashlib.sha256(senha.encode()).hexdigest()
+
+
+def imagem_para_base64(file_buffer) -> str:
+  """Converte a imagem enviada para Base64 para exibição direta."""
+  if file_buffer is not None:
+    encoded = base64.b64encode(file_buffer.read()).decode("utf-8")
+    mime_type = file_buffer.type
+    return f"data:{mime_type};base64,{encoded}"
+  return None
 
 
 # --- CONEXÃO COM O GOOGLE SHEETS ---
@@ -57,7 +67,7 @@ def conectar_banco():
 
 try:
   sheet_dados, sheet_admins, sheet_estado = conectar_banco()
-except Exception as e:
+except Exception:
   st.error(
       "⚠️ **Erro na Conexão:** Não foi possível acessar a planilha"
       " 'WinningWars_DB'. Verifique se as permissões e as chaves em Secrets"
@@ -69,11 +79,7 @@ except Exception as e:
 try:
   dados = sheet_dados.get_all_records()
   df = pd.DataFrame(dados)
-except Exception as e:
-  st.warning(
-      "⚠️ **Atenção:** A planilha 'WinningWars_DB' precisa ter os cabeçalhos das"
-      " colunas na primeira linha (Linha 1)."
-  )
+except Exception:
   df = pd.DataFrame()
 
 try:
@@ -135,45 +141,34 @@ st.markdown(
     .gold { background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%); border: 2px solid #facc15; }
     .silver { background: linear-gradient(135deg, #94a3b8 0%, #475569 100%); border: 2px solid #cbd5e1; }
     .bronze { background: linear-gradient(135deg, #d97706 0%, #78350f 100%); border: 2px solid #f97316; }
-    
-    .podium-title { font-size: 1.1rem; font-weight: bold; letter-spacing: 1px; }
-    .podium-name { font-size: 1.8rem; font-weight: 800; text-shadow: 2px 2px 4px rgba(0,0,0,0.6); margin: 8px 0; }
-    .podium-score { font-size: 1.5rem; color: #facc15; font-weight: bold; }
 
-    /* SEÇÃO DE REGRAS E PREMIAÇÃO NO RODAPÉ */
-    .info-box {
+    /* CARD DE LAYOUT */
+    .layout-card {
         background-color: #161b22;
         border: 1px solid #30363d;
         border-radius: 12px;
-        padding: 20px;
-        margin-top: 10px;
-        color: #e6edf3;
-    }
-    .info-title {
-        color: #facc15;
-        font-size: 1.2rem;
-        font-weight: bold;
-        margin-bottom: 12px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    .info-list {
-        list-style-type: none;
-        padding-left: 0;
-        margin-bottom: 0;
-    }
-    .info-list li {
-        margin-bottom: 8px;
-        font-size: 0.95rem;
-        line-height: 1.4;
-    }
-    .highlight-gold {
-        color: #facc15;
-        font-weight: bold;
+        padding: 16px;
+        margin-bottom: 20px;
     }
 
-    /* BOTÃO DE LINK EXTERNO */
+    /* BOTÃO DE LINK DO LAYOUT E CLÃ FARM */
+    .btn-layout-copy {
+        display: inline-block;
+        width: 100%;
+        text-align: center;
+        background-color: #2563eb;
+        color: white !important;
+        padding: 10px 18px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: bold;
+        border: 1px solid #3b82f6;
+        transition: background-color 0.2s;
+    }
+    .btn-layout-copy:hover {
+        background-color: #1d4ed8;
+    }
+
     .btn-external-link {
         display: block;
         width: 100%;
@@ -193,6 +188,29 @@ st.markdown(
 """,
     unsafe_allow_html=True,
 )
+
+
+# --- COMPONENTE: MODAL DE LOGIN RÁPIDO DE ADMIN NAS PÁGINAS DE LAYOUT ---
+def renderizar_login_admin_layout(prefixo: str):
+  if "admin_logado" not in st.session_state:
+    with st.expander("🔐 É Administrador? Clique aqui para fazer Login"):
+      with st.form(key=f"form_login_layout_{prefixo}"):
+        u_in = st.text_input("Usuário Admin", key=f"u_lay_{prefixo}")
+        s_in = st.text_input("Senha", type="password", key=f"s_lay_{prefixo}")
+        btn_l = st.form_submit_button("Entrar")
+
+        if btn_l:
+          h_in = gerar_hash(s_in)
+          val = df_admins[
+              (df_admins["Usuario"] == u_in) & (df_admins["SenhaHash"] == h_in)
+          ]
+          if not val.empty:
+            st.session_state["admin_logado"] = u_in
+            st.success(f"Logado como {u_in}!")
+            st.rerun()
+          else:
+            st.error("Credenciais inválidas.")
+
 
 # --- BOTÕES SUPERIORES DE NAVEGAÇÃO ---
 btn_col1, btn_col2, btn_col3 = st.columns(3)
@@ -229,19 +247,9 @@ if st.session_state["pagina_atual"] == "layouts_guerra":
       "<h1 style='text-align: center;'>🛡️ Layouts Oficiais de Guerra</h1>",
       unsafe_allow_html=True,
   )
-  st.markdown(
-      "<p style='text-align: center; color: #94a3b8;'>Layouts defensivos"
-      " oficiais selecionados pelos administradores para guerras e liga.</p>",
-      unsafe_allow_html=True,
-  )
 
   eh_admin = "admin_logado" in st.session_state
-
-  if not eh_admin:
-    st.info(
-        "💡 **Apenas a administração do clã pode publicar novos layouts.**"
-        " Selecione o seu CV abaixo para copiar a base."
-    )
+  renderizar_login_admin_layout("guerra")
 
   cv_list = [f"CV {i}" for i in range(18, 11, -1)]
   tabs_cv = st.tabs(cv_list)
@@ -250,23 +258,31 @@ if st.session_state["pagina_atual"] == "layouts_guerra":
     with tabs_cv[idx]:
       st.subheader(f"Base de Guerra - {cv_nome}")
 
-      # Form exclusivo para Administradores com keys únicas
+      # Form exclusivo para Administradores
       if eh_admin:
         with st.expander(
             f"➕ [ADMIN] Adicionar Novo Layout de Guerra ({cv_nome})"
         ):
           with st.form(key=f"form_guerra_{cv_nome}"):
             link_layout = st.text_input(
-                "Link Oficial do Layout", key=f"input_link_guerra_{cv_nome}"
+                "Link Oficial do Layout (URL)",
+                key=f"input_link_guerra_{cv_nome}",
             )
             descricao = st.text_input(
                 "Descrição / Foco (ex: Anti-3, Anti-2)",
                 key=f"input_desc_guerra_{cv_nome}",
             )
+            img_file = st.file_uploader(
+                "Upload da Foto da Base (Opcional)",
+                type=["png", "jpg", "jpeg"],
+                key=f"img_guerra_{cv_nome}",
+            )
+
             btn_enviar = st.form_submit_button("Publicar Layout")
 
             if btn_enviar:
               if link_layout.strip():
+                img_b64 = imagem_para_base64(img_file)
                 st.session_state["layouts_guerra"][cv_nome].append({
                     "autor": st.session_state["admin_logado"],
                     "link": link_layout.strip(),
@@ -275,6 +291,7 @@ if st.session_state["pagina_atual"] == "layouts_guerra":
                         if descricao.strip()
                         else "Layout Recomendado"
                     ),
+                    "imagem": img_b64,
                 })
                 st.success("Layout publicado com sucesso!")
                 st.rerun()
@@ -287,22 +304,38 @@ if st.session_state["pagina_atual"] == "layouts_guerra":
       if lista_l:
         st.markdown("### 📋 Layouts Disponíveis")
         for item_idx, item in enumerate(lista_l):
-          c_a, c_b, c_c, c_d = st.columns([2, 3, 2, 1])
-          with c_a:
-            st.write(f"👑 Admin: **{item['autor']}**")
-          with c_b:
-            st.write(f"📌 {item['descricao']}")
-          with c_c:
-            st.markdown(f"[📥 Copiar Layout]({item['link']})")
-          with c_d:
-            if eh_admin:
-              if st.button(
-                  "❌ Excluir", key=f"del_guerra_{cv_nome}_{item_idx}"
-              ):
-                st.session_state["layouts_guerra"][cv_nome].pop(item_idx)
-                st.success("Layout removido!")
-                st.rerun()
-          st.divider()
+          with st.container():
+            st.markdown(
+                f"**👑 Admin:** {item['autor']} | **📌 Foco:**"
+                f" {item['descricao']}"
+            )
+
+            # Exibe imagem se existir
+            if item.get("imagem"):
+              st.image(
+                  item["imagem"],
+                  caption=f"Layout {cv_nome}",
+                  use_column_width=True,
+              )
+
+            # Botão Direto
+            c_btn, c_del = st.columns([4, 1])
+            with c_btn:
+              st.markdown(
+                  f'<a href="{item["link"]}" target="_blank"'
+                  ' class="btn-layout-copy">📲 COPIAR LAYOUT DIRECTO NO CLASH</a>',
+                  unsafe_allow_html=True,
+              )
+            with c_del:
+              if eh_admin:
+                if st.button(
+                    "❌ Excluir", key=f"del_guerra_{cv_nome}_{item_idx}"
+                ):
+                  st.session_state["layouts_guerra"][cv_nome].pop(item_idx)
+                  st.success("Removido!")
+                  st.rerun()
+
+            st.divider()
       else:
         st.info(f"Nenhum layout oficial cadastrado ainda para o {cv_nome}.")
 
@@ -319,20 +352,9 @@ elif st.session_state["pagina_atual"] == "layouts_rankeada":
       " Farm</h1>",
       unsafe_allow_html=True,
   )
-  st.markdown(
-      "<p style='text-align: center; color: #94a3b8;'>Layouts oficiais"
-      " recomendados para subida de troféus, Vila Lendária e proteção de"
-      " recursos.</p>",
-      unsafe_allow_html=True,
-  )
 
   eh_admin = "admin_logado" in st.session_state
-
-  if not eh_admin:
-    st.info(
-        "💡 **Apenas a administração do clã pode publicar novos layouts.**"
-        " Selecione o seu CV abaixo para copiar a base."
-    )
+  renderizar_login_admin_layout("rankeada")
 
   cv_list = [f"CV {i}" for i in range(18, 11, -1)]
   tabs_cv = st.tabs(cv_list)
@@ -341,23 +363,31 @@ elif st.session_state["pagina_atual"] == "layouts_rankeada":
     with tabs_cv[idx]:
       st.subheader(f"Base de Rankeada - {cv_nome}")
 
-      # Form exclusivo para Administradores com keys únicas
+      # Form exclusivo para Administradores
       if eh_admin:
         with st.expander(
             f"➕ [ADMIN] Adicionar Novo Layout de Rankeada ({cv_nome})"
         ):
           with st.form(key=f"form_rankeada_{cv_nome}"):
             link_layout = st.text_input(
-                "Link Oficial do Layout", key=f"input_link_rankeada_{cv_nome}"
+                "Link Oficial do Layout (URL)",
+                key=f"input_link_rankeada_{cv_nome}",
             )
             descricao = st.text_input(
                 "Descrição / Foco (ex: Push Lendária, Proteção de Dark)",
                 key=f"input_desc_rankeada_{cv_nome}",
             )
+            img_file = st.file_uploader(
+                "Upload da Foto da Base (Opcional)",
+                type=["png", "jpg", "jpeg"],
+                key=f"img_rankeada_{cv_nome}",
+            )
+
             btn_enviar = st.form_submit_button("Publicar Layout")
 
             if btn_enviar:
               if link_layout.strip():
+                img_b64 = imagem_para_base64(img_file)
                 st.session_state["layouts_rankeada"][cv_nome].append({
                     "autor": st.session_state["admin_logado"],
                     "link": link_layout.strip(),
@@ -366,6 +396,7 @@ elif st.session_state["pagina_atual"] == "layouts_rankeada":
                         if descricao.strip()
                         else "Layout Recomendado"
                     ),
+                    "imagem": img_b64,
                 })
                 st.success("Layout publicado com sucesso!")
                 st.rerun()
@@ -378,22 +409,38 @@ elif st.session_state["pagina_atual"] == "layouts_rankeada":
       if lista_l:
         st.markdown("### 📋 Layouts Disponíveis")
         for item_idx, item in enumerate(lista_l):
-          c_a, c_b, c_c, c_d = st.columns([2, 3, 2, 1])
-          with c_a:
-            st.write(f"👑 Admin: **{item['autor']}**")
-          with c_b:
-            st.write(f"📌 {item['descricao']}")
-          with c_c:
-            st.markdown(f"[📥 Copiar Layout]({item['link']})")
-          with c_d:
-            if eh_admin:
-              if st.button(
-                  "❌ Excluir", key=f"del_rankeada_{cv_nome}_{item_idx}"
-              ):
-                st.session_state["layouts_rankeada"][cv_nome].pop(item_idx)
-                st.success("Layout removido!")
-                st.rerun()
-          st.divider()
+          with st.container():
+            st.markdown(
+                f"**👑 Admin:** {item['autor']} | **📌 Foco:**"
+                f" {item['descricao']}"
+            )
+
+            # Exibe imagem se existir
+            if item.get("imagem"):
+              st.image(
+                  item["imagem"],
+                  caption=f"Layout {cv_nome}",
+                  use_column_width=True,
+              )
+
+            # Botão Direto
+            c_btn, c_del = st.columns([4, 1])
+            with c_btn:
+              st.markdown(
+                  f'<a href="{item["link"]}" target="_blank"'
+                  ' class="btn-layout-copy">📲 COPIAR LAYOUT DIRECTO NO CLASH</a>',
+                  unsafe_allow_html=True,
+              )
+            with c_del:
+              if eh_admin:
+                if st.button(
+                    "❌ Excluir", key=f"del_rankeada_{cv_nome}_{item_idx}"
+                ):
+                  st.session_state["layouts_rankeada"][cv_nome].pop(item_idx)
+                  st.success("Removido!")
+                  st.rerun()
+
+            st.divider()
       else:
         st.info(f"Nenhum layout oficial cadastrado ainda para o {cv_nome}.")
 
@@ -401,7 +448,6 @@ elif st.session_state["pagina_atual"] == "layouts_rankeada":
 # PÁGINA PRINCIPAL (RANKING & APLICAÇÃO)
 # ==============================================================================
 else:
-  # TÍTULO CENTRALIZADO
   st.markdown(
       "<h1 class='main-title'>⚔️ Clã Winning Wars - Competição Mensal</h1>",
       unsafe_allow_html=True,
@@ -412,7 +458,6 @@ else:
       unsafe_allow_html=True,
   )
 
-  # --- TRATAMENTO DOS DADOS E SOMA DAS COLUNAS DINÂMICAS ---
   if not df.empty:
     colunas_raides = [c for c in df.columns if c.startswith("Raide_")]
     colunas_guerras = [c for c in df.columns if c.startswith("Guerra_")]
@@ -427,7 +472,6 @@ else:
     df_rank = df.sort_values(by="Total", ascending=False).reset_index(drop=True)
     df_rank.index = df_rank.index + 1
 
-    # Adiciona ícones aos 3 primeiros da lista
     posicoes = []
     for i in df_rank.index:
       if i == 1:
@@ -444,7 +488,7 @@ else:
       ["🏆 Ranking ao Vivo", "📋 Tabela Detalhada", "🔐 Área Admin"]
   )
 
-  # --- ABA 1: RANKING AO VIVO ---
+  # ABA 1: RANKING AO VIVO
   with tab_ranking:
     if not df.empty and "Total" in df.columns:
       if mes_finalizado:
@@ -454,58 +498,47 @@ else:
         st.subheader("🥇 Pódio dos Premiados com Passe Dourado")
 
         col1, col2, col3 = st.columns(3)
-
         if len(df_rank) >= 1:
           with col1:
             st.markdown(
-                f"""
-                        <div class="podium-card gold">
-                            <div class="podium-title">🥇 1º LUGAR</div>
-                            <div class="podium-name">{df_rank.iloc[0]['Nome']}</div>
-                            <div class="podium-score">{int(df_rank.iloc[0]['Total'])} pts</div>
-                            <small>Garantidor do Passe Dourado</small>
-                        </div>
-                    """,
+                f'<div class="podium-card gold"><div'
+                ' class="podium-title">🥇 1º LUGAR</div><div'
+                f' class="podium-name">{df_rank.iloc[0]["Nome"]}</div><div'
+                ' class="podium-score">'
+                f'{int(df_rank.iloc[0]["Total"])} pts</div><small>Garantidor do'
+                " Passe Dourado</small></div>",
                 unsafe_allow_html=True,
             )
-
         if len(df_rank) >= 2:
           with col2:
             st.markdown(
-                f"""
-                        <div class="podium-card silver">
-                            <div class="podium-title">🥈 2º LUGAR</div>
-                            <div class="podium-name">{df_rank.iloc[1]['Nome']}</div>
-                            <div class="podium-score">{int(df_rank.iloc[1]['Total'])} pts</div>
-                            <small>Garantidor do Passe Dourado</small>
-                        </div>
-                    """,
+                f'<div class="podium-card silver"><div'
+                ' class="podium-title">🥈 2º LUGAR</div><div'
+                f' class="podium-name">{df_rank.iloc[1]["Nome"]}</div><div'
+                ' class="podium-score">'
+                f'{int(df_rank.iloc[1]["Total"])} pts</div><small>Garantidor do'
+                " Passe Dourado</small></div>",
                 unsafe_allow_html=True,
             )
-
         if len(df_rank) >= 3:
           with col3:
             st.markdown(
-                f"""
-                        <div class="podium-card bronze">
-                            <div class="podium-title">🥉 3º LUGAR</div>
-                            <div class="podium-name">{df_rank.iloc[2]['Nome']}</div>
-                            <div class="podium-score">{int(df_rank.iloc[2]['Total'])} pts</div>
-                            <small>Garantidor do Passe Dourado</small>
-                        </div>
-                    """,
+                f'<div class="podium-card bronze"><div'
+                ' class="podium-title">🥉 3º LUGAR</div><div'
+                f' class="podium-name">{df_rank.iloc[2]["Nome"]}</div><div'
+                ' class="podium-score">'
+                f'{int(df_rank.iloc[2]["Total"])} pts</div><small>Garantidor do'
+                " Passe Dourado</small></div>",
                 unsafe_allow_html=True,
             )
         st.write("---")
       else:
         st.info(
-            "⏳ **Mês em andamento.** A classificação abaixo é atualizada em"
-            " tempo real. Os campeões do pódio serão revelados ao término do"
-            " mês!"
+            "⏳ **Mês em andamento.** A classificação é atualizada em tempo"
+            " real."
         )
 
       st.subheader("📊 Classificação em Tempo Real")
-
       df_exibicao = df_rank[["Posição", "Nome", "Total"]].copy()
       df_exibicao["Total"] = df_exibicao["Total"].astype(int)
       df_exibicao.rename(
@@ -516,23 +549,17 @@ else:
         pos = str(row["Posição"])
         if "🥇" in pos:
           return [
-              "background-color: #382403; color: #facc15; font-weight: bold;",
-              "background-color: #382403; color: #facc15; font-weight: bold;",
-              "background-color: #382403; color: #facc15; font-weight: bold;",
-          ]
+              "background-color: #382403; color: #facc15; font-weight: bold;"
+          ] * 3
         elif "🥈" in pos:
           return [
-              "background-color: #1e293b; color: #cbd5e1; font-weight: bold;",
-              "background-color: #1e293b; color: #cbd5e1; font-weight: bold;",
-              "background-color: #1e293b; color: #cbd5e1; font-weight: bold;",
-          ]
+              "background-color: #1e293b; color: #cbd5e1; font-weight: bold;"
+          ] * 3
         elif "🥉" in pos:
           return [
-              "background-color: #2e1805; color: #f97316; font-weight: bold;",
-              "background-color: #2e1805; color: #f97316; font-weight: bold;",
-              "background-color: #2e1805; color: #f97316; font-weight: bold;",
-          ]
-        return ["", "", ""]
+              "background-color: #2e1805; color: #f97316; font-weight: bold;"
+          ] * 3
+        return [""] * 3
 
       st.dataframe(
           df_exibicao.style.apply(destacar_podio, axis=1).format(
@@ -542,11 +569,10 @@ else:
           hide_index=True,
           height=(len(df_exibicao) + 1) * 35 + 3,
       )
-
     else:
-      st.info("Nenhum jogador cadastrado ainda ou dados ausentes na planilha.")
+      st.info("Nenhum jogador cadastrado ainda.")
 
-  # --- ABA 2: TABELA DETALHADA ---
+  # ABA 2: TABELA DETALHADA
   with tab_tabela:
     st.subheader("📋 Pontuação Individual Detalhada por Evento")
     if not df.empty and "Total" in df.columns:
@@ -565,7 +591,7 @@ else:
     else:
       st.info("Sem registros no momento.")
 
-  # --- ABA 3: ÁREA ADMINISTRAÇÃO ---
+  # ABA 3: ÁREA ADMINISTRAÇÃO
   with tab_admin:
     st.subheader("🔐 Painel de Controle e Administração")
 
@@ -599,12 +625,12 @@ else:
         if not mes_finalizado:
           if st.button("🔒 Finalizar Mês e Revelar Campeões", type="primary"):
             sheet_estado.update_cell(2, 2, "TRUE")
-            st.success("Mês finalizado! O pódio agora está visível no ranking.")
+            st.success("Mês finalizado!")
             st.rerun()
         else:
           if st.button("🔓 Reabrir Mês para Edição"):
             sheet_estado.update_cell(2, 2, "FALSE")
-            st.warning("Mês reaberto para lançamentos.")
+            st.warning("Mês reaberto.")
             st.rerun()
 
       with c_fin2:
@@ -619,38 +645,34 @@ else:
           ):
             st.warning(
                 f"⚠️ **Empate detectado!** {len(empatados_corte)} jogadores"
-                f" estão empatados com {int(p3_score)} pts na disputa pelas"
-                " vagas do Top 3."
+                f" empatados com {int(p3_score)} pts."
             )
-
             if st.button("🎲 Realizar Sorteio de Desempate"):
               ganhadores_sorteio = random.sample(
                   empatados_corte["Nome"].tolist(), len(empatados_corte)
               )
               st.balloons()
               st.success("Resultado do Sorteio:")
-              for idx, nome_s in enumerate(ganhadores_sorteio, 1):
-                st.write(f"**{idx}º Sorteado:** {nome_s}")
+              for idx_s, nome_s in enumerate(ganhadores_sorteio, 1):
+                st.write(f"**{idx_s}º Sorteado:** {nome_s}")
           else:
-            st.info("Não há empates críticos que exijam sorteio no momento.")
+            st.info("Não há empates críticos no momento.")
 
       st.write("---")
-
       sub_tab1, sub_tab2, sub_tab3 = st.tabs([
           "➕ Cadastrar / Remover Player",
           "✏️ Lançar Pontuações Dinâmicas",
           "👥 Gerenciar Admins",
       ])
 
-      # 1. JOGADORES
       with sub_tab1:
         c1, c2 = st.columns(2)
         with c1:
-          st.markdown("#### Adicionar Jogador (Max 50)")
+          st.markdown("#### Adicionar Jogador")
           novo_nome = st.text_input("Nome do Player")
           if st.button("Cadastrar Player"):
             if len(df) >= 50:
-              st.error("Limite máximo de 50 jogadores atingido!")
+              st.error("Limite máximo de 50 atingido!")
             elif novo_nome.strip() != "":
               novo_id = len(dados) + 1
               cols_atuais = len(sheet_dados.row_values(1))
@@ -671,34 +693,31 @@ else:
               st.success(f"{player_rem} removido!")
               st.rerun()
 
-      # 2. LANÇAMENTO DINÂMICO DE GUERRAS E RAIDES
       with sub_tab2:
-        st.markdown("#### Criar Novas Rodadas de Eventos")
+        st.markdown("#### Criar Novas Rodadas")
         col_add1, col_add2 = st.columns(2)
-
         cabecalho_real = sheet_dados.row_values(1)
 
         with col_add1:
-          if st.button("⚔️ Adicionar Nova Coluna de Guerra"):
+          if st.button("⚔️ Adicionar Coluna de Guerra"):
             nova_guerra_num = len(colunas_guerras) + 1
-            nome_col_guerra = f"Guerra_{nova_guerra_num}"
-            proxima_coluna = len(cabecalho_real) + 1
-            sheet_dados.update_cell(1, proxima_coluna, nome_col_guerra)
-            st.success(f"Coluna **{nome_col_guerra}** criada com sucesso!")
+            sheet_dados.update_cell(
+                1, len(cabecalho_real) + 1, f"Guerra_{nova_guerra_num}"
+            )
+            st.success("Coluna de Guerra Criada!")
             st.rerun()
 
         with col_add2:
-          if st.button("🛡️ Adicionar Nova Coluna de Raide"):
+          if st.button("🛡️ Adicionar Coluna de Raide"):
             nova_raide_num = len(colunas_raides) + 1
-            nome_col_raide = f"Raide_FDS{nova_raide_num}"
-            proxima_coluna = len(cabecalho_real) + 1
-            sheet_dados.update_cell(1, proxima_coluna, nome_col_raide)
-            st.success(f"Coluna **{nome_col_raide}** criada com sucesso!")
+            sheet_dados.update_cell(
+                1, len(cabecalho_real) + 1, f"Raide_FDS{nova_raide_num}"
+            )
+            st.success("Coluna de Raide Criada!")
             st.rerun()
 
         st.write("---")
-        st.markdown("#### Lançar / Corrigir Pontos de um Jogador")
-
+        st.markdown("#### Lançar Pontos")
         if not df.empty and "Nome" in df.columns:
           player_edit = st.selectbox("Selecione o Player", df["Nome"].tolist())
           dados_p = df[df["Nome"] == player_edit].iloc[0]
@@ -716,149 +735,100 @@ else:
                     if val_jogos_atual in [0, 5, 10]
                     else 0
                 ),
-                format_func=lambda x: f"{x} pts",
             )
             val_eventos = st.number_input(
-                "Eventos Conjuntos",
-                value=int(dados_p.get("Eventos", 0)),
-                step=10,
+                "Eventos", value=int(dados_p.get("Eventos", 0)), step=10
             )
 
           with col_lan2:
-            evento_tipo = st.radio(
-                "Selecione o tipo de atividade para atualizar:",
-                ["Guerras", "Raides"],
-            )
-
+            evento_tipo = st.radio("Atividade:", ["Guerras", "Raides"])
             if evento_tipo == "Guerras" and colunas_guerras:
-              guerra_sel = st.selectbox(
-                  "Selecione a Guerra/Liga", colunas_guerras
-              )
+              guerra_sel = st.selectbox("Guerra", colunas_guerras)
               val_guerra_item = st.number_input(
-                  f"Estrelas na {guerra_sel} (0 a 3 pts)",
+                  f"Estrelas ({guerra_sel})",
                   value=int(dados_p.get(guerra_sel, 0)),
                   min_value=0,
                   max_value=3,
               )
             elif evento_tipo == "Raides" and colunas_raides:
-              raide_sel = st.selectbox(
-                  "Selecione o FDS de Raide", colunas_raides
-              )
+              raide_sel = st.selectbox("Raide", colunas_raides)
               val_raide_item = st.selectbox(
-                  f"Pontos no {raide_sel}",
+                  f"Pontos ({raide_sel})",
                   options=[0, 10],
                   index=0 if int(dados_p.get(raide_sel, 0)) == 0 else 1,
-                  format_func=lambda x: (
-                      f"{x} pts (6 ataques)" if x == 10 else "0 pts"
-                  ),
               )
 
           if st.button("Salvar Registro"):
             if "JogosCla" in cabecalho_real and "Eventos" in cabecalho_real:
-              col_idx_jogos = cabecalho_real.index("JogosCla") + 1
-              col_idx_eventos = cabecalho_real.index("Eventos") + 1
-              sheet_dados.update_cell(linha_p, col_idx_jogos, val_jogos)
-              sheet_dados.update_cell(linha_p, col_idx_eventos, val_eventos)
+              sheet_dados.update_cell(
+                  linha_p, cabecalho_real.index("JogosCla") + 1, val_jogos
+              )
+              sheet_dados.update_cell(
+                  linha_p, cabecalho_real.index("Eventos") + 1, val_eventos
+              )
 
             if (
                 evento_tipo == "Guerras"
                 and colunas_guerras
                 and guerra_sel in cabecalho_real
             ):
-              col_idx_guerra = cabecalho_real.index(guerra_sel) + 1
-              sheet_dados.update_cell(linha_p, col_idx_guerra, val_guerra_item)
+              sheet_dados.update_cell(
+                  linha_p,
+                  cabecalho_real.index(guerra_sel) + 1,
+                  val_guerra_item,
+              )
             elif (
                 evento_tipo == "Raides"
                 and colunas_raides
                 and raide_sel in cabecalho_real
             ):
-              col_idx_raide = cabecalho_real.index(raide_sel) + 1
-              sheet_dados.update_cell(linha_p, col_idx_raide, val_raide_item)
+              sheet_dados.update_cell(
+                  linha_p, cabecalho_real.index(raide_sel) + 1, val_raide_item
+              )
 
-            st.success(f"Pontuações de {player_edit} atualizadas!")
+            st.success("Pontuações salvas!")
             st.rerun()
 
-      # 3. NOVO ADMIN
-      sub_tab3 = sub_tab3
       with sub_tab3:
-        st.markdown("#### Cadastrar Novo Administrador")
-        u_novo = st.text_input("Novo Usuário")
-        s_nova = st.text_input("Nova Senha", type="password")
+        st.markdown("#### Cadastrar Administrador")
+        u_novo = st.text_input("Usuário")
+        s_nova = st.text_input("Senha", type="password")
 
         if st.button("Criar Admin"):
           if u_novo.strip() and s_nova.strip():
             if u_novo in df_admins["Usuario"].values:
-              st.error("Usuário já existente!")
+              st.error("Usuário já existe!")
             else:
               sheet_admins.append_row([u_novo.strip(), gerar_hash(s_nova)])
-              st.success(f"Admin {u_novo} criado com sucesso!")
+              st.success(f"Admin {u_novo} criado!")
               st.rerun()
 
-  # --- SEÇÃO EXPLICATIVA DE REGRAS E PREMIAÇÃO (RODAPÉ) ---
+  # SEÇÃO EXPLICATIVA (RODAPÉ)
   st.write("---")
-  st.markdown("## 📜 Regulamento & Sistema de Premiação")
-  st.markdown(
-      "A ideia é simples: **valorizar quem joga bem, participa e ajuda o clã a"
-      " crescer.**"
-  )
-
+  st.markdown("## 📜 Regulamento & Premiação")
   info_col1, info_col2, info_col3 = st.columns(3)
 
   with info_col1:
     st.markdown(
-        """
-          <div class="info-box">
-              <div class="info-title">🏆 Prêmio Mensal</div>
-              <ul class="info-list">
-                  <li>Todo mês, os <b>3 principais destaques</b> do clã levam <span class="highlight-gold">1 Passe Dourado</span> cada um!</li>
-              </ul>
-          </div>
-      """,
+        '<div class="info-box"><div class="info-title">🏆 Prêmio'
+        " Mensal</div><ul class=\"info-list\"><li>Os <b>3 principais</b> levam"
+        ' <span class="highlight-gold">1 Passe Dourado</span></li></ul></div>',
         unsafe_allow_html=True,
     )
 
   with info_col2:
     st.markdown(
-        """
-          <div class="info-box">
-              <div class="info-title">📊 Como Pontuar</div>
-              <ul class="info-list">
-                  <li>⚔️ <b>Ataques em Guerras:</b> 1 ponto por estrela (⭐)</li>
-                  <li>🎯 <b>Jogos do Clã e Eventos:</b> Meta = 5 pts / Completou = 10 pts</li>
-                  <li>🛡️ <b>Raides de Fim de Semana:</b> 6 ataques realizados = 10 pts</li>
-              </ul>
-          </div>
-      """,
+        '<div class="info-box"><div class="info-title">📊 Como Pontuar</div><ul'
+        ' class="info-list"><li>⚔️ <b>Guerras:</b> 1 pt por estrela</li><li>🎯'
+        " <b>Jogos/Eventos:</b> 5 ou 10 pts</li><li>🛡️ <b>Raides:</b> 10"
+        " pts</li></ul></div>",
         unsafe_allow_html=True,
     )
 
   with info_col3:
     st.markdown(
-        """
-          <div class="info-box">
-              <div class="info-title">📜 Regras Rápidas</div>
-              <ul class="info-list">
-                  <li>👤 Vale apenas a <b>conta principal</b>.</li>
-                  <li>🚫 Nada de trapaça ou conduta antidesportiva.</li>
-                  <li>📱 É obrigatório estar no <b>grupo do WhatsApp</b>.</li>
-                  <li>📊 Tudo será registrado em nossa tabela mensal.</li>
-                  <li>🎲 Em caso de empate, teremos premiação/sorteio para 1º, 2º e 3º lugar.</li>
-              </ul>
-          </div>
-      """,
+        '<div class="info-box"><div class="info-title">📜 Regras</div><ul'
+        " class=\"info-list\"><li>👤 Conta principal</li><li>📱 Estar no"
+        " WhatsApp</li></ul></div>",
         unsafe_allow_html=True,
     )
-
-  st.markdown(
-      """
-      <br>
-      <div style="text-align: center; background-color: #1e293b; padding: 15px; border-radius: 10px; border: 1px solid #334155;">
-          <span style="font-size: 1.1rem; color: #facc15; font-weight: bold;">
-              🔥 Resumindo: jogue bem, participe, ajude o clã, tenha esforço para melhorar e você pode levar o prêmio!
-          </span>
-          <br>
-          <span style="font-size: 0.95rem; color: #cbd5e1;">Bora evoluir, fortalecer o clã e buscar o topo 💪</span>
-      </div>
-  """,
-      unsafe_allow_html=True,
-  )
