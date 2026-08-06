@@ -135,7 +135,7 @@ st.markdown(
     
     .main-title { 
         text-align: center; 
-        margin-top: 10px; 
+        margin-top: 5px; 
         margin-bottom: 5px; 
         font-size: 2.5rem;
     }
@@ -179,9 +179,14 @@ st.markdown(
         box-shadow: 0 8px 25px rgba(0,0,0,0.6); 
         font-family: 'Nunito', sans-serif;
     }
+    .podium-icon {
+        font-size: 2.5rem;
+        margin-bottom: 5px;
+    }
     .podium-title {
         font-family: 'Luckiest Guy', cursive;
         font-size: 1.4rem;
+        margin-top: 5px;
         margin-bottom: 8px;
         text-shadow: 1px 1px 0px #000;
     }
@@ -238,6 +243,10 @@ st.markdown(
         border-left: 5px solid #facc15;
         box-shadow: 0 4px 12px rgba(0,0,0,0.4);
         font-family: 'Nunito', sans-serif;
+    }
+    .info-card-badge {
+        font-size: 2.2rem;
+        margin-bottom: 8px;
     }
     .info-card-header {
         font-size: 1.1rem;
@@ -382,10 +391,7 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
             img_url = st.text_input(
                 "Link Direto da Foto (ex: https://i.ibb.co/.../foto.png)",
                 key=f"img_{tipo_layout}_{cv_nome}",
-                help=(
-                    "No ImgBB, escolha 'Códigos de incorporação' e copie o 'Link"
-                    " direto'!"
-                ),
+                help="Cole o link direto da imagem do layout.",
             )
 
             btn_enviar = st.form_submit_button("Publicar Layout")
@@ -428,19 +434,10 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
             img_url_limpa = str(row["ImagemUrl"]).strip()
 
             if img_url_limpa:
-              if "ibb.co" in img_url_limpa and not "i.ibb.co" in img_url_limpa:
-                st.warning(
-                    "⚠️ **Link de imagem incorreto:** No ImgBB, mude para"
-                    " 'Códigos de Incorporação' -> 'Link direto' (deve iniciar"
-                    " com i.ibb.co e terminar em .png/.jpg)."
-                )
-              else:
-                try:
-                  st.image(
-                      img_url_limpa, caption=f"Layout {cv_nome}", width=380
-                  )
-                except Exception:
-                  st.caption("⚠️ *(Não foi possível carregar esta imagem)*")
+              try:
+                st.image(img_url_limpa, caption=f"Layout {cv_nome}", width=380)
+              except Exception:
+                st.caption("⚠️ *(Não foi possível carregar esta imagem)*")
 
             c_btn, c_del = st.columns([3, 1])
             with c_btn:
@@ -547,6 +544,16 @@ elif st.session_state["pagina_atual"] == "regras_cla":
 # PÁGINA PRINCIPAL (RANKING & APLICAÇÃO)
 # ==============================================================================
 else:
+  # BANNER E EMBLEMA OFICIAL DO CLÃ NO TOPO
+  st.markdown(
+      """
+    <div style="text-align: center; margin-bottom: 10px;">
+        <img src="https://i.ibb.co/yBShz18b/winning.png" width="130" style="filter: drop-shadow(0px 6px 12px rgba(0,0,0,0.6));" onerror="this.style.display='none'">
+    </div>
+    """,
+      unsafe_allow_html=True,
+  )
+
   st.markdown(
       "<h1 class='main-title'>⚔️ Clã Winning Wars - Competição Mensal</h1>",
       unsafe_allow_html=True,
@@ -606,33 +613,36 @@ else:
           with col1:
             st.markdown(
                 f'<div class="podium-card gold"><div'
-                ' class="podium-title">🥇 1º LUGAR</div><div'
+                ' class="podium-icon">🎟️</div><div class="podium-title">🥇 1º'
+                ' LUGAR</div><div'
                 f' class="podium-name">{df_rank.iloc[0]["Nome"]}</div><div'
                 ' class="podium-score">'
                 f'{int(df_rank.iloc[0]["Total"])} pts</div><small>Garantidor do'
-                " Passe Dourado 🎟️</small></div>",
+                " Passe Dourado!</small></div>",
                 unsafe_allow_html=True,
             )
         if len(df_rank) >= 2:
           with col2:
             st.markdown(
                 f'<div class="podium-card silver"><div'
-                ' class="podium-title">🥈 2º LUGAR</div><div'
+                ' class="podium-icon">🎟️</div><div class="podium-title">🥈 2º'
+                ' LUGAR</div><div'
                 f' class="podium-name">{df_rank.iloc[1]["Nome"]}</div><div'
                 ' class="podium-score">'
                 f'{int(df_rank.iloc[1]["Total"])} pts</div><small>Garantidor do'
-                " Passe Dourado 🎟️</small></div>",
+                " Passe Dourado!</small></div>",
                 unsafe_allow_html=True,
             )
         if len(df_rank) >= 3:
           with col3:
             st.markdown(
                 f'<div class="podium-card bronze"><div'
-                ' class="podium-title">🥉 3º LUGAR</div><div'
+                ' class="podium-icon">🎟️</div><div class="podium-title">🥉 3º'
+                ' LUGAR</div><div'
                 f' class="podium-name">{df_rank.iloc[2]["Nome"]}</div><div'
                 ' class="podium-score">'
                 f'{int(df_rank.iloc[2]["Total"])} pts</div><small>Garantidor do'
-                " Passe Dourado 🎟️</small></div>",
+                " Passe Dourado!</small></div>",
                 unsafe_allow_html=True,
             )
         st.write("---")
@@ -886,7 +896,7 @@ else:
               st.success(f"Admin {u_novo} criado!")
               st.rerun()
 
-  # SEÇÃO EXPLICATIVA (RODAPÉ) - REGULAMENTO & PREMIAÇÃO
+  # SEÇÃO EXPLICATIVA (RODAPÉ) - REGULAMENTO & PREMIAÇÃO COM EMBLEMAS ESTILIZADOS
   st.write("---")
   st.markdown(
       "<h2 style='text-align: center;'>📜 Regulamento & Sistema de"
@@ -905,11 +915,12 @@ else:
   with info_col1:
     st.markdown(
         """
-        <div class="info-card">
+        <div class="info-card" style="text-align: center;">
+            <div class="info-card-badge">🎟️</div>
             <div class="info-card-header">🏆 Premiação Mensal</div>
-            <ul class="info-card-list">
+            <ul class="info-card-list" style="text-align: left;">
                 <li><b>Top 3 Destaques:</b> Garantem <b>1 Passe Dourado 🎟️</b> cada um no final do mês.</li>
-                <li><b>Em caso de Empate:</b> Havendo empate de pontos no 3º lugar, haverá sorteio de desempate e/ou análise de engajamento pela liderança.</li>
+                <li><b>Em caso de Empate:</b> Sorteio de desempate e/ou análise de engajamento pela liderança.</li>
             </ul>
         </div>
         """,
@@ -919,13 +930,13 @@ else:
   with info_col2:
     st.markdown(
         """
-        <div class="info-card">
+        <div class="info-card" style="text-align: center;">
+            <div class="info-card-badge">⚔️</div>
             <div class="info-card-header">📊 Sistema de Pontuação</div>
-            <ul class="info-card-list">
+            <ul class="info-card-list" style="text-align: left;">
                 <li><b>⚔️ Guerras & Liga (CWL):</b> 1 Ponto por ⭐ conquistada.</li>
-                <li><b>🎯 Jogos do Clã & Eventos:</b> Alcançou a meta = <b>5 pts</b> | Bateu limite total = <b>10 pts</b>.</li>
-                <li><b>🛡️ Raides (Fim de Semana):</b> Concluiu os 6 ataques = <b>10 pts</b>.</li>
-                <li><b>📢 Eventos Especiais:</b> A liderança anunciará metas e pontuações extras no grupo.</li>
+                <li><b>🎯 Jogos do Clã:</b> Meta = <b>5 pts</b> | Bateu limite total = <b>10 pts</b>.</li>
+                <li><b>🛡️ Raides (FDS):</b> Concluiu os 6 ataques = <b>10 pts</b>.</li>
             </ul>
         </div>
         """,
@@ -935,13 +946,13 @@ else:
   with info_col3:
     st.markdown(
         """
-        <div class="info-card">
+        <div class="info-card" style="text-align: center;">
+            <div class="info-card-badge">🏰</div>
             <div class="info-card-header">📜 Diretrizes Básicas</div>
-            <ul class="info-card-list">
-                <li><b>Conta Principal:</b> Válido estritamente para a conta principal do jogador.</li>
+            <ul class="info-card-list" style="text-align: left;">
+                <li><b>Conta Principal:</b> Válido estritamente para a conta principal.</li>
                 <li><b>Zero Trapaça 🚫:</b> Qualquer ato antidesportivo anula a pontuação.</li>
-                <li><b>WhatsApp Obrigatório 📱:</b> É indispensável estar no grupo do clã.</li>
-                <li><b>Transparência:</b> Tudo é registrado e atualizado nesta tabela oficial.</li>
+                <li><b>WhatsApp Obrigatório 📱:</b> Indispensável estar no grupo do clã.</li>
             </ul>
         </div>
         """,
