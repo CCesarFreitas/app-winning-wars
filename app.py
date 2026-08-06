@@ -1,4 +1,3 @@
-import base64
 import hashlib
 import json
 import random
@@ -16,15 +15,6 @@ st.set_page_config(
 # --- FUNÇÕES AUXILIARES ---
 def gerar_hash(senha: str) -> str:
   return hashlib.sha256(senha.encode()).hexdigest()
-
-
-def imagem_para_base64(file_buffer) -> str:
-  """Converte a imagem enviada para Base64 para exibição direta."""
-  if file_buffer is not None:
-    encoded = base64.b64encode(file_buffer.read()).decode("utf-8")
-    mime_type = file_buffer.type
-    return f"data:{mime_type};base64,{encoded}"
-  return None
 
 
 # --- CONEXÃO COM O GOOGLE SHEETS ---
@@ -142,15 +132,6 @@ st.markdown(
     .silver { background: linear-gradient(135deg, #94a3b8 0%, #475569 100%); border: 2px solid #cbd5e1; }
     .bronze { background: linear-gradient(135deg, #d97706 0%, #78350f 100%); border: 2px solid #f97316; }
 
-    /* CARD DE LAYOUT */
-    .layout-card {
-        background-color: #161b22;
-        border: 1px solid #30363d;
-        border-radius: 12px;
-        padding: 16px;
-        margin-bottom: 20px;
-    }
-
     /* BOTÃO DE LINK DO LAYOUT E CLÃ FARM */
     .btn-layout-copy {
         display: inline-block;
@@ -163,7 +144,6 @@ st.markdown(
         text-decoration: none;
         font-weight: bold;
         border: 1px solid #3b82f6;
-        transition: background-color 0.2s;
     }
     .btn-layout-copy:hover {
         background-color: #1d4ed8;
@@ -190,7 +170,7 @@ st.markdown(
 )
 
 
-# --- COMPONENTE: MODAL DE LOGIN RÁPIDO DE ADMIN NAS PÁGINAS DE LAYOUT ---
+# --- COMPONENTE: LOGIN DE ADMIN NAS PÁGINAS DE LAYOUT ---
 def renderizar_login_admin_layout(prefixo: str):
   if "admin_logado" not in st.session_state:
     with st.expander("🔐 É Administrador? Clique aqui para fazer Login"):
@@ -282,7 +262,9 @@ if st.session_state["pagina_atual"] == "layouts_guerra":
 
             if btn_enviar:
               if link_layout.strip():
-                img_b64 = imagem_para_base64(img_file)
+                # Guarda os bytes diretos da imagem
+                img_bytes = img_file.getvalue() if img_file else None
+
                 st.session_state["layouts_guerra"][cv_nome].append({
                     "autor": st.session_state["admin_logado"],
                     "link": link_layout.strip(),
@@ -291,7 +273,7 @@ if st.session_state["pagina_atual"] == "layouts_guerra":
                         if descricao.strip()
                         else "Layout Recomendado"
                     ),
-                    "imagem": img_b64,
+                    "imagem_bytes": img_bytes,
                 })
                 st.success("Layout publicado com sucesso!")
                 st.rerun()
@@ -310,12 +292,12 @@ if st.session_state["pagina_atual"] == "layouts_guerra":
                 f" {item['descricao']}"
             )
 
-            # Exibe imagem se existir
-            if item.get("imagem"):
+            # Exibe imagem usando os bytes direto
+            if item.get("imagem_bytes"):
               st.image(
-                  item["imagem"],
+                  item["imagem_bytes"],
                   caption=f"Layout {cv_nome}",
-                  use_column_width=True,
+                  use_container_width=True,
               )
 
             # Botão Direto
@@ -323,7 +305,7 @@ if st.session_state["pagina_atual"] == "layouts_guerra":
             with c_btn:
               st.markdown(
                   f'<a href="{item["link"]}" target="_blank"'
-                  ' class="btn-layout-copy">📲 COPIAR LAYOUT DIRECTO NO CLASH</a>',
+                  ' class="btn-layout-copy">📲 COPIAR LAYOUT DIRETO NO CLASH</a>',
                   unsafe_allow_html=True,
               )
             with c_del:
@@ -387,7 +369,9 @@ elif st.session_state["pagina_atual"] == "layouts_rankeada":
 
             if btn_enviar:
               if link_layout.strip():
-                img_b64 = imagem_para_base64(img_file)
+                # Guarda os bytes diretos da imagem
+                img_bytes = img_file.getvalue() if img_file else None
+
                 st.session_state["layouts_rankeada"][cv_nome].append({
                     "autor": st.session_state["admin_logado"],
                     "link": link_layout.strip(),
@@ -396,7 +380,7 @@ elif st.session_state["pagina_atual"] == "layouts_rankeada":
                         if descricao.strip()
                         else "Layout Recomendado"
                     ),
-                    "imagem": img_b64,
+                    "imagem_bytes": img_bytes,
                 })
                 st.success("Layout publicado com sucesso!")
                 st.rerun()
@@ -415,12 +399,12 @@ elif st.session_state["pagina_atual"] == "layouts_rankeada":
                 f" {item['descricao']}"
             )
 
-            # Exibe imagem se existir
-            if item.get("imagem"):
+            # Exibe imagem usando os bytes direto
+            if item.get("imagem_bytes"):
               st.image(
-                  item["imagem"],
+                  item["imagem_bytes"],
                   caption=f"Layout {cv_nome}",
-                  use_column_width=True,
+                  use_container_width=True,
               )
 
             # Botão Direto
@@ -428,7 +412,7 @@ elif st.session_state["pagina_atual"] == "layouts_rankeada":
             with c_btn:
               st.markdown(
                   f'<a href="{item["link"]}" target="_blank"'
-                  ' class="btn-layout-copy">📲 COPIAR LAYOUT DIRECTO NO CLASH</a>',
+                  ' class="btn-layout-copy">📲 COPIAR LAYOUT DIRETO NO CLASH</a>',
                   unsafe_allow_html=True,
               )
             with c_del:
