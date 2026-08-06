@@ -256,7 +256,12 @@ st.markdown(
     }
     .mural-header { font-family: 'Luckiest Guy', cursive; color: #facc15; font-size: 1rem; margin-bottom: 4px; }
 
-    /* AJUSTES ESPECÍFICOS PARA DISPOSITIVOS MÓVEIS (TELAS PEQUENAS) */
+    .rules-card {
+        background: #0f172a; border: 2px solid #334155; border-radius: 14px; padding: 20px; margin-top: 35px;
+        font-family: 'Nunito', sans-serif; color: #e2e8f0; box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+    }
+    .rules-title { font-family: 'Luckiest Guy', cursive; color: #facc15; font-size: 1.3rem; margin-bottom: 12px; }
+
     @media (max-width: 768px) {
         .main-title { font-size: 1.6rem !important; }
         .main-subtitle { font-size: 0.88rem !important; }
@@ -474,6 +479,41 @@ def renderizar_galeria_fama():
 
 
 # ==============================================================================
+# PÁGINA EXCLUSIVA: REGRAS DO CLÃ
+# ==============================================================================
+def renderizar_regras_cla():
+  if st.button("⬅️ Voltar ao Início"):
+    st.session_state["pagina_atual"] = "principal"
+    st.rerun()
+
+  st.markdown(
+      "<h1 style='text-align: center;'>📜 Regras Oficiais do Clã</h1>",
+      unsafe_allow_html=True,
+  )
+  st.markdown(
+      """
+    <div class="rules-card">
+        <div class="rules-title">🛡️ Normas de Convivência e Atividade</div>
+        <ul>
+            <li><b>Respeito Acima de Tudo:</b> Brincadeiras são bem-vindas, mas falta de respeito ou toxicidade resultam em expulsão imediata.</li>
+            <li><b>Guerra de Clã:</b> Se colocar o status como <b>VERDE</b>, os ataques são obrigatórios. Deixar de atacar sem justificativa resulta em rebaixamento ou expulsão.</li>
+            <li><b>Jogos de Clã:</b> Participação ativa é essencial para ajudar o clã a atingir o topo das recompensas.</li>
+            <li><b>Doações:</b> Doe o que puder e mantenha um bom equilíbrio entre doações recebidas e enviadas.</li>
+        </ul>
+        <br>
+        <div class="rules-title">🎟️ Regras da Competição do Passe Dourado</div>
+        <ul>
+            <li><b>Pontuação Mensal:</b> A pontuação é acumulada através da participação em Guerras, Ligas, Raides de Capital e Eventos do Clã.</li>
+            <li><b>Premiação:</b> Ao término do mês civil, os <b>Top 3 membros</b> com maior pontuação no ranking ganham o Passe Dourado.</li>
+            <li><b>Transparência:</b> O ranking é atualizado e gerido pela liderança com total transparência através deste aplicativo.</li>
+        </ul>
+    </div>
+    """,
+      unsafe_allow_html=True,
+  )
+
+
+# ==============================================================================
 # SELEÇÃO DE PÁGINAS
 # ==============================================================================
 if st.session_state["pagina_atual"] == "layouts_guerra":
@@ -482,6 +522,8 @@ elif st.session_state["pagina_atual"] == "layouts_rankeada":
   renderizar_pagina_layouts("Rankeada", "🏆 Layouts Oficiais de Rankeada")
 elif st.session_state["pagina_atual"] == "galeria_fama":
   renderizar_galeria_fama()
+elif st.session_state["pagina_atual"] == "regras_cla":
+  renderizar_regras_cla()
 
 # ==============================================================================
 # PÁGINA PRINCIPAL
@@ -754,19 +796,33 @@ else:
             st.rerun()
 
       with sub_tab3:
-        st.markdown("#### 📢 Atualizar Mural de Recados")
+        st.markdown("#### 📢 Atualizar / Excluir Mural de Recados")
         novo_recado = st.text_area("Recado para o topo da tela:", mural_recado)
-        if st.button("Publicar Recado"):
-          cell_recado = sheet_estado.find("mural_recado")
-          if cell_recado:
-            sheet_estado.update_cell(cell_recado.row, 2, novo_recado.strip())
-          else:
-            sheet_estado.append_row(["mural_recado", novo_recado.strip()])
-          registrar_log(
-              st.session_state["admin_logado"], "Atualizou mural de recados"
-          )
-          st.success("Recado publicado!")
-          st.rerun()
+        col_rec1, col_rec2 = st.columns(2)
+        with col_rec1:
+          if st.button("Publicar Recado"):
+            cell_recado = sheet_estado.find("mural_recado")
+            if cell_recado:
+              sheet_estado.update_cell(cell_recado.row, 2, novo_recado.strip())
+            else:
+              sheet_estado.append_row(["mural_recado", novo_recado.strip()])
+            registrar_log(
+                st.session_state["admin_logado"], "Atualizou mural de recados"
+            )
+            st.cache_data.clear()
+            st.success("Recado publicado!")
+            st.rerun()
+        with col_rec2:
+          if st.button("🗑️ Excluir Recado Atual"):
+            cell_recado = sheet_estado.find("mural_recado")
+            if cell_recado:
+              sheet_estado.update_cell(cell_recado.row, 2, "")
+            registrar_log(
+                st.session_state["admin_logado"], "Excluiu mural de recados"
+            )
+            st.cache_data.clear()
+            st.success("Recado removido do mural!")
+            st.rerun()
 
         st.divider()
 
@@ -812,3 +868,18 @@ else:
           )
         else:
           st.info("Nenhum dado disponível para backup.")
+
+  # --- RODAPÉ COM AS REGRAS DA COMPETIÇÃO DO PASSE ---
+  st.markdown(
+      """
+    <div class="rules-card">
+        <div class="rules-title">🎟️ Regras da Competição do Passe Dourado</div>
+        <ul>
+            <li><b>Acúmulo de Pontos:</b> A pontuação é somada com base nas participações e desempenho em Guerras, Ligas de Guerra, Raides de Capital e Eventos internos do clã.</li>
+            <li><b>Premiação Mensal:</b> Ao final do mês civil, os <b>Top 3 membros</b> com a maior pontuação total garantem o seu <b>Passe Dourado</b>.</li>
+            <li><b>Acompanhamento:</b> Verifique sua pontuação detalhada na aba <i>"Tabela Detalhada"</i> e mantenha-se no topo!</li>
+        </ul>
+    </div>
+    """,
+      unsafe_allow_html=True,
+  )
