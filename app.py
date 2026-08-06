@@ -896,33 +896,75 @@ else:
         else:
           st.info("Nenhum dado disponível para backup.")
 
-  # --- RODAPÉ COM O REGULAMENTO DA COMPETIÇÃO DO PASSE ---
+ # SEÇÃO EXPLICATIVA (RODAPÉ) - REGULAMENTO & PREMIAÇÃO COM ELEMENTOS OFICIAIS
+  st.write("---")
   st.markdown(
-      """
-    <div class="rules-card">
-        <div class="rules-title">🎟️ Regulamento da Competição do Passe Dourado</div>
-        <p style="margin-bottom: 12px; font-style: italic; color: #94a3b8;">A ideia é simples: valorizar quem joga bem, participa e ajuda o clã a crescer.</p>
-        
-        <p>🏆 <b>Prêmio:</b><br>
-        Todo mês, os 3 principais destaques do clã levam <b>1 Passe Dourado</b>.</p>
-        
-        <p>📊 <b>Como pontuar:</b></p>
-        <ul>
-            <li>Ataques em guerras (1 ponto por ⭐)</li>
-            <li>Jogos do clã e eventos (meta = 5 / completou = 10 pontos)</li>
-            <li>Raides de fim de semana (6 ataques = 10 pontos)</li>
-            <li><i>Obs:</i> Alguns eventos de colaboração do clã terão premiação atribuída e serão informados previamente pelos líderes com a meta de pontos.</li>
-        </ul>
-        
-        <p style="margin-top: 12px;">📜 <b>Regras rápidas:</b></p>
-        <ul>
-            <li>Vale só a <b>conta principal</b>.</li>
-            <li>Nada de trapaça 🚫.</li>
-            <li>Precisa obrigatoriamente estar no <b>grupo do WhatsApp</b>.</li>
-            <li>Tudo será registrado em uma tabela mensal.</li>
-            <li>Em caso de empate, podemos ter premiação para 1º, 2º e 3º lugar.</li>
-        </ul>
-    </div>
-    """,
+      "<h2 style='text-align: center;'>📜 Regulamento & Sistema de"
+      " Premiação</h2>",
       unsafe_allow_html=True,
   )
+  st.markdown(
+      "<p style='text-align: center; color: #94a3b8;'>A ideia é simples:"
+      " valorizar quem joga bem, participa ativamente e ajuda o clã a"
+      " crescer!</p><br>",
+      unsafe_allow_html=True,
+  )
+
+  info_col1, info_col2, info_col3 = st.columns(3)
+
+  with info_col1:
+    st.markdown(
+        """
+        <div class="info-card" style="text-align: center;">
+            <img src="https://i.ibb.co/mkC43vT/goldenpass.png" width="55" style="margin-bottom: 8px;">
+            <div class="info-card-header">🏆 Premiação Mensal</div>
+            <ul class="info-card-list" style="text-align: left;">
+                <li><b>Top 3 Destaques:</b> Garantem <b>1 Passe Dourado 🎟️</b> cada um no final do mês.</li>
+                <li><b>Em caso de Empate:</b> Sorteio de desempate.</li>
+            </ul>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+  with info_col2:
+    st.markdown(
+        """
+        <div class="info-card" style="text-align: center;">
+            <img src="https://i.ibb.co/3PPkJD8/War-League-Main-Banner.webp" width="70" style="margin-bottom: 8px;">
+            <div class="info-card-header">📊 Sistema de Pontuação</div>
+            <ul class="info-card-list" style="text-align: left;">
+                <li><b>⚔️ Guerras & Liga (CWL):</b> 1 Ponto por ⭐ conquistada.</li>
+                <li><b>🎯 Jogos do Clã:</b> Meta = <b>5 pts</b> | Bateu limite total = <b>10 pts</b>.</li>
+                <li><b>🛡️ Raides (FDS):</b> Concluiu os 6 ataques = <b>10 pts</b>.</li>
+            </ul>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+  with info_col3:
+    st.markdown(
+        """
+        <div class="info-card" style="text-align: center;">
+            <img src="https://i.ibb.co/YFbsJ97x/Clash-of-Clans-emblem.png" width="55" style="margin-bottom: 8px;">
+            <div class="info-card-header">📜 Diretrizes Básicas</div>
+            <ul class="info-card-list" style="text-align: left;">
+                <li><b>Conta Principal:</b> Válido estritamente para a conta principal.</li>
+                <li><b>Zero Trapaça 🚫:</b> Qualquer ato antidesportivo anula a pontuação.</li>
+                <li><b>WhatsApp Obrigatório 📱:</b> Indispensável estar no grupo do clã.</li>
+            </ul>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+  st.write("")
+  c_btn_regras = st.columns([1, 2, 1])
+  with c_btn_regras[1]:
+    if st.button(
+        "📖 CLIQUE AQUI PARA VER AS REGRAS OFICIAIS COMPLETAS DO CLÃ",
+        use_container_width=True,
+    ):
+      st.session_state["pagina_atual"] = "regras_cla"
+      st.rerun()
