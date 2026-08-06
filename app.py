@@ -221,7 +221,6 @@ with tab_ranking:
           "⏳ **Mês em andamento.** A classificação abaixo é atualizada em tempo"
           " real. Os campeões do pódio serão revelados ao término do mês!"
       )
-
 st.subheader("📊 Classificação em Tempo Real")
 
     # TABELA COM DESIGN MODERNO EM HTML E ENVOLTÓRIO RESPONSIVO
@@ -239,18 +238,18 @@ st.subheader("📊 Classificação em Tempo Real")
     """
 
     for _, row in df_rank.iterrows():
-      pos_str = row["Posição"]
-      badge_class = (
-          "badge-top1"
-          if pos_str == "1º"
-          else (
-              "badge-top2"
-              if pos_str == "2º"
-              else "badge-top3" if pos_str == "3º" else "badge-pos"
-          )
-      )
+        pos_str = row["Posição"]
+        badge_class = (
+            "badge-top1"
+            if pos_str == "1º"
+            else (
+                "badge-top2"
+                if pos_str == "2º"
+                else "badge-top3" if pos_str == "3º" else "badge-pos"
+            )
+        )
 
-      html_table += f"""
+        html_table += f"""
             <tr>
                 <td><span class="{badge_class}">{pos_str}</span></td>
                 <td><strong>{row['Nome']}</strong></td>
@@ -264,6 +263,8 @@ st.subheader("📊 Classificação em Tempo Real")
     </div>
     """
 
+    st.markdown(html_table, unsafe_allow_html=True)
+    """
     # O PARÂMETRO unsafe_allow_html=True É O QUE INTERPRETA O HTML CORRETAMENTE
     st.markdown(html_table, unsafe_allow_html=True)
 
