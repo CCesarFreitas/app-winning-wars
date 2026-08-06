@@ -9,7 +9,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
-    page_title="Winning Wars - Competição Mensal", page_icon="⚔️", layout="wide"
+    page_title="Winning Wars - Competição Mensal dos Membros", page_icon="⚔️", layout="wide"
 )
 
 
@@ -490,7 +490,10 @@ else:
   if not df.empty:
     colunas_raides = [c for c in df.columns if c.startswith("Raide_")]
     colunas_guerras = [c for c in df.columns if c.startswith("Guerra_")]
-    colunas_pontos = ["JogosCla", "Eventos"] + colunas_raides + colunas_guerras
+    colunas_liga = [c for c in df.columns if c.startswith("Liga_")]
+    colunas_pontos = (
+        ["JogosCla", "Eventos"] + colunas_raides + colunas_guerras + colunas_liga
+    )
 
     for col in colunas_pontos:
       if col in df.columns:
@@ -512,6 +515,8 @@ else:
       else:
         posicoes.append(f"  {i}º")
     df_rank["Posição"] = posicoes
+  else:
+    colunas_raides, colunas_guerras, colunas_liga = [], [], []
 
   tab_ranking, tab_tabela, tab_admin = st.tabs(
       ["🏆 Ranking ao Vivo", "📋 Tabela Detalhada", "🔐 Área Admin"]
@@ -608,8 +613,9 @@ else:
       cols_exibicao = (
           ["Nome"]
           + [c for c in ["JogosCla", "Eventos"] if c in df.columns]
-          + colunas_raides
           + colunas_guerras
+          + colunas_liga
+          + colunas_raides
           + ["Total"]
       )
       st.dataframe(
@@ -725,19 +731,28 @@ else:
       # ABA 2: EDIÇÃO DE PONTUAÇÕES EM LOTE (ESTILO EXCEL)
       with sub_tab2:
         st.markdown("#### Criar Novas Rodadas / Colunas")
-        col_add1, col_add2 = st.columns(2)
+        col_add1, col_add2, col_add3 = st.columns(3)
         cabecalho_real = sheet_dados.row_values(1)
 
         with col_add1:
-          if st.button("⚔️ Adicionar Coluna de Guerra"):
+          if st.button("⚔️ Adicionar Guerra Normal"):
             nova_guerra_num = len(colunas_guerras) + 1
             sheet_dados.update_cell(
                 1, len(cabecalho_real) + 1, f"Guerra_{nova_guerra_num}"
             )
-            st.success("Coluna de Guerra Criada!")
+            st.success("Coluna de Guerra Normal Criada!")
             st.rerun()
 
         with col_add2:
+          if st.button("🏆 Adicionar Guerra de Liga (CWL)"):
+            nova_liga_num = len(colunas_liga) + 1
+            sheet_dados.update_cell(
+                1, len(cabecalho_real) + 1, f"Liga_{nova_liga_num}"
+            )
+            st.success("Coluna de Guerra de Liga Criada!")
+            st.rerun()
+
+        with col_add3:
           if st.button("🛡️ Adicionar Coluna de Raide"):
             nova_raide_num = len(colunas_raides) + 1
             sheet_dados.update_cell(
@@ -750,8 +765,8 @@ else:
         st.markdown("#### 📝 Planilha de Edição Rápida (Em Lote)")
         st.info(
             "💡 **Como usar:** Altere os pontos de qualquer jogador"
-            " diretamente nas células abaixo e clique no botão **💾 Salvar"
-            " Todas as Alterações** para gravar tudo de uma vez no Google Sheets."
+            " diretamente nas células abaixo (Guerras Normais, Liga, Raides,"
+            " etc.) e clique no botão **💾 Salvar Todas as Alterações**."
         )
 
         if not df.empty:
@@ -842,7 +857,7 @@ else:
         <div class="info-card">
             <div class="info-card-header">📊 Sistema de Pontuação</div>
             <ul class="info-card-list">
-                <li><b>⚔️ Guerras:</b> 1 Ponto por ⭐ conquistada.</li>
+                <li><b>⚔️ Guerras & Liga (CWL):</b> 1 Ponto por ⭐ conquistada.</li>
                 <li><b>🎯 Jogos do Clã & Eventos:</b> Alcançou a meta = <b>5 pts</b> | Bateu limite total = <b>10 pts</b>.</li>
                 <li><b>🛡️ Raides (Fim de Semana):</b> Concluiu os 6 ataques = <b>10 pts</b>.</li>
                 <li><b>📢 Eventos Especiais:</b> A liderança anunciará metas e pontuações extras no grupo.</li>
