@@ -496,16 +496,16 @@ def renderizar_regras_cla():
   st.markdown(
       """
     <div class="rules-card">
-        <div class="rules-title">🛡️ Normas de Conduta e Funcionamento do Clã</div>
+        <div class="rules-title">🛡️ Estatuto e Normas Internas</div>
         <ul>
-            <li><b>1. Período de Teste para Novatos:</b> Novos membros serão testados e avaliados antes de serem escalados para as guerras de clã.</li>
-            <li><b>2. Estratégia em Guerras:</b> Ataque sempre o Centro de Vila (CV) do mesmo nível que o seu. <b>NÃO é permitido seguir o sistema de espelho.</b></li>
-            <li><b>3. Inatividade:</b> Inatividade superior a 3 dias consecutivos sem aviso prévio à liderança resultará em expulsão (kick) do clã.</li>
-            <li><b>4. Jogos dos Clãs:</b> O requisito mínimo de pontuação individual nos Jogos dos Clãs é de <b>2.000 pontos</b>. O descumprimento sem justificativa resultará em expulsão.</li>
-            <li><b>5. Cargos e Promoções:</b> Todos os cargos de liderança, ancião e promoções internas são conquistados estritamente por <b>mérito, dedicação e confiança</b>.</li>
-            <li><b>6. Grupo do WhatsApp Obrigatório:</b> A presença no grupo do WhatsApp é mandatória para participar da Liga de Guerra e para disputar a premiação do Passe Dourado.</li>
-            <li><b>7. Contas Rushadas:</b> Contas rushadas que possuam heróis com níveis muito baixos em relação ao Centro de Vila não serão aceitas.</li>
-            <li><b>8. Ajuda Mútua:</b> Se tiver qualquer dúvida sobre ataques, estratégias ou layouts, pergunte e peça ajuda! O clã existe para crescermos juntos.</li>
+            <li><b>1.</b> Novatos serão testados antes de ir para as guerras.</li>
+            <li><b>2.</b> Guerras: Ataque o Centro de Vila (CV) do mesmo nível que o seu. (<b>NÃO</b> é espelho).</li>
+            <li><b>3.</b> Inatividade por 3 dias sem aviso prévio resultará em expulsão (kick).</li>
+            <li><b>4.</b> Jogos dos Clãs: Mínimo de 2.000 pontos. O descumprimento resultará em expulsão (kick).</li>
+            <li><b>5.</b> Cargos e promoções serão obtidos estritamente por mérito.</li>
+            <li><b>6.</b> WhatsApp é obrigatório para participar da Liga de Guerra e para disputar a premiação dos passes.</li>
+            <li><b>7.</b> Contas rushadas com heróis em níveis baixos não serão aceitas.</li>
+            <li><b>8.</b> Se tiver dúvida, pergunte ou peça ajuda! Estamos aqui para nos ajudar mutuamente.</li>
         </ul>
     </div>
     """,
@@ -869,31 +869,31 @@ else:
         else:
           st.info("Nenhum dado disponível para backup.")
 
-  # --- RODAPÉ COM O REGULAMENTO DETALHADO DA COMPETIÇÃO DO PASSE ---
+  # --- RODAPÉ COM O REGULAMENTO DA COMPETIÇÃO DO PASSE ---
   st.markdown(
       """
     <div class="rules-card">
         <div class="rules-title">🎟️ Regulamento da Competição do Passe Dourado</div>
-        <p style="margin-bottom: 12px; font-style: italic; color: #94a3b8;">A ideia é simples: valorizar quem joga bem, participa ativamente e ajuda o clã Winning Wars a crescer sempre!</p>
+        <p style="margin-bottom: 12px; font-style: italic; color: #94a3b8;">A ideia é simples: valorizar quem joga bem, participa e ajuda o clã a crescer.</p>
         
+        <p>🏆 <b>Prêmio:</b><br>
+        Todo mês, os 3 principais destaques do clã levam <b>1 Passe Dourado</b>.</p>
+        
+        <p>📊 <b>Como pontuar:</b></p>
         <ul>
-            <li><b>🏆 Prêmio Mensal:</b> Todo mês, os <b>3 principais destaques</b> do ranking levam <b>1 Passe Dourado</b> cada. Em caso de empate, critérios específicos da liderança definirão a premiação para o 1º, 2º e 3º lugares.</li>
-            <li><b>📊 Como Pontuar:</b>
-                <ul style="margin-top: 6px; list-style-type: circle;">
-                    <li><b>Ataques em Guerras:</b> 1 ponto por cada estrela conquistada (⭐).</li>
-                    <li><b>Jogos do Clã e Eventos:</b> Participação padrão rende 5 pontos, e quem completar a meta ganha 10 pontos.</li>
-                    <li><b>Raides de Fim de Semana:</b> Concluir os 6 ataques garante 10 pontos.</li>
-                    <li><b>Eventos de Colaboração:</b> Alguns eventos especiais contarão com pontuação e metas extras informadas previamente pelos líderes.</li>
-                </ul>
-            </li>
-            <li><b>📜 Regras Rápidas da Competição:</b>
-                <ul style="margin-top: 6px; list-style-type: circle;">
-                    <li>Vale apenas a <b>conta principal</b> de cada membro.</li>
-                    <li><b>Zero tolerância a trapaças</b> (uso de programas proibidos resulta em desclassificação imediata).</li>
-                    <li>O membro precisa obrigatoriamente estar presente no <b>grupo do WhatsApp</b> do clã.</li>
-                    <li>Toda a pontuação é rigorosamente registrada e atualizada em uma tabela mensal transparente.</li>
-                </ul>
-            </li>
+            <li>Ataques em guerras (1 ponto por ⭐)</li>
+            <li>Jogos do clã e eventos (meta = 5 / completou = 10 pontos)</li>
+            <li>Raides de fim de semana (6 ataques = 10 pontos)</li>
+            <li><i>Obs:</i> Alguns eventos de colaboração do clã terão premiação atribuída e serão informados previamente pelos líderes com a meta de pontos.</li>
+        </ul>
+        
+        <p style="margin-top: 12px;">📜 <b>Regras rápidas:</b></p>
+        <ul>
+            <li>Vale só a <b>conta principal</b>.</li>
+            <li>Nada de trapaça 🚫.</li>
+            <li>Precisa obrigatoriamente estar no <b>grupo do WhatsApp</b>.</li>
+            <li>Tudo será registrado em uma tabela mensal.</li>
+            <li>Em caso de empate, podemos ter premiação para 1º, 2º e 3º lugar.</li>
         </ul>
     </div>
     """,
