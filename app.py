@@ -41,7 +41,7 @@ def conectar_banco():
     sheet_admins.append_row(["Usuario", "SenhaHash"])
     sheet_admins.append_row(["admin", gerar_hash("winning123")])
 
-  # Aba de Estado do Mês (Para controlar o encerramento)
+  # Aba de Estado do Mês
   try:
     sheet_estado = spreadsheet.worksheet("EstadoMes")
   except gspread.WorksheetNotFound:
@@ -59,28 +59,50 @@ try:
   sheet_dados, sheet_admins, sheet_estado = conectar_banco()
 except Exception as e:
   st.error(
-      "Aguardando configuração das chaves de segurança (Secrets) no Streamlit."
+      "⚠️ **Erro na Conexão:** Não foi possível acessar a planilha"
+      " 'WinningWars_DB'. Verifique se as permissões e as chaves em Secrets"
+      " estão corretas."
   )
   st.stop()
 
-# --- CARREGAR DADOS ---
-dados = sheet_dados.get_all_records()
-df = pd.DataFrame(dados)
+# --- CARREGAR DADOS COM TRATAMENTO DE ERRO ---
+try:
+  dados = sheet_dados.get_all_records()
+  df = pd.DataFrame(dados)
+except Exception as e:
+  st.warning(
+      "⚠️ **Atenção:** A planilha 'WinningWars_DB' precisa ter os cabeçalhos das"
+      " colunas na primeira linha (Linha 1)."
+  )
+  st.info(
+      "Exemplo de cabeçalho na Linha 1:\n"
+      "| ID | Nome | JogosCla | Eventos |\n\n"
+      "Verifique se a Linha 1 possui textos e se não há colunas com nomes"
+      " duplicados."
+  )
+  df = pd.DataFrame()
 
-dados_admins = sheet_admins.get_all_records()
-df_admins = pd.DataFrame(dados_admins)
+try:
+  dados_admins = sheet_admins.get_all_records()
+  df_admins = pd.DataFrame(dados_admins)
+except Exception:
+  df_admins = pd.DataFrame(
+      [["admin", gerar_hash("winning123")]], columns=["Usuario", "SenhaHash"]
+  )
 
-dados_estado = dict(sheet_estado.get_all_values())
-mes_finalizado = dados_estado.get("mes_finalizado", "FALSE") == "TRUE"
+try:
+  dados_estado = dict(sheet_estado.get_all_values())
+  mes_finalizado = dados_estado.get("mes_finalizado", "FALSE") == "TRUE"
+except Exception:
+  mes_finalizado = False
 
-# --- ESTILIZAÇÃO CSS CUSTOMIZADA (CARTÕES E PÓDIO) ---
+# --- ESTILIZAÇÃO CSS CUSTOMIZADA ---
 st.markdown(
     """
     <style>
     .main { background-color: #0b0e14; }
     h1, h2, h3 { color: #facc15 !important; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     
-    /* CARTÕES E PÓDIO */
     .podium-card {
         padding: 22px;
         border-radius: 16px;
@@ -108,9 +130,10 @@ if not df.empty:
   colunas_pontos = ["JogosCla", "Eventos"] + colunas_raides + colunas_guerras
 
   for col in colunas_pontos:
-    df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+    if col in df.columns:
+      df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
-  df["Total"] = df[colunas_pontos].sum(axis=1)
+  df["Total"] = df[[c for c in colunas_pontos if c in df.columns]].sum(axis=1)
   df_rank = df.sort_values(by="Total", ascending=False).reset_index(drop=True)
   df_rank.index = df_rank.index + 1
   df_rank["Posição"] = [f"{i}º" for i in df_rank.index]
@@ -128,7 +151,7 @@ tab_ranking, tab_tabela, tab_admin = st.tabs(
 
 # --- ABA 1: RANKING AO VIVO ---
 with tab_ranking:
-  if not df.empty:
+  if not df.empty and "Total" in df.columns:
     if mes_finalizado:
       st.success("🔒 **O MÊS FOI FINALIZADO PELO ADMIN! CONFIRA OS CAMPEÕES:**")
       st.subheader("🥇 Pódio dos Premiados com Passe Dourado")
@@ -195,13 +218,19 @@ with tab_ranking:
     st.dataframe(df_exibicao, use_container_width=True, hide_index=True)
 
   else:
-    st.info("Nenhum jogador cadastrado ainda.")
+    st.info("Nenhum jogador cadastrado ainda ou dados ausentes na planilha.")
 
 # --- ABA 2: TABELA DETALHADA ---
 with tab_tabela:
   st.subheader("📋 Pontuação Individual Detalhada por Evento")
-  if not df.empty:
-    cols_exibicao = ["Nome", "JogosCla", "Eventos"] + colunas_raides + colunas_guerras + ["Total"]
+  if not df.empty and "Total" in df.columns:
+    cols_exibicao = (
+        ["Nome"]
+        + [c for c in ["JogosCla", "Eventos"] if c in df.columns]
+        + colunas_raides
+        + colunas_guerras
+        + ["Total"]
+    )
     st.dataframe(
         df[cols_exibicao].sort_values(by="Total", ascending=False),
         use_container_width=True,
@@ -256,7 +285,7 @@ with tab_admin:
     # SISTEMA DE DESEMPATE E SORTEIO
     with c_fin2:
       st.markdown("#### 🎲 Verificação de Empate no Top 3")
-      if not df_rank.empty and len(df_rank) >= 3:
+      if not df.empty and "Total" in df.columns and len(df_rank) >= 3:
         p3_score = df_rank.iloc[2]["Total"]
         empatados_corte = df_rank[df_rank["Total"] == p3_score]
 
@@ -297,14 +326,15 @@ with tab_admin:
             st.error("Limite máximo de 50 jogadores atingido!")
           elif novo_nome.strip() != "":
             novo_id = len(dados) + 1
-            linha_nova = [novo_id, novo_nome.strip()] + [0] * (len(df.columns) - 2)
+            num_cols = len(df.columns) if not df.empty else 4
+            linha_nova = [novo_id, novo_nome.strip()] + [0] * (num_cols - 2)
             sheet_dados.append_row(linha_nova)
             st.success(f"{novo_nome} adicionado!")
             st.rerun()
 
       with c2:
         st.markdown("#### Remover Jogador")
-        if not df.empty:
+        if not df.empty and "Nome" in df.columns:
           player_rem = st.selectbox("Selecione para remover", df["Nome"].tolist())
           if st.button("Remover Player", type="primary"):
             cell = sheet_dados.find(player_rem)
@@ -336,7 +366,7 @@ with tab_admin:
       st.write("---")
       st.markdown("#### Lançar / Corrigir Pontos de um Jogador")
 
-      if not df.empty:
+      if not df.empty and "Nome" in df.columns:
         player_edit = st.selectbox("Selecione o Player", df["Nome"].tolist())
         dados_p = df[df["Nome"] == player_edit].iloc[0]
         linha_p = df[df["Nome"] == player_edit].index[0] + 2
@@ -344,14 +374,15 @@ with tab_admin:
         col_lan1, col_lan2 = st.columns(2)
 
         with col_lan1:
+          val_jogos_atual = int(dados_p.get("JogosCla", 0))
           val_jogos = st.selectbox(
               "Jogos do Clã",
               options=[0, 5, 10],
-              index=[0, 5, 10].index(int(dados_p["JogosCla"])),
+              index=[0, 5, 10].index(val_jogos_atual) if val_jogos_atual in [0, 5, 10] else 0,
               format_func=lambda x: f"{x} pts",
           )
           val_eventos = st.number_input(
-              "Eventos Conjuntos", value=int(dados_p["Eventos"]), step=10
+              "Eventos Conjuntos", value=int(dados_p.get("Eventos", 0)), step=10
           )
 
         with col_lan2:
@@ -364,7 +395,7 @@ with tab_admin:
             guerra_sel = st.selectbox("Selecione a Guerra/Liga", colunas_guerras)
             val_guerra_item = st.number_input(
                 f"Estrelas na {guerra_sel} (0 a 3 pts)",
-                value=int(dados_p[guerra_sel]),
+                value=int(dados_p.get(guerra_sel, 0)),
                 min_value=0,
                 max_value=3,
             )
@@ -373,15 +404,16 @@ with tab_admin:
             val_raide_item = st.selectbox(
                 f"Pontos no {raide_sel}",
                 options=[0, 10],
-                index=0 if int(dados_p[raide_sel]) == 0 else 1,
+                index=0 if int(dados_p.get(raide_sel, 0)) == 0 else 1,
                 format_func=lambda x: f"{x} pts (6 ataques)" if x == 10 else "0 pts",
             )
 
         if st.button("Salvar Registro"):
-          col_idx_jogos = df.columns.get_loc("JogosCla") + 1
-          col_idx_eventos = df.columns.get_loc("Eventos") + 1
-          sheet_dados.update_cell(linha_p, col_idx_jogos, val_jogos)
-          sheet_dados.update_cell(linha_p, col_idx_eventos, val_eventos)
+          if "JogosCla" in df.columns and "Eventos" in df.columns:
+            col_idx_jogos = df.columns.get_loc("JogosCla") + 1
+            col_idx_eventos = df.columns.get_loc("Eventos") + 1
+            sheet_dados.update_cell(linha_p, col_idx_jogos, val_jogos)
+            sheet_dados.update_cell(linha_p, col_idx_eventos, val_eventos)
 
           if evento_tipo == "Guerras" and colunas_guerras:
             col_idx_guerra = df.columns.get_loc(guerra_sel) + 1
