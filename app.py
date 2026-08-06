@@ -64,14 +64,14 @@ def conectar_banco():
         ["Tipo", "CV", "Autor", "Link", "Descricao", "ImagemUrl", "Tag"]
     )
 
-  # Aba de Logs de Alterações (Melhoria de Segurança)
+  # Aba de Logs de Alterações
   try:
     sheet_logs = spreadsheet.worksheet("Logs")
   except gspread.WorksheetNotFound:
     sheet_logs = spreadsheet.add_worksheet(title="Logs", rows="1000", cols="3")
     sheet_logs.append_row(["DataHora", "Admin", "Acao"])
 
-  # Aba de Galeria da Fama (Histórico de Campeões)
+  # Aba de Galeria da Fama
   try:
     sheet_fama = spreadsheet.worksheet("GaleriaFama")
   except gspread.WorksheetNotFound:
@@ -497,13 +497,6 @@ else:
     df_rank["Posição"] = posicoes
   else:
     colunas_raides, colunas_guerras, colunas_liga = [], [], []
-
-  # MÉTRICAS RESUMIDAS DO CLÃ
-  if not df.empty and "Total" in df.columns:
-    m1, m2, m3 = st.columns(3)
-    m1.metric("👥 Jogadores Ativos", len(df))
-    m2.metric("⭐ Média de Pontos", f"{int(df['Total'].mean())} pts")
-    m3.metric("🔥 Total Acumulado", f"{int(df['Total'].sum())} pts")
 
   tab_ranking, tab_tabela, tab_admin = st.tabs(
       ["🏆 Ranking ao Vivo", "📋 Tabela Detalhada", "🔐 Área Admin"]
