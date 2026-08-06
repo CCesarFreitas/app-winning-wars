@@ -222,10 +222,21 @@ with tab_ranking:
           " real. Os campeões do pódio serão revelados ao término do mês!"
       )
 
-    st.subheader("📊 Classificação em Tempo Real")
+st.subheader("📊 Classificação em Tempo Real")
 
-    # TABELA COM DESIGN MODERNO EM HTML
-    html_table = """<table class="modern-table"><thead><tr><th>Posição</th><th>Jogador</th><th>Pontuação Total</th></tr></thead><tbody>"""
+    # TABELA COM DESIGN MODERNO EM HTML E ENVOLTÓRIO RESPONSIVO
+    html_table = """
+    <div style="overflow-x: auto;">
+        <table class="modern-table">
+            <thead>
+                <tr>
+                    <th>Posição</th>
+                    <th>Jogador</th>
+                    <th>Pontuação Total</th>
+                </tr>
+            </thead>
+            <tbody>
+    """
 
     for _, row in df_rank.iterrows():
       pos_str = row["Posição"]
@@ -246,7 +257,14 @@ with tab_ranking:
                 <td>{int(row['Total'])} pts</td>
             </tr>
             """
-    html_table += "</tbody></table>"
+
+    html_table += """
+            </tbody>
+        </table>
+    </div>
+    """
+
+    # O PARÂMETRO unsafe_allow_html=True É O QUE INTERPRETA O HTML CORRETAMENTE
     st.markdown(html_table, unsafe_allow_html=True)
 
   else:
