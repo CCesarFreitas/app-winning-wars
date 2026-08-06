@@ -690,7 +690,7 @@ else:
       st.write("---")
       sub_tab1, sub_tab2, sub_tab3 = st.tabs([
           "➕ Cadastrar / Remover Player",
-          "✏️ Lançar Pontuações Dinâmicas",
+          "✏️ Lançar Pontuações (Em Lote)",
           "👥 Gerenciar Admins",
       ])
 
@@ -722,8 +722,9 @@ else:
               st.success(f"{player_rem} removido!")
               st.rerun()
 
+      # ABA 2: EDIÇÃO DE PONTUAÇÕES EM LOTE (ESTILO EXCEL)
       with sub_tab2:
-        st.markdown("#### Criar Novas Rodadas")
+        st.markdown("#### Criar Novas Rodadas / Colunas")
         col_add1, col_add2 = st.columns(2)
         cabecalho_real = sheet_dados.row_values(1)
 
@@ -746,77 +747,50 @@ else:
             st.rerun()
 
         st.write("---")
-        st.markdown("#### Lançar Pontos")
-        if not df.empty and "Nome" in df.columns:
-          player_edit = st.selectbox("Selecione o Player", df["Nome"].tolist())
-          dados_p = df[df["Nome"] == player_edit].iloc[0]
-          linha_p = df[df["Nome"] == player_edit].index[0] + 2
+        st.markdown("#### 📝 Planilha de Edição Rápida (Em Lote)")
+        st.info(
+            "💡 **Como usar:** Altere os pontos de qualquer jogador"
+            " diretamente nas células abaixo e clique no botão **💾 Salvar"
+            " Todas as Alterações** para gravar tudo de uma vez no Google Sheets."
+        )
 
-          col_lan1, col_lan2 = st.columns(2)
+        if not df.empty:
+          # Exclui a coluna Total se existir, pois ela é calculada automaticamente
+          df_editavel = df.drop(columns=["Total"], errors="ignore").copy()
 
-          with col_lan1:
-            val_jogos_atual = int(dados_p.get("JogosCla", 0))
-            val_jogos = st.selectbox(
-                "Jogos do Clã",
-                options=[0, 5, 10],
-                index=(
-                    [0, 5, 10].index(val_jogos_atual)
-                    if val_jogos_atual in [0, 5, 10]
-                    else 0
-                ),
-            )
-            val_eventos = st.number_input(
-                "Eventos", value=int(dados_p.get("Eventos", 0)), step=10
-            )
+          # Exibe o editor de dados do Streamlit
+          df_editado = st.data_editor(
+              df_editavel,
+              use_container_width=True,
+              hide_index=True,
+              num_rows="fixed",
+              disabled=["ID"],  # Bloqueia apenas a coluna ID para edição
+              key="editor_pontos_lote",
+          )
 
-          with col_lan2:
-            evento_tipo = st.radio("Atividade:", ["Guerras", "Raides"])
-            if evento_tipo == "Guerras" and colunas_guerras:
-              guerra_sel = st.selectbox("Guerra", colunas_guerras)
-              val_guerra_item = st.number_input(
-                  f"Estrelas ({guerra_sel})",
-                  value=int(dados_p.get(guerra_sel, 0)),
-                  min_value=0,
-                  max_value=3,
-              )
-            elif evento_tipo == "Raides" and colunas_raides:
-              raide_sel = st.selectbox("Raide", colunas_raides)
-              val_raide_item = st.selectbox(
-                  f"Pontos ({raide_sel})",
-                  options=[0, 10],
-                  index=0 if int(dados_p.get(raide_sel, 0)) == 0 else 1,
-              )
+          if st.button(
+              "💾 Salvar Todas as Alterações na Planilha", type="primary"
+          ):
+            try:
+              # Garante que os números vazios viraram 0
+              df_editado = df_editado.fillna(0)
 
-          if st.button("Salvar Registro"):
-            if "JogosCla" in cabecalho_real and "Eventos" in cabecalho_real:
-              sheet_dados.update_cell(
-                  linha_p, cabecalho_real.index("JogosCla") + 1, val_jogos
-              )
-              sheet_dados.update_cell(
-                  linha_p, cabecalho_real.index("Eventos") + 1, val_eventos
-              )
+              # Converte para lista e atualiza o Google Sheets de uma só vez
+              novos_dados = [
+                  df_editado.columns.values.tolist()
+              ] + df_editado.values.tolist()
+              sheet_dados.clear()
+              sheet_dados.update(novos_dados)
 
-            if (
-                evento_tipo == "Guerras"
-                and colunas_guerras
-                and guerra_sel in cabecalho_real
-            ):
-              sheet_dados.update_cell(
-                  linha_p,
-                  cabecalho_real.index(guerra_sel) + 1,
-                  val_guerra_item,
+              st.success("🎉 Todas as pontuações foram salvas com sucesso!")
+              st.rerun()
+            except Exception as e:
+              st.error(
+                  "Erro ao salvar na planilha. Verifique sua conexão e tente"
+                  " novamente."
               )
-            elif (
-                evento_tipo == "Raides"
-                and colunas_raides
-                and raide_sel in cabecalho_real
-            ):
-              sheet_dados.update_cell(
-                  linha_p, cabecalho_real.index(raide_sel) + 1, val_raide_item
-              )
-
-            st.success("Pontuações salvas!")
-            st.rerun()
+        else:
+          st.info("Nenhum jogador cadastrado na planilha ainda.")
 
       with sub_tab3:
         st.markdown("#### Cadastrar Administrador")
