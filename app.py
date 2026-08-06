@@ -18,17 +18,6 @@ def gerar_hash(senha: str) -> str:
   return hashlib.sha256(senha.encode()).hexdigest()
 
 
-def corrigir_link_imagem(url: str) -> str:
-  """Trata URLs comuns (como do ImgBB) para tentar obter o link direto da imagem."""
-  url = url.strip()
-  if not url:
-    return ""
-
-  # Se for link de página do ImgBB (ex: https://ibb.co/abcd), tenta ajustar aviso/renderização
-  # O ideal é https://i.ibb.co/.../imagem.png
-  return url
-
-
 # --- CONEXÃO COM O GOOGLE SHEETS ---
 @st.cache_resource
 def conectar_banco():
@@ -142,7 +131,7 @@ st.markdown(
     .silver { background: linear-gradient(135deg, #94a3b8 0%, #475569 100%); border: 2px solid #cbd5e1; }
     .bronze { background: linear-gradient(135deg, #d97706 0%, #78350f 100%); border: 2px solid #f97316; }
 
-    /* BOTÃO DE LINK DO LAYOUT E CLÃ FARM */
+    /* BOTÕES DE LINK E NAVEGAÇÃO */
     .btn-layout-copy {
         display: inline-block;
         width: 100%;
@@ -171,6 +160,60 @@ st.markdown(
         border: 1px solid #22c55e;
     }
     .btn-external-link:hover { background-color: #15803d; }
+
+    /* CARDS DE INFORMAÇÃO E REGULAMENTO */
+    .info-card {
+        background: #1e293b;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 15px;
+        border-left: 4px solid #facc15;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .info-card-header {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: #facc15;
+        margin-bottom: 10px;
+    }
+    .info-card-list {
+        color: #e2e8f0;
+        margin: 0;
+        padding-left: 20px;
+        line-height: 1.6;
+    }
+
+    /* CARDS DE REGRAS OFICIAIS */
+    .rule-card {
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 10px;
+        padding: 16px 20px;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .rule-number {
+        font-size: 1.3rem;
+        font-weight: bold;
+        color: #facc15;
+        background: #0f172a;
+        border: 1px solid #facc15;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 15px;
+        flex-shrink: 0;
+    }
+    .rule-text {
+        color: #f8fafc;
+        font-size: 1rem;
+        line-height: 1.4;
+    }
     </style>
 """,
     unsafe_allow_html=True,
@@ -200,7 +243,7 @@ def renderizar_login_admin_layout(prefixo: str):
 
 
 # --- BOTÕES SUPERIORES DE NAVEGAÇÃO ---
-btn_col1, btn_col2, btn_col3 = st.columns(3)
+btn_col1, btn_col2, btn_col3, btn_col4 = st.columns(4)
 
 with btn_col1:
   if st.button("🛡️ Layouts de Guerra", use_container_width=True):
@@ -213,6 +256,11 @@ with btn_col2:
     st.rerun()
 
 with btn_col3:
+  if st.button("📜 Regras do Clã", use_container_width=True):
+    st.session_state["pagina_atual"] = "regras_cla"
+    st.rerun()
+
+with btn_col4:
   st.markdown(
       '<a'
       ' href="https://link.clashofclans.com/pt?action=OpenClanProfile&tag=2YPL9GU8Y"'
@@ -348,7 +396,71 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
 
 
 # ==============================================================================
-# PÁGINAS DE LAYOUT
+# PÁGINA: REGRAS OFICIAIS DO CLÃ
+# ==============================================================================
+def renderizar_pagina_regras():
+  if st.button("⬅️ Voltar ao Início"):
+    st.session_state["pagina_atual"] = "principal"
+    st.rerun()
+
+  st.markdown(
+      "<h1 style='text-align: center;'>📜 Regras Oficiais - Clã Winning"
+      " Wars</h1>",
+      unsafe_allow_html=True,
+  )
+  st.markdown(
+      "<p style='text-align: center; color: #94a3b8;'>Leia com atenção para"
+      " manter sua permanência no clã e garantir sua participação nos"
+      " eventos e premiações.</p><br>",
+      unsafe_allow_html=True,
+  )
+
+  regras = [
+      "Novatos serão devidamente testados antes de serem inseridos nas Guerras.",
+      (
+          "Guerras: Ataque obrigatoriamente um CV do mesmo nível que o seu"
+          " (NÃO se baseie na numeração de espelho)."
+      ),
+      "Inatividade por 3 dias sem aviso prévio resultará em remoção (kick).",
+      (
+          "Jogos dos Clãs: Meta mínima obrigatória de 2.000 pontos. O"
+          " descumprimento causará kick."
+      ),
+      "Cargos e promoções (Ancião / Co-Líder) serão concedidos estritamente por mérito e engajamento.",
+      (
+          "Grupo do WhatsApp é OBRIGATÓRIO para participação na Liga e para"
+          " disputar as premiações dos Passes Dourados."
+      ),
+      "Contas Rushadas com heróis em nível baixo não serão aceitas no clã.",
+      (
+          "Se tiver dúvidas, pergunte ou peça ajuda! Nossos membros e líderes"
+          " estão aqui para nos ajudar mutuamente."
+      ),
+  ]
+
+  for i, regra in enumerate(regras, 1):
+    st.markdown(
+        f"""
+        <div class="rule-card">
+            <div class="rule-number">{i}</div>
+            <div class="rule-text">{regra}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+  st.write("---")
+  c_voltar = st.columns([1, 2, 1])
+  with c_voltar[1]:
+    if st.button(
+        "✅ Entendi as Regras e quero voltar ao Ranking", use_container_width=True
+    ):
+      st.session_state["pagina_atual"] = "principal"
+      st.rerun()
+
+
+# ==============================================================================
+# SELEÇÃO DE PÁGINAS
 # ==============================================================================
 if st.session_state["pagina_atual"] == "layouts_guerra":
   renderizar_pagina_layouts("Guerra", "🛡️ Layouts Oficiais de Guerra")
@@ -357,6 +469,9 @@ elif st.session_state["pagina_atual"] == "layouts_rankeada":
   renderizar_pagina_layouts(
       "Rankeada", "🏆 Layouts Oficiais de Rankeada / Farm"
   )
+
+elif st.session_state["pagina_atual"] == "regras_cla":
+  renderizar_pagina_regras()
 
 # ==============================================================================
 # PÁGINA PRINCIPAL (RANKING & APLICAÇÃO)
@@ -717,32 +832,74 @@ else:
               st.success(f"Admin {u_novo} criado!")
               st.rerun()
 
-  # SEÇÃO EXPLICATIVA (RODAPÉ)
+  # SEÇÃO EXPLICATIVA (RODAPÉ) - REGULAMENTO & PREMIAÇÃO
   st.write("---")
-  st.markdown("## 📜 Regulamento & Premiação")
+  st.markdown(
+      "<h2 style='text-align: center;'>📜 Regulamento & Sistema de"
+      " Premiação</h2>",
+      unsafe_allow_html=True,
+  )
+  st.markdown(
+      "<p style='text-align: center; color: #94a3b8;'>A ideia é simples:"
+      " valorizar quem joga bem, participa ativamente e ajuda o clã a"
+      " crescer!</p><br>",
+      unsafe_allow_html=True,
+  )
+
   info_col1, info_col2, info_col3 = st.columns(3)
 
   with info_col1:
     st.markdown(
-        '<div class="info-box"><div class="info-title">🏆 Prêmio'
-        " Mensal</div><ul class=\"info-list\"><li>Os <b>3 principais</b> levam"
-        ' <span class="highlight-gold">1 Passe Dourado</span></li></ul></div>',
+        """
+        <div class="info-card">
+            <div class="info-card-header">🏆 Premiação Mensal</div>
+            <ul class="info-card-list">
+                <li><b>Top 3 Destaques:</b> Garantem <b>1 Passe Dourado</b> cada um no final do mês.</li>
+                <li><b>Em caso de Empate:</b> Havendo empate de pontos no 3º lugar, haverá sorteio de desempate e/ou análise de engajamento pela liderança.</li>
+            </ul>
+        </div>
+        """,
         unsafe_allow_html=True,
     )
 
   with info_col2:
     st.markdown(
-        '<div class="info-box"><div class="info-title">📊 Como Pontuar</div><ul'
-        ' class="info-list"><li>⚔️ <b>Guerras:</b> 1 pt por estrela</li><li>🎯'
-        " <b>Jogos/Eventos:</b> 5 ou 10 pts</li><li>🛡️ <b>Raides:</b> 10"
-        " pts</li></ul></div>",
+        """
+        <div class="info-card">
+            <div class="info-card-header">📊 Sistema de Pontuação</div>
+            <ul class="info-card-list">
+                <li><b>⚔️ Guerras:</b> 1 Ponto por ⭐ conquistada.</li>
+                <li><b>🎯 Jogos do Clã & Eventos:</b> Alcançou a meta = <b>5 pts</b> | Bateu limite total = <b>10 pts</b>.</li>
+                <li><b>🛡️ Raides (Fim de Semana):</b> Concluiu os 6 ataques = <b>10 pts</b>.</li>
+                <li><b>📢 Eventos Especiais:</b> A liderança anunciará metas e pontuações extras no grupo.</li>
+            </ul>
+        </div>
+        """,
         unsafe_allow_html=True,
     )
 
   with info_col3:
     st.markdown(
-        '<div class="info-box"><div class="info-title">📜 Regras</div><ul'
-        " class=\"info-list\"><li>👤 Conta principal</li><li>📱 Estar no"
-        " WhatsApp</li></ul></div>",
+        """
+        <div class="info-card">
+            <div class="info-card-header">📜 Diretrizes Básicas</div>
+            <ul class="info-card-list">
+                <li><b>Conta Principal:</b> Válido estritamente para a conta principal do jogador.</li>
+                <li><b>Zero Trapaça 🚫:</b> Qualquer ato antidesportivo anula a pontuação.</li>
+                <li><b>WhatsApp Obrigatório 📱:</b> É indispensável estar no grupo do clã.</li>
+                <li><b>Transparência:</b> Tudo é registrado e atualizado nesta tabela oficial.</li>
+            </ul>
+        </div>
+        """,
         unsafe_allow_html=True,
     )
+
+  st.write("")
+  c_btn_regras = st.columns([1, 2, 1])
+  with c_btn_regras[1]:
+    if st.button(
+        "📖 CLIQUE AQUI PARA VER AS REGRAS OFICIAIS COMPLETAS DO CLÃ",
+        use_container_width=True,
+    ):
+      st.session_state["pagina_atual"] = "regras_cla"
+      st.rerun()
