@@ -77,8 +77,8 @@ except Exception as e:
   st.info(
       "Exemplo de cabeçalho na Linha 1:\n"
       "| ID | Nome | JogosCla | Eventos |\n\n"
-      "Verifique se a Linha 1 possui textos e se não há colunas com nomes"
-      " duplicados."
+      "Verifique se a Linha 1 possui textos e se não há colunas vazias entre"
+      " elas."
   )
   df = pd.DataFrame()
 
@@ -133,7 +133,8 @@ if not df.empty:
     if col in df.columns:
       df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
-  df["Total"] = df[[c for c in colunas_pontos if c in df.columns]].sum(axis=1)
+  cols_somar = [c for c in colunas_pontos if c in df.columns]
+  df["Total"] = df[cols_somar].sum(axis=1) if cols_somar else 0
   df_rank = df.sort_values(by="Total", ascending=False).reset_index(drop=True)
   df_rank.index = df_rank.index + 1
   df_rank["Posição"] = [f"{i}º" for i in df_rank.index]
@@ -208,7 +209,6 @@ with tab_ranking:
 
     st.subheader("📊 Classificação em Tempo Real")
 
-    # RENDERIZAÇÃO NATIVA E LIMPA DA TABELA
     df_exibicao = df_rank[["Posição", "Nome", "Total"]].copy()
     df_exibicao["Total"] = df_exibicao["Total"].apply(lambda x: f"{int(x)} pts")
     df_exibicao.rename(
@@ -266,7 +266,6 @@ with tab_admin:
     st.write("---")
     st.success(f"Sessão Ativa: **{st.session_state['admin_logado']}**")
 
-    # GERENCIAMENTO DE CICLO DO MÊS, SORTEIO E FINALIZAÇÃO
     st.markdown("### 🏁 Gestão de Encerramento do Mês")
     c_fin1, c_fin2 = st.columns(2)
 
@@ -282,7 +281,6 @@ with tab_admin:
           st.warning("Mês reaberto para lançamentos.")
           st.rerun()
 
-    # SISTEMA DE DESEMPATE E SORTEIO
     with c_fin2:
       st.markdown("#### 🎲 Verificação de Empate no Top 3")
       if not df.empty and "Total" in df.columns and len(df_rank) >= 3:
@@ -326,8 +324,9 @@ with tab_admin:
             st.error("Limite máximo de 50 jogadores atingido!")
           elif novo_nome.strip() != "":
             novo_id = len(dados) + 1
-            num_cols = len(df.columns) if not df.empty else 4
-            linha_nova = [novo_id, novo_nome.strip()] + [0] * (num_cols - 2)
+            # Descobre a quantidade exata de colunas da planilha
+            cols_atuais = len(sheet_dados.row_values(1))
+            linha_nova = [novo_id, novo_nome.strip()] + [0] * (cols_atuais - 2)
             sheet_dados.append_row(linha_nova)
             st.success(f"{novo_nome} adicionado!")
             st.rerun()
@@ -342,16 +341,20 @@ with tab_admin:
             st.success(f"{player_rem} removido!")
             st.rerun()
 
-    # 2. LANÇAMENTO DINÂMICO DE GUERRAS E RAIDES
+    # 2. LANÇAMENTO DINÂMICO DE GUERRAS E RAIDES (CORRIGIDO)
     with sub_tab2:
       st.markdown("#### Criar Novas Rodadas de Eventos")
       col_add1, col_add2 = st.columns(2)
+
+      # Obtém o cabeçalho real direto da planilha para evitar colunas puladas
+      cabecalho_real = sheet_dados.row_values(1)
 
       with col_add1:
         if st.button("⚔️ Adicionar Nova Coluna de Guerra"):
           nova_guerra_num = len(colunas_guerras) + 1
           nome_col_guerra = f"Guerra_{nova_guerra_num}"
-          sheet_dados.update_cell(1, len(df.columns) + 1, nome_col_guerra)
+          proxima_coluna = len(cabecalho_real) + 1
+          sheet_dados.update_cell(1, proxima_coluna, nome_col_guerra)
           st.success(f"Coluna **{nome_col_guerra}** criada com sucesso!")
           st.rerun()
 
@@ -359,7 +362,8 @@ with tab_admin:
         if st.button("🛡️ Adicionar Nova Coluna de Raide"):
           nova_raide_num = len(colunas_raides) + 1
           nome_col_raide = f"Raide_FDS{nova_raide_num}"
-          sheet_dados.update_cell(1, len(df.columns) + 1, nome_col_raide)
+          proxima_coluna = len(cabecalho_real) + 1
+          sheet_dados.update_cell(1, proxima_coluna, nome_col_raide)
           st.success(f"Coluna **{nome_col_raide}** criada com sucesso!")
           st.rerun()
 
@@ -409,17 +413,17 @@ with tab_admin:
             )
 
         if st.button("Salvar Registro"):
-          if "JogosCla" in df.columns and "Eventos" in df.columns:
-            col_idx_jogos = df.columns.get_loc("JogosCla") + 1
-            col_idx_eventos = df.columns.get_loc("Eventos") + 1
+          if "JogosCla" in cabecalho_real and "Eventos" in cabecalho_real:
+            col_idx_jogos = cabecalho_real.index("JogosCla") + 1
+            col_idx_eventos = cabecalho_real.index("Eventos") + 1
             sheet_dados.update_cell(linha_p, col_idx_jogos, val_jogos)
             sheet_dados.update_cell(linha_p, col_idx_eventos, val_eventos)
 
-          if evento_tipo == "Guerras" and colunas_guerras:
-            col_idx_guerra = df.columns.get_loc(guerra_sel) + 1
+          if evento_tipo == "Guerras" and colunas_guerras and guerra_sel in cabecalho_real:
+            col_idx_guerra = cabecalho_real.index(guerra_sel) + 1
             sheet_dados.update_cell(linha_p, col_idx_guerra, val_guerra_item)
-          elif evento_tipo == "Raides" and colunas_raides:
-            col_idx_raide = df.columns.get_loc(raide_sel) + 1
+          elif evento_tipo == "Raides" and colunas_raides and raide_sel in cabecalho_real:
+            col_idx_raide = cabecalho_real.index(raide_sel) + 1
             sheet_dados.update_cell(linha_p, col_idx_raide, val_raide_item)
 
           st.success(f"Pontuações de {player_edit} atualizadas!")
