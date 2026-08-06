@@ -892,7 +892,7 @@ else:
             <div class="info-card-header">🏆 Premiação Mensal</div>
             <ul class="info-card-list" style="text-align: left;">
                 <li><b>Top 3 Destaques:</b> Garantem <b>1 Passe Dourado 🎟️</b> cada um no final do mês.</li>
-                <li><b>Em caso de Empate:</b> Sorteio de desempate e/ou análise de engajamento pela liderança.</li>
+                <li><b>Em caso de Empate:</b> Sorteio de desempate.</li>
             </ul>
         </div>
         """,
