@@ -273,10 +273,16 @@ st.markdown(
         border: 2px solid #93c5fd; box-shadow: 0px 4px 0px #1e3a8a; font-size: 0.9rem;
     }
     .btn-external-link {
-        display: block; width: 100%; text-align: center;
+        display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; text-align: center;
         background: linear-gradient(180deg, #16a34a 0%, #15803d 100%); color: white !important;
-        padding: 8px 12px; border-radius: 8px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
-        border: 2px solid #86efac; box-shadow: 0px 4px 0px #14532d; font-size: 0.9rem;
+        padding: 8px 10px; border-radius: 8px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
+        border: 2px solid #86efac; box-shadow: 0px 4px 0px #14532d; font-size: 0.88rem;
+    }
+    .btn-scid {
+        display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; text-align: center;
+        background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%); color: white !important;
+        padding: 8px 10px; border-radius: 8px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
+        border: 2px solid #60a5fa; box-shadow: 0px 4px 0px #1e3a8a; font-size: 0.88rem;
     }
 
     .mural-banner {
@@ -285,6 +291,15 @@ st.markdown(
         box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-family: 'Nunito', sans-serif;
     }
     .mural-header { font-family: 'Luckiest Guy', cursive; color: #facc15; font-size: 1rem; margin-bottom: 4px; }
+
+    /* ESTILOS DOS INFO CARDS DO REGULAMENTO */
+    .info-card {
+        background: #0f172a; border: 2px solid #334155; border-radius: 14px; padding: 20px; margin-bottom: 15px;
+        font-family: 'Nunito', sans-serif; color: #e2e8f0; box-shadow: 0 6px 18px rgba(0,0,0,0.4); height: 100%;
+    }
+    .info-card-header { font-family: 'Luckiest Guy', cursive; color: #facc15; font-size: 1.15rem; margin-bottom: 10px; }
+    .info-card-list { padding-left: 18px; margin-bottom: 0px; }
+    .info-card-list li { margin-bottom: 8px; line-height: 1.4; font-size: 0.95rem; }
 
     .rules-card {
         background: #0f172a; border: 2px solid #334155; border-radius: 14px; padding: 22px; margin-top: 35px;
@@ -307,10 +322,10 @@ st.markdown(
 )
 
 # --- TOPO DA PÁGINA: MENU DE NAVEGAÇÃO + LOGIN ADMIN NO CANTO DIREITO ---
-col_nav, col_admin_top = st.columns([4, 1])
+col_nav, col_admin_top = st.columns([5, 1])
 
 with col_nav:
-  b1, b2, b3, b4, b5 = st.columns(5)
+  b1, b2, b3, b4, b5, b6 = st.columns(6)
   with b1:
     if st.button("🛡️ Layouts Guerra", use_container_width=True):
       st.session_state["pagina_atual"] = "layouts_guerra"
@@ -332,6 +347,16 @@ with col_nav:
         '<a'
         ' href="https://link.clashofclans.com/pt?action=OpenClanProfile&tag=2YPL9GU8Y"'
         ' target="_blank" class="btn-external-link">🏰 Clã Vastaya ↗</a>',
+        unsafe_allow_html=True,
+    )
+  with b6:
+    st.markdown(
+        '<a'
+        ' href="https://link.clashofclans.com/?action=OpenSCID&p=25-1cb8481f-3a79-4681-90f9-8914acef2d63"'
+        ' target="_blank" class="btn-scid"><img'
+        ' src="https://i.ibb.co/fzPGy6fr/bg-hero-scid-landing-0.webp"'
+        ' height="20" style="border-radius: 4px; object-fit:'
+        ' cover;"> Add Godoy ↗</a>',
         unsafe_allow_html=True,
     )
 
@@ -896,7 +921,7 @@ else:
         else:
           st.info("Nenhum dado disponível para backup.")
 
- # SEÇÃO EXPLICATIVA (RODAPÉ) - REGULAMENTO & PREMIAÇÃO COM ELEMENTOS OFICIAIS
+  # SEÇÃO EXPLICATIVA (RODAPÉ) - REGULAMENTO & PREMIAÇÃO COM ELEMENTOS OFICIAIS
   st.write("---")
   st.markdown(
       "<h2 style='text-align: center;'>📜 Regulamento & Sistema de"
