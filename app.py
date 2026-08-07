@@ -8,7 +8,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
-    page_title="Winning Wars - Competição Mensal dos Passes", page_icon="⚔️", layout="wide"
+    page_title="Winning Wars", page_icon="⚔️", layout="wide"
 )
 
 
