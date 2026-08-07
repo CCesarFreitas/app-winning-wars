@@ -8,7 +8,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
-    page_title="Winning Wars - Competição Mensal", page_icon="⚔️", layout="wide"
+    page_title="Winning Wars - Competição Mensal dos Passes", page_icon="⚔️", layout="wide"
 )
 
 
@@ -327,11 +327,11 @@ col_nav, col_admin_top = st.columns([5, 1])
 with col_nav:
   b1, b2, b3, b4, b5 = st.columns(5)
   with b1:
-    if st.button("🛡️ Layouts para Guerra", use_container_width=True):
+    if st.button("🛡️ Layouts Guerra", use_container_width=True):
       st.session_state["pagina_atual"] = "layouts_guerra"
       st.rerun()
   with b2:
-    if st.button("🏆 Layouts para Rankeada", use_container_width=True):
+    if st.button("🏆 Layouts Rankeada", use_container_width=True):
       st.session_state["pagina_atual"] = "layouts_rankeada"
       st.rerun()
   with b3:
@@ -342,7 +342,7 @@ with col_nav:
     st.markdown(
         '<a'
         ' href="https://link.clashofclans.com/pt?action=OpenClanProfile&tag=2YPL9GU8Y"'
-        ' target="_blank" class="btn-external-link">🏰 Clã Secundário (Guerras Farm) ↗</a>',
+        ' target="_blank" class="btn-external-link">🏰 Clã Vastaya ↗</a>',
         unsafe_allow_html=True,
     )
   with b5:
@@ -352,7 +352,7 @@ with col_nav:
         ' target="_blank" class="btn-scid"><img'
         ' src="https://i.ibb.co/fzPGy6fr/bg-hero-scid-landing-0.webp"'
         ' height="20" style="border-radius: 4px; object-fit:'
-        ' cover;"> Adicionar no Supercell ID ↗</a>',
+        ' cover;"> Add Godoy ↗</a>',
         unsafe_allow_html=True,
     )
 
@@ -363,7 +363,7 @@ with col_admin_top:
       del st.session_state["admin_logado"]
       st.rerun()
   else:
-    with st.popover("🔐 Acesso Admin", use_container_width=True):
+    with st.popover("🔐 Admin", use_container_width=True):
       st.markdown("### 🔐 Acesso Restrito Admin")
       with st.form("form_login_topo"):
         u_top = st.text_input("Usuário Admin")
@@ -390,7 +390,7 @@ st.write("---")
 
 
 # ==============================================================================
-# FUNÇÃO PARA RENDERIZAR PÁGINAS DE LAYOUT (IMAGENS & BOTÕES CENTRALIZADOS)
+# FUNÇÃO PARA RENDERIZAR PÁGINAS DE LAYOUT (SEM O CAMPO DE DESCRIÇÃO)
 # ==============================================================================
 def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
   if st.button("⬅️ Voltar ao Início"):
@@ -436,9 +436,6 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
         ):
           with st.form(key=f"form_{tipo_layout}_{cv_nome}"):
             link_layout = st.text_input("Link Oficial do Layout (URL)")
-            descricao = st.text_input(
-                "Descrição (ex: Anti-3 Estrelas, Farm Ouro)"
-            )
             tag_layout = st.selectbox(
                 "Tag de Estilo",
                 ["#Anti3Estrelas", "#Anti2Estrelas", "#Farm", "#PushTrofes"],
@@ -454,7 +451,7 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
                     cv_nome,
                     st.session_state["admin_logado"],
                     link_layout.strip(),
-                    descricao.strip() if descricao.strip() else "Recomendado",
+                    "",  # Campo de descrição mantido vazio no DB
                     img_url.strip(),
                     tag_layout,
                 ])
@@ -483,8 +480,7 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
             )
             st.markdown(
                 f"<div style='text-align: center; margin-bottom: 8px;'><b>👑"
-                f" Admin:</b> {row['Autor']} | <b>📌 Foco:</b>"
-                f" {row['Descricao']}{tag_txt}</div>",
+                f" Admin:</b> {row['Autor']}{tag_txt}</div>",
                 unsafe_allow_html=True,
             )
 
