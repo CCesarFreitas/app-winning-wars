@@ -434,7 +434,10 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
         with st.expander(
             f"➕ [ADMIN] Adicionar Novo Layout de {tipo_layout} ({cv_nome})"
         ):
-          with st.form(key=f"form_{tipo_layout}_{cv_nome}"):
+          # clear_on_submit=True limpa automaticamente os inputs ao enviar
+          with st.form(
+              key=f"form_{tipo_layout}_{cv_nome}", clear_on_submit=True
+          ):
             link_layout = st.text_input("Link Oficial do Layout (URL)")
             img_url = st.text_input("Link Direto da Foto (Opcional)")
 
@@ -456,8 +459,10 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
                     f"Adicionou layout {tipo_layout} para {cv_nome}",
                 )
                 st.cache_data.clear()
-                st.success("Layout publicado!")
+                st.success("Layout publicado com sucesso!")
                 st.rerun()
+              else:
+                st.error("⚠️ Insira o link do layout antes de publicar.")
 
       if not df_layouts.empty:
         layouts_filtrados = df_layouts[
@@ -811,7 +816,7 @@ else:
             "Crie novas contas de administrador com acesso total ao painel."
         )
 
-        with st.form("form_novo_admin"):
+        with st.form("form_novo_admin", clear_on_submit=True):
           c_adm1, c_adm2 = st.columns(2)
           with c_adm1:
             novo_admin_usr = st.text_input("Nome do Usuário Admin")
@@ -832,7 +837,6 @@ else:
             elif pwd_limpo != novo_admin_pwd_conf.strip():
               st.error("⚠️ As senhas informadas não coincidem.")
             else:
-              # Verificar se o usuário já existe no banco
               df_admins_atual = pd.DataFrame(sheet_admins.get_all_records())
               if (
                   not df_admins_atual.empty
