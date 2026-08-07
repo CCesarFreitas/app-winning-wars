@@ -1,6 +1,6 @@
 import hashlib
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import gspread
 import pandas as pd
 import streamlit as st
@@ -39,7 +39,11 @@ def conectar_banco():
         title="Admins", rows="100", cols="2"
     )
     sheet_admins.append_row(["Usuario", "SenhaHash"])
-    sheet_admins.append_row(["admin", gerar_hash("winning123")])
+
+    if "admin_inicial" in st.secrets:
+      usr_init = st.secrets["admin_inicial"]["usuario"]
+      pwd_init = st.secrets["admin_inicial"]["senha"]
+      sheet_admins.append_row([usr_init, gerar_hash(pwd_init)])
 
   # Aba de Estado e Recados
   try:
@@ -52,16 +56,23 @@ def conectar_banco():
     sheet_estado.append_row(["mes_finalizado", "FALSE"])
     sheet_estado.append_row(["mural_recado", "Bem-vindos ao aplicativo oficial!"])
 
-  # Aba de Layouts
+  # Aba de Layouts (Com coluna DataCriacao para expiração automática)
   try:
     sheet_layouts = spreadsheet.worksheet("Layouts")
   except gspread.WorksheetNotFound:
     sheet_layouts = spreadsheet.add_worksheet(
-        title="Layouts", rows="500", cols="7"
+        title="Layouts", rows="500", cols="8"
     )
-    sheet_layouts.append_row(
-        ["Tipo", "CV", "Autor", "Link", "Descricao", "ImagemUrl", "Tag"]
-    )
+    sheet_layouts.append_row([
+        "Tipo",
+        "CV",
+        "Autor",
+        "Link",
+        "Descricao",
+        "ImagemUrl",
+        "Tag",
+        "DataCriacao",
+    ])
 
   # Aba de Logs
   try:
@@ -114,7 +125,40 @@ def registrar_log(admin: str, acao: str):
     pass
 
 
-# --- CARREGAR DADOS COM CACHE DE DESEMPENHO (120 SEGUNDOS) ---
+# --- FUNÇÃO PARA LIMPAR LAYOUTS EXPIRADOS (> 60 DIAS) ---
+def expirar_layouts_antigos(sheet_layouts):
+  try:
+    registros = sheet_layouts.get_all_records()
+    if not registros:
+      return 0
+
+    hoje = datetime.now()
+    linhas_deletadas = 0
+
+    # Iterar de trás para frente para evitar problemas nos índices ao deletar
+    for i in range(len(registros) - 1, -1, -1):
+      item = registros[i]
+      data_str = str(item.get("DataCriacao", "")).strip()
+
+      if data_str:
+        try:
+          data_envio = datetime.strptime(data_str, "%Y-%m-%d")
+          if (hoje - data_envio).days > 60:
+            # +2 porque a linha 1 é o cabeçalho e a lista em python começa em 0
+            sheet_layouts.delete_rows(i + 2)
+            linhas_deletadas += 1
+        except ValueError:
+          pass
+
+    if linhas_deletadas > 0:
+      st.cache_data.clear()
+
+    return linhas_deletadas
+  except Exception:
+    return 0
+
+
+# --- CARREGAR DADOS COM CACHE DE DESEMPENHO ---
 @st.cache_data(ttl=120)
 def obter_dados_cached():
   try:
@@ -139,6 +183,9 @@ def obter_galeria_cached():
     return []
 
 
+# AUTO-EXCLUSÃO DE LAYOUTS COM MAIS DE 60 DIAS AO INICIAR
+expirar_layouts_antigos(sheet_layouts)
+
 dados = obter_dados_cached()
 df = pd.DataFrame(dados) if dados else pd.DataFrame()
 
@@ -146,9 +193,7 @@ try:
   dados_admins = sheet_admins.get_all_records()
   df_admins = pd.DataFrame(dados_admins)
 except Exception:
-  df_admins = pd.DataFrame(
-      [["admin", gerar_hash("winning123")]], columns=["Usuario", "SenhaHash"]
-  )
+  df_admins = pd.DataFrame(columns=["Usuario", "SenhaHash"])
 
 try:
   dados_estado = dict(sheet_estado.get_all_values())
@@ -165,7 +210,7 @@ if "pagina_atual" not in st.session_state:
 df_layouts = pd.DataFrame(obter_layouts_cached())
 df_fama = pd.DataFrame(obter_galeria_cached())
 
-# --- ESTILIZAÇÃO CSS CUSTOMIZADA COM RESPONSIVIDADE MOBILE E ABAS DESTACADAS ---
+# --- ESTILIZAÇÃO CSS CUSTOMIZADA ---
 st.markdown(
     """
     <style>
@@ -221,7 +266,7 @@ st.markdown(
         background: linear-gradient(180deg, #4ade80 0%, #16a34a 100%) !important;
     }
 
-    /* DESTAQUE E FONTE MAIOR NAS ABAS PRINCIPAIS E CENTROS DE VILA */
+    /* DESTAQUE E FONTE MAIOR NAS ABAS PRINCIPAIS */
     button[data-baseweb="tab"] {
         font-size: 1.25rem !important;
         font-weight: 800 !important;
@@ -390,7 +435,7 @@ st.write("---")
 
 
 # ==============================================================================
-# FUNÇÃO PARA RENDERIZAR PÁGINAS DE LAYOUT (SOMENTE LINK E LINK DA FOTO)
+# FUNÇÃO PARA RENDERIZAR PÁGINAS DE LAYOUT
 # ==============================================================================
 def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
   if st.button("⬅️ Voltar ao Início"):
@@ -419,7 +464,6 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
     with tabs_cv[idx]:
       th_img_url = cv_map[cv_nome]
 
-      # CABEÇALHO DO CV CENTRALIZADO E COM IMAGEM MAIOR (80px)
       st.markdown(
           f"""
             <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-top: 15px; margin-bottom: 20px;">
@@ -434,7 +478,6 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
         with st.expander(
             f"➕ [ADMIN] Adicionar Novo Layout de {tipo_layout} ({cv_nome})"
         ):
-          # clear_on_submit=True limpa automaticamente os inputs ao enviar
           with st.form(
               key=f"form_{tipo_layout}_{cv_nome}", clear_on_submit=True
           ):
@@ -445,14 +488,18 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
 
             if btn_enviar:
               if link_layout.strip():
+                # SALVA A DATA ATUAL DO ENVIO PARA AUTOCONTROLE DE 60 DIAS
+                data_envio = datetime.now().strftime("%Y-%m-%d")
+
                 sheet_layouts.append_row([
                     tipo_layout,
                     cv_nome,
                     st.session_state["admin_logado"],
                     link_layout.strip(),
-                    "",  # Sem descrição
+                    "",  # Descricao
                     img_url.strip(),
-                    "",  # Sem tag de estilo
+                    "",  # Tag
+                    data_envio,  # DataCriacao
                 ])
                 registrar_log(
                     st.session_state["admin_logado"],
@@ -473,7 +520,6 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
 
       if not layouts_filtrados.empty:
         for item_idx, row in layouts_filtrados.iterrows():
-          # CONTAINER CENTRALIZADO PARA EXIBIR CADA LAYOUT
           _, col_cent, _ = st.columns([1, 2, 1])
           with col_cent:
             st.markdown(
@@ -502,7 +548,6 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
                 unsafe_allow_html=True,
             )
 
-            # EXCLUSÃO PERMITIDA APENAS PARA ADMINS LOGADOS
             if eh_admin:
               st.write("")
               if st.button(
@@ -928,6 +973,27 @@ else:
             st.success("Registrado na Galeria da Fama!")
             st.rerun()
 
+        st.divider()
+
+        st.markdown("#### 🧹 Manutenção de Layouts")
+        st.markdown(
+            "Os layouts expirados (+60 dias) já são apagados automaticamente no"
+            " carregamento. Clique abaixo caso queira forçar a verificação"
+            " agora:"
+        )
+        if st.button("🧹 Executar Limpeza de Layouts Antigos (+60 dias)"):
+          removidos = expirar_layouts_antigos(sheet_layouts)
+          if removidos > 0:
+            registrar_log(
+                st.session_state["admin_logado"],
+                f"Executou faxina manual e removeu {removidos} layout(s)"
+                " antigo(s)",
+            )
+            st.success(f"✅ Sucesso! {removidos} layout(s) antigo(s) removido(s).")
+            st.rerun()
+          else:
+            st.info("Nenhum layout com mais de 60 dias encontrado.")
+
       with sub_tab5:
         st.markdown("#### 🛡️ Registro de Atividades dos Admins")
         try:
@@ -953,7 +1019,7 @@ else:
         else:
           st.info("Nenhum dado disponível para backup.")
 
-  # SEÇÃO EXPLICATIVA (RODAPÉ) - REGULAMENTO & PREMIAÇÃO COM ELEMENTOS OFICIAIS
+  # SEÇÃO EXPLICATIVA (RODAPÉ)
   st.write("---")
   st.markdown(
       "<h2 style='text-align: center;'>📜 Regulamento & Sistema de"
