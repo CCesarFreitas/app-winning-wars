@@ -756,8 +756,9 @@ else:
           " Liberado)"
       )
 
-      sub_tab1, sub_tab2, sub_tab3, sub_tab4, sub_tab5 = st.tabs([
+      sub_tab1, sub_tab2, sub_tab3, sub_tab4, sub_tab5, sub_tab6 = st.tabs([
           "➕ Players",
+          "👤 Novo Admin",
           "✏️ Editar Pontos",
           "📢 Recado / Arquivar Mês",
           "📜 Logs do Sistema",
@@ -805,6 +806,54 @@ else:
                 )
 
       with sub_tab2:
+        st.markdown("#### 👤 Cadastrar Novo Administrador")
+        st.markdown(
+            "Crie novas contas de administrador com acesso total ao painel."
+        )
+
+        with st.form("form_novo_admin"):
+          c_adm1, c_adm2 = st.columns(2)
+          with c_adm1:
+            novo_admin_usr = st.text_input("Nome do Usuário Admin")
+            novo_admin_pwd = st.text_input("Senha", type="password")
+          with c_adm2:
+            novo_admin_pwd_conf = st.text_input(
+                "Confirmar Senha", type="password"
+            )
+
+          btn_cadastrar_admin = st.form_submit_button("Criar Usuário Admin")
+
+          if btn_cadastrar_admin:
+            usr_limpo = novo_admin_usr.strip()
+            pwd_limpo = novo_admin_pwd.strip()
+
+            if not usr_limpo or not pwd_limpo:
+              st.error("⚠️ Preencha o nome de usuário e a senha.")
+            elif pwd_limpo != novo_admin_pwd_conf.strip():
+              st.error("⚠️ As senhas informadas não coincidem.")
+            else:
+              # Verificar se o usuário já existe no banco
+              df_admins_atual = pd.DataFrame(sheet_admins.get_all_records())
+              if (
+                  not df_admins_atual.empty
+                  and usr_limpo.lower()
+                  in df_admins_atual["Usuario"].str.lower().values
+              ):
+                st.error("⚠️ Já existe um administrador com esse usuário!")
+              else:
+                hash_senha = gerar_hash(pwd_limpo)
+                sheet_admins.append_row([usr_limpo, hash_senha])
+                registrar_log(
+                    st.session_state["admin_logado"],
+                    f"Cadastrou o novo admin '{usr_limpo}'",
+                )
+                st.cache_data.clear()
+                st.success(
+                    f"✅ Administrador **{usr_limpo}** cadastrado com sucesso!"
+                )
+                st.rerun()
+
+      with sub_tab3:
         if not df.empty:
           df_editavel = df.drop(
               columns=["Total", "WarTotal"], errors="ignore"
@@ -826,7 +875,7 @@ else:
             st.success("Salvo com sucesso!")
             st.rerun()
 
-      with sub_tab3:
+      with sub_tab4:
         st.markdown("#### 📢 Atualizar / Excluir Mural de Recados")
         novo_recado = st.text_area("Recado para o topo da tela:", mural_recado)
         col_rec1, col_rec2 = st.columns(2)
@@ -875,7 +924,7 @@ else:
             st.success("Registrado na Galeria da Fama!")
             st.rerun()
 
-      with sub_tab4:
+      with sub_tab5:
         st.markdown("#### 🛡️ Registro de Atividades dos Admins")
         try:
           df_logs_exib = pd.DataFrame(sheet_logs.get_all_records())
@@ -885,7 +934,7 @@ else:
         except Exception:
           st.info("Nenhum log registrado ainda.")
 
-      with sub_tab5:
+      with sub_tab6:
         st.markdown("#### 💾 Exportar Backup do Banco de Dados")
         if not df.empty:
           csv_backup = df.to_csv(index=False).encode("utf-8")
