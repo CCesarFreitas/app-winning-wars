@@ -221,16 +221,16 @@ st.markdown(
         background: linear-gradient(180deg, #4ade80 0%, #16a34a 100%) !important;
     }
 
-    /* DESTAQUE E FONTE MAIOR NAS ABAS (Ranking ao Vivo, Tabela Detalhada, Admin) */
+    /* DESTAQUE E FONTE MAIOR NAS ABAS PRINCIPAIS E CENTROS DE VILA */
     button[data-baseweb="tab"] {
-        font-size: 1.15rem !important;
+        font-size: 1.25rem !important;
         font-weight: 800 !important;
         font-family: 'Nunito', sans-serif !important;
-        padding: 12px 20px !important;
+        padding: 12px 22px !important;
         background-color: #1e293b !important;
         border: 2px solid #334155 !important;
         border-radius: 10px 10px 0 0 !important;
-        color: #94a3b8 !important;
+        color: #cbd5e1 !important;
         margin-right: 6px !important;
         transition: all 0.2s ease !important;
     }
@@ -269,14 +269,20 @@ st.markdown(
     .btn-layout-copy {
         display: inline-block; width: 100%; max-width: 100%; text-align: center;
         background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%); color: white !important;
-        padding: 10px 14px; border-radius: 8px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
-        border: 2px solid #93c5fd; box-shadow: 0px 4px 0px #1e3a8a; font-size: 0.9rem;
+        padding: 12px 16px; border-radius: 10px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
+        border: 2px solid #93c5fd; box-shadow: 0px 4px 0px #1e3a8a; font-size: 1.05rem;
     }
     .btn-external-link {
-        display: block; width: 100%; text-align: center;
+        display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; text-align: center;
         background: linear-gradient(180deg, #16a34a 0%, #15803d 100%); color: white !important;
-        padding: 8px 12px; border-radius: 8px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
-        border: 2px solid #86efac; box-shadow: 0px 4px 0px #14532d; font-size: 0.9rem;
+        padding: 8px 10px; border-radius: 8px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
+        border: 2px solid #86efac; box-shadow: 0px 4px 0px #14532d; font-size: 0.88rem;
+    }
+    .btn-scid {
+        display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; text-align: center;
+        background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%); color: white !important;
+        padding: 8px 10px; border-radius: 8px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
+        border: 2px solid #60a5fa; box-shadow: 0px 4px 0px #1e3a8a; font-size: 0.88rem;
     }
 
     .mural-banner {
@@ -308,7 +314,7 @@ st.markdown(
         .main-subtitle { font-size: 0.88rem !important; }
         .mural-banner { padding: 10px !important; }
         .podium-card { padding: 12px !important; }
-        button[data-baseweb="tab"] { font-size: 0.9rem !important; padding: 8px 10px !important; }
+        button[data-baseweb="tab"] { font-size: 1rem !important; padding: 8px 10px !important; }
     }
     </style>
 """,
@@ -316,7 +322,7 @@ st.markdown(
 )
 
 # --- TOPO DA PÁGINA: MENU DE NAVEGAÇÃO + LOGIN ADMIN NO CANTO DIREITO ---
-col_nav, col_admin_top = st.columns([4, 1])
+col_nav, col_admin_top = st.columns([5, 1])
 
 with col_nav:
   b1, b2, b3, b4, b5 = st.columns(5)
@@ -329,18 +335,24 @@ with col_nav:
       st.session_state["pagina_atual"] = "layouts_rankeada"
       st.rerun()
   with b3:
-    if st.button("🌟 Galeria da Fama", use_container_width=True):
-      st.session_state["pagina_atual"] = "galeria_fama"
-      st.rerun()
-  with b4:
     if st.button("📜 Regras do Clã", use_container_width=True):
       st.session_state["pagina_atual"] = "regras_cla"
       st.rerun()
-  with b5:
+  with b4:
     st.markdown(
         '<a'
         ' href="https://link.clashofclans.com/pt?action=OpenClanProfile&tag=2YPL9GU8Y"'
         ' target="_blank" class="btn-external-link">🏰 Clã Vastaya ↗</a>',
+        unsafe_allow_html=True,
+    )
+  with b5:
+    st.markdown(
+        '<a'
+        ' href="https://link.clashofclans.com/?action=OpenSCID&p=25-1cb8481f-3a79-4681-90f9-8914acef2d63"'
+        ' target="_blank" class="btn-scid"><img'
+        ' src="https://i.ibb.co/fzPGy6fr/bg-hero-scid-landing-0.webp"'
+        ' height="20" style="border-radius: 4px; object-fit:'
+        ' cover;"> Add Godoy ↗</a>',
         unsafe_allow_html=True,
     )
 
@@ -378,7 +390,7 @@ st.write("---")
 
 
 # ==============================================================================
-# FUNÇÃO PARA RENDERIZAR PÁGINAS DE LAYOUT
+# FUNÇÃO PARA RENDERIZAR PÁGINAS DE LAYOUT (IMAGENS & BOTÕES CENTRALIZADOS)
 # ==============================================================================
 def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
   if st.button("⬅️ Voltar ao Início"):
@@ -406,11 +418,17 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
   for idx, cv_nome in enumerate(cv_list):
     with tabs_cv[idx]:
       th_img_url = cv_map[cv_nome]
-      col_header1, col_header2 = st.columns([1, 8])
-      with col_header1:
-        st.image(th_img_url, width=50)
-      with col_header2:
-        st.subheader(f"Base de {tipo_layout} - {cv_nome}")
+
+      # CABEÇALHO DO CV CENTRALIZADO E COM IMAGEM MAIOR (80px)
+      st.markdown(
+          f"""
+            <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-top: 15px; margin-bottom: 20px;">
+                <img src="{th_img_url}" width="80" style="filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.5));">
+                <h2 style="margin: 0; font-size: 1.8rem;">Bases de {tipo_layout} - {cv_nome}</h2>
+            </div>
+            """,
+          unsafe_allow_html=True,
+      )
 
       if eh_admin:
         with st.expander(
@@ -457,71 +475,61 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
 
       if not layouts_filtrados.empty:
         for item_idx, row in layouts_filtrados.iterrows():
-          with st.container():
+          # CONTAINER CENTRALIZADO PARA EXIBIR CADA LAYOUT
+          _, col_cent, _ = st.columns([1, 2, 1])
+          with col_cent:
             tag_txt = (
                 f" `{row.get('Tag', '#Clash')}`" if row.get("Tag") else ""
             )
             st.markdown(
-                f"**👑 Admin:** {row['Autor']} | **📌 Foco:**"
-                f" {row['Descricao']}{tag_txt}"
+                f"<div style='text-align: center; margin-bottom: 8px;'><b>👑"
+                f" Admin:</b> {row['Autor']} | <b>📌 Foco:</b>"
+                f" {row['Descricao']}{tag_txt}</div>",
+                unsafe_allow_html=True,
             )
 
             img_url_limpa = str(row["ImagemUrl"]).strip()
             if img_url_limpa:
               try:
-                st.image(img_url_limpa, caption=f"Layout {cv_nome}", width=320)
+                st.markdown(
+                    f"""
+                                    <div style="text-align: center; margin-bottom: 12px;">
+                                        <img src="{img_url_limpa}" style="max-width: 100%; border-radius: 12px; border: 2px solid #334155; box-shadow: 0 6px 16px rgba(0,0,0,0.5);">
+                                    </div>
+                                    """,
+                    unsafe_allow_html=True,
+                )
               except Exception:
                 pass
 
-            c_btn, c_del = st.columns([3, 1])
-            with c_btn:
-              st.markdown(
-                  f'<a href="{row["Link"]}" target="_blank"'
-                  ' class="btn-layout-copy">📲 COPIAR LAYOUT NO CLASH</a>',
-                  unsafe_allow_html=True,
-              )
-            with c_del:
-              if eh_admin:
-                if st.button(
-                    "❌ Excluir", key=f"del_{tipo_layout}_{cv_nome}_{item_idx}"
-                ):
-                  cell = sheet_layouts.find(row["Link"])
-                  if cell:
-                    sheet_layouts.delete_rows(cell.row)
-                    registrar_log(
-                        st.session_state["admin_logado"],
-                        f"Excluiu layout de {cv_nome}",
-                    )
-                    st.cache_data.clear()
-                    st.success("Removido!")
-                    st.rerun()
+            st.markdown(
+                f'<a href="{row["Link"]}" target="_blank"'
+                ' class="btn-layout-copy">📲 COPIAR LAYOUT NO CLASH</a>',
+                unsafe_allow_html=True,
+            )
+
+            # EXCLUSÃO PERMITIDA APENAS PARA ADMINS LOGADOS
+            if eh_admin:
+              st.write("")
+              if st.button(
+                  "❌ Excluir Layout (Admin)",
+                  key=f"del_{tipo_layout}_{cv_nome}_{item_idx}",
+                  use_container_width=True,
+              ):
+                cell = sheet_layouts.find(row["Link"])
+                if cell:
+                  sheet_layouts.delete_rows(cell.row)
+                  registrar_log(
+                      st.session_state["admin_logado"],
+                      f"Excluiu layout de {cv_nome}",
+                  )
+                  st.cache_data.clear()
+                  st.success("Removido!")
+                  st.rerun()
+
             st.divider()
       else:
         st.info(f"Nenhum layout cadastrado para {cv_nome}.")
-
-
-# ==============================================================================
-# PÁGINA EXCLUSIVA: GALERIA DA FAMA
-# ==============================================================================
-def renderizar_galeria_fama():
-  if st.button("⬅️ Voltar ao Início"):
-    st.session_state["pagina_atual"] = "principal"
-    st.rerun()
-
-  st.markdown(
-      "<h1 style='text-align: center;'>🌟 Galeria da Fama</h1>",
-      unsafe_allow_html=True,
-  )
-  st.markdown(
-      "<p class='main-subtitle'>Histórico dos grandes guerreiros do clã que"
-      " conquistaram o Passe Dourado!</p>",
-      unsafe_allow_html=True,
-  )
-
-  if not df_fama.empty:
-    st.dataframe(df_fama, use_container_width=True, hide_index=True)
-  else:
-    st.info("Nenhum histórico de meses anteriores registrado ainda.")
 
 
 # ==============================================================================
@@ -564,8 +572,6 @@ if st.session_state["pagina_atual"] == "layouts_guerra":
   renderizar_pagina_layouts("Guerra", "🛡️ Layouts Oficiais de Guerra")
 elif st.session_state["pagina_atual"] == "layouts_rankeada":
   renderizar_pagina_layouts("Rankeada", "🏆 Layouts Oficiais de Rankeada")
-elif st.session_state["pagina_atual"] == "galeria_fama":
-  renderizar_galeria_fama()
 elif st.session_state["pagina_atual"] == "regras_cla":
   renderizar_regras_cla()
 
@@ -977,3 +983,20 @@ else:
     ):
       st.session_state["pagina_atual"] = "regras_cla"
       st.rerun()
+
+  # SEÇÃO: GALERIA DA FAMA NO FINAL DA PÁGINA
+  st.write("---")
+  st.markdown(
+      "<h2 style='text-align: center;'>🌟 Galeria da Fama</h2>",
+      unsafe_allow_html=True,
+  )
+  st.markdown(
+      "<p style='text-align: center; color: #94a3b8;'>Histórico dos grandes"
+      " guerreiros do clã que conquistaram o Passe Dourado!</p><br>",
+      unsafe_allow_html=True,
+  )
+
+  if not df_fama.empty:
+    st.dataframe(df_fama, use_container_width=True, hide_index=True)
+  else:
+    st.info("Nenhum histórico de meses anteriores registrado ainda.")
