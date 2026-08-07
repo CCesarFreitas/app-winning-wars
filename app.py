@@ -8,7 +8,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
-    page_title="Winning Wars", page_icon="⚔️", layout="wide"
+    page_title="Winning Wars - Competição Mensal", page_icon="⚔️", layout="wide"
 )
 
 
@@ -390,7 +390,7 @@ st.write("---")
 
 
 # ==============================================================================
-# FUNÇÃO PARA RENDERIZAR PÁGINAS DE LAYOUT (SEM O CAMPO DE DESCRIÇÃO)
+# FUNÇÃO PARA RENDERIZAR PÁGINAS DE LAYOUT (SOMENTE LINK E LINK DA FOTO)
 # ==============================================================================
 def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
   if st.button("⬅️ Voltar ao Início"):
@@ -436,10 +436,6 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
         ):
           with st.form(key=f"form_{tipo_layout}_{cv_nome}"):
             link_layout = st.text_input("Link Oficial do Layout (URL)")
-            tag_layout = st.selectbox(
-                "Tag de Estilo",
-                ["#Anti3Estrelas", "#Anti2Estrelas", "#Farm", "#PushTrofes"],
-            )
             img_url = st.text_input("Link Direto da Foto (Opcional)")
 
             btn_enviar = st.form_submit_button("Publicar Layout")
@@ -451,9 +447,9 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
                     cv_nome,
                     st.session_state["admin_logado"],
                     link_layout.strip(),
-                    "",  # Campo de descrição mantido vazio no DB
+                    "",  # Sem descrição
                     img_url.strip(),
-                    tag_layout,
+                    "",  # Sem tag de estilo
                 ])
                 registrar_log(
                     st.session_state["admin_logado"],
@@ -475,12 +471,9 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
           # CONTAINER CENTRALIZADO PARA EXIBIR CADA LAYOUT
           _, col_cent, _ = st.columns([1, 2, 1])
           with col_cent:
-            tag_txt = (
-                f" `{row.get('Tag', '#Clash')}`" if row.get("Tag") else ""
-            )
             st.markdown(
                 f"<div style='text-align: center; margin-bottom: 8px;'><b>👑"
-                f" Admin:</b> {row['Autor']}{tag_txt}</div>",
+                f" Enviado por:</b> {row['Autor']}</div>",
                 unsafe_allow_html=True,
             )
 
