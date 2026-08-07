@@ -327,11 +327,11 @@ col_nav, col_admin_top = st.columns([5, 1])
 with col_nav:
   b1, b2, b3, b4, b5 = st.columns(5)
   with b1:
-    if st.button("🛡️ Layouts Guerra", use_container_width=True):
+    if st.button("🛡️ Layouts para Guerra", use_container_width=True):
       st.session_state["pagina_atual"] = "layouts_guerra"
       st.rerun()
   with b2:
-    if st.button("🏆 Layouts Rankeada", use_container_width=True):
+    if st.button("🏆 Layouts para Rankeada", use_container_width=True):
       st.session_state["pagina_atual"] = "layouts_rankeada"
       st.rerun()
   with b3:
@@ -342,7 +342,7 @@ with col_nav:
     st.markdown(
         '<a'
         ' href="https://link.clashofclans.com/pt?action=OpenClanProfile&tag=2YPL9GU8Y"'
-        ' target="_blank" class="btn-external-link">🏰 Clã Vastaya ↗</a>',
+        ' target="_blank" class="btn-external-link">🏰 Clã Secundário (Guerras Farm) ↗</a>',
         unsafe_allow_html=True,
     )
   with b5:
@@ -352,7 +352,7 @@ with col_nav:
         ' target="_blank" class="btn-scid"><img'
         ' src="https://i.ibb.co/fzPGy6fr/bg-hero-scid-landing-0.webp"'
         ' height="20" style="border-radius: 4px; object-fit:'
-        ' cover;"> Add Godoy ↗</a>',
+        ' cover;"> Adicionar no Supercell ID ↗</a>',
         unsafe_allow_html=True,
     )
 
@@ -363,7 +363,7 @@ with col_admin_top:
       del st.session_state["admin_logado"]
       st.rerun()
   else:
-    with st.popover("🔐 Admin", use_container_width=True):
+    with st.popover("🔐 Acesso Admin", use_container_width=True):
       st.markdown("### 🔐 Acesso Restrito Admin")
       with st.form("form_login_topo"):
         u_top = st.text_input("Usuário Admin")
