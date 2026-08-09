@@ -1,6 +1,8 @@
 import hashlib
 import json
+import random
 import re
+import time
 from datetime import datetime
 import gspread
 import pandas as pd
@@ -183,9 +185,9 @@ def obter_proxima_coluna_sequencial(col_prefixo: str, df_cols) -> str:
   return f"{col_prefixo}_{max_num + 1}"
 
 
-# --- FUNÇÃO PARA GERAR A TABELA COMPLETA EM HTML COM BOTÃO DE DOWNLOAD HD ---
+# --- FUNÇÃO PARA GERAR A TABELA COMPLETA EM HTML ---
 def gerar_tabela_bilhete_dourado(df_exib):
-  """Gera o HTML do ranking Bilhete Dourado com botão integrado para salvar imagem HD para redes sociais."""
+  """Gera o HTML completo do ranking para renderização em iframe com visual padronizado ao app."""
   from html import escape
 
   linhas_html = []
@@ -197,20 +199,10 @@ def gerar_tabela_bilhete_dourado(df_exib):
     except (TypeError, ValueError):
       pontuacao = 0
 
-    col_pos_style = "color: #facc15; font-weight: 800;"
-    if posicao in ["1º", "1"]:
-      pos_icon = "🥇 "
-    elif posicao in ["2º", "2"]:
-      pos_icon = "🥈 "
-    elif posicao in ["3º", "3"]:
-      pos_icon = "🥉 "
-    else:
-      pos_icon = ""
-
     linhas_html.append(
-        f'<tr><td class="tabela-posicao" style="{col_pos_style}">{pos_icon}{posicao}</td>'
+        f'<tr><td class="tabela-posicao">{posicao}</td>'
         f'<td class="tabela-nome">{jogador}</td>'
-        f'<td class="tabela-pontos">{pontuacao} pts</td></tr>'
+        f'<td class="tabela-pontos">{pontuacao}</td></tr>'
     )
 
   return f"""
@@ -218,9 +210,8 @@ def gerar_tabela_bilhete_dourado(df_exib):
   <html>
   <head>
     <meta charset="UTF-8">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@600;800;900&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@600;800&display=swap');
 
       * {{ box-sizing: border-box; }}
       body {{ 
@@ -229,65 +220,29 @@ def gerar_tabela_bilhete_dourado(df_exib):
         font-family: 'Nunito', sans-serif; 
       }}
 
-      .action-bar {{
-        text-align: center;
-        margin-bottom: 12px;
-      }}
-
-      .btn-download {{
-        background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
-        color: #ffffff;
-        font-family: 'Luckiest Guy', cursive, sans-serif;
-        font-size: 1rem;
-        padding: 10px 20px;
-        border: 2px solid #7dd3fc;
-        border-radius: 12px;
-        box-shadow: 0px 4px 12px rgba(2, 132, 199, 0.4);
-        cursor: pointer;
-        transition: all 0.2s ease;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        text-shadow: 1px 1px 0px #000;
-      }}
-
-      .btn-download:hover {{
-        transform: translateY(-2px);
-        background: linear-gradient(180deg, #7dd3fc 0%, #0369a1 100%);
-      }}
-
       .bilhete-dourado-container {{
-        background: radial-gradient(circle at top, #1e293b 0%, #0f172a 100%); 
+        background-color: #0f172a; 
         border: 2px solid #334155;
-        border-top: 5px solid #facc15;
-        border-radius: 16px; 
-        padding: 24px;
+        border-top: 4px solid #facc15;
+        border-radius: 14px; 
+        padding: 20px;
         max-width: 550px; 
-        margin: 0 auto;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+        margin: 10px auto 25px auto;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.6);
       }}
 
       .bilhete-dourado-header {{
         text-align: center;
-        margin-bottom: 18px;
+        margin-bottom: 16px;
       }}
 
       .bilhete-dourado-title {{
         font-family: 'Luckiest Guy', cursive !important;
         color: #facc15 !important;
-        font-size: 2.2rem !important;
+        font-size: 2rem !important;
         letter-spacing: 1px;
         text-shadow: 2px 2px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000;
         margin: 0 !important;
-      }}
-
-      .bilhete-dourado-sub {{
-        color: #94a3b8;
-        font-size: 0.88rem;
-        font-weight: 800;
-        margin-top: 4px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
       }}
 
       .tabela-bilhete {{ 
@@ -299,26 +254,31 @@ def gerar_tabela_bilhete_dourado(df_exib):
       .tabela-bilhete th {{
         background-color: #1e293b; 
         color: #facc15; 
-        font-weight: 900;
-        font-size: 1.05rem; 
-        padding: 12px 10px; 
+        font-weight: 800;
+        font-size: 1.1rem; 
+        padding: 10px; 
         border-bottom: 2px solid #334155;
       }}
 
       .tabela-bilhete td {{
-        border-bottom: 1px solid #1e293b; 
-        padding: 11px 8px; 
+        border-bottom: 1px solid #334155; 
+        padding: 10px 8px; 
         font-size: 1rem;
         font-weight: 800; 
         color: #e2e8f0;
       }}
 
       .tabela-bilhete tr:nth-child(even) {{ 
-        background-color: rgba(15, 23, 42, 0.6); 
+        background-color: #111827; 
       }}
 
       .tabela-bilhete tr:hover {{ 
         background-color: #1e293b; 
+      }}
+
+      .tabela-posicao {{ 
+        color: #facc15 !important; 
+        font-weight: 800; 
       }}
 
       .tabela-nome {{
@@ -333,47 +293,31 @@ def gerar_tabela_bilhete_dourado(df_exib):
 
       .emblema {{ 
         text-align: center; 
-        margin-top: 20px; 
-        padding-top: 10px;
-        border-top: 1px dashed #334155;
+        margin-top: 18px; 
       }}
 
       .emblema img {{ 
-        width: 80px; 
-        filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.6));
-      }}
-
-      .watermark {{
-        color: #64748b;
-        font-size: 0.78rem;
-        font-weight: 800;
-        margin-top: 6px;
+        width: 90px; 
+        filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.5));
       }}
 
       @media (max-width: 768px) {{
-        .bilhete-dourado-container {{ padding: 15px; }}
-        .bilhete-dourado-title {{ font-size: 1.7rem !important; }}
-        .tabela-bilhete th, .tabela-bilhete td {{ padding: 8px 6px; font-size: 0.92rem; }}
+        .bilhete-dourado-container {{ padding: 12px; }}
+        .bilhete-dourado-title {{ font-size: 1.6rem !important; }}
+        .tabela-bilhete th, .tabela-bilhete td {{ padding: 8px 6px; font-size: 0.95rem; }}
       }}
     </style>
   </head>
   <body>
-    <div class="action-bar">
-      <button class="btn-download" id="btn-export-ranking" onclick="baixarCardRanking()">
-        📸 Baixar Imagem HD (WhatsApp / Redes)
-      </button>
-    </div>
-
-    <div class="bilhete-dourado-container" id="card-ranking-target">
+    <div class="bilhete-dourado-container">
       <div class="bilhete-dourado-header">
         <h2 class="bilhete-dourado-title">🏆 Bilhete Dourado</h2>
-        <div class="bilhete-dourado-sub">⚔️ Ranking Oficial - Clã Winning Wars ⚔️</div>
       </div>
       <table class="tabela-bilhete">
         <thead>
           <tr>
-            <th style="width:22%">Pos.</th>
-            <th style="width:53%; text-align: left; padding-left: 15px;">Membro</th>
+            <th style="width:20%">Pos.</th>
+            <th style="width:55%; text-align: left; padding-left: 15px;">Membro</th>
             <th style="width:25%">Pontos</th>
           </tr>
         </thead>
@@ -381,36 +325,8 @@ def gerar_tabela_bilhete_dourado(df_exib):
       </table>
       <div class="emblema">
         <img src="https://i.ibb.co/YFbsJ97x/Clash-of-Clans-emblem.png" alt="Emblema Clash of Clans">
-        <div class="watermark">Winning Wars • Competição Mensal</div>
       </div>
     </div>
-
-    <script>
-      function baixarCardRanking() {{
-        const btn = document.getElementById('btn-export-ranking');
-        const target = document.getElementById('card-ranking-target');
-        
-        btn.innerText = "⏳ Gerando imagem...";
-        btn.disabled = true;
-
-        html2canvas(target, {{
-          scale: 2,
-          useCORS: true,
-          backgroundColor: '#0f172a'
-        }}).then(canvas => {{
-          const link = document.createElement('a');
-          link.download = 'ranking-winning-wars.png';
-          link.href = canvas.toDataURL('image/png');
-          link.click();
-          btn.innerText = "📸 Baixar Imagem HD (WhatsApp / Redes)";
-          btn.disabled = false;
-        }}).catch(err => {{
-          alert('Não foi possível gerar a imagem. Tente novamente.');
-          btn.innerText = "📸 Baixar Imagem HD (WhatsApp / Redes)";
-          btn.disabled = false;
-        }});
-      }}
-    </script>
   </body>
   </html>
   """
@@ -737,17 +653,18 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
               try:
                 st.markdown(
                     f"""
-                    <div style="text-align: center; margin-bottom: 12px;">
-                        <img src="{img_url_limpa}" style="max-width: 100%; border-radius: 12px; border: 2px solid #334155; box-shadow: 0 6px 16px rgba(0,0,0,0.5);">
-                    </div>
-                    """,
+                                    <div style="text-align: center; margin-bottom: 12px;">
+                                        <img src="{img_url_limpa}" style="max-width: 100%; border-radius: 12px; border: 2px solid #334155; box-shadow: 0 6px 16px rgba(0,0,0,0.5);">
+                                    </div>
+                                    """,
                     unsafe_allow_html=True,
                 )
-                # Botão para abrir/baixar a imagem liberado para TODOS os usuários
-                st.markdown(
-                    f'<div style="text-align: center; margin-bottom: 10px;"><a href="{img_url_limpa}" target="_blank" download style="color: #38bdf8; text-decoration: underline; font-weight: bold; font-size: 0.9rem;">📥 Abrir / Baixar Imagem</a></div>',
-                    unsafe_allow_html=True,
-                )
+                # Botão para baixar a imagem visível APENAS para Admins
+                if eh_admin:
+                  st.markdown(
+                      f'<div style="text-align: center; margin-bottom: 10px;"><a href="{img_url_limpa}" target="_blank" download style="color: #38bdf8; text-decoration: underline; font-weight: bold; font-size: 0.9rem;">📥 Baixar Imagem (Admin)</a></div>',
+                      unsafe_allow_html=True,
+                  )
               except Exception:
                 pass
 
@@ -881,6 +798,7 @@ else:
     df_rank["Posição"] = posicoes
   else:
     colunas_raides, colunas_guerras, colunas_liga = [], [], []
+    df_rank = pd.DataFrame()
 
   # ABAS DESTACADAS DA PÁGINA PRINCIPAL
   tab_ranking, tab_tabela, tab_admin = st.tabs(
@@ -953,10 +871,10 @@ else:
             .str.contains(busca_player.strip().lower())
         ]
 
-      # RENDERIZA A TABELA BILHETE DOURADO COM BOTAO DE DOWNLOAD
+      # RENDERIZA A TABELA BILHETE DOURADO
       components.html(
           gerar_tabela_bilhete_dourado(df_exibicao),
-          height=min(2400, max(350, 220 + len(df_exibicao) * 42)),
+          height=min(2200, max(300, 175 + len(df_exibicao) * 39)),
           scrolling=False,
       )
 
@@ -1044,36 +962,11 @@ else:
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@600;800;900&display=swap');
           * {{ box-sizing: border-box; }}
-          body {{ margin: 0; background: transparent; font-family: 'Nunito', sans-serif; }}
-          
-          .top-bar {{ display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }}
-          .legenda {{ display:flex; flex-wrap:wrap; gap:6px; color:#cbd5e1; font-size:11px; line-height:1.3; }}
+          body {{ margin: 0; background: transparent; font-family: Arial, sans-serif; }}
+          .legenda {{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 8px; color:#cbd5e1; font-size:11px; line-height:1.3; }}
           .badge {{ padding:5px 8px; border-radius:999px; background:#1e293b; border:1px solid #475569; }}
-          
-          .btn-download-tabela {{
-            background: linear-gradient(180deg, #22c55e 0%, #15803d 100%);
-            color: white;
-            font-family: 'Luckiest Guy', cursive, sans-serif;
-            font-size: 0.92rem;
-            padding: 8px 16px;
-            border: 2px solid #86efac;
-            border-radius: 10px;
-            cursor: pointer;
-            box-shadow: 0px 4px 10px rgba(22, 163, 74, 0.4);
-            text-shadow: 1px 1px 0px #000;
-            transition: all 0.2s ease;
-          }}
-          .btn-download-tabela:hover {{ transform: translateY(-2px); }}
-
-          .export-card-wrapper {{ background: #0f172a; padding: 15px; border-radius: 12px; border: 2px solid #334155; }}
-          .export-header {{ text-align: center; margin-bottom: 12px; display: none; }}
-          .export-header h2 {{ font-family: 'Luckiest Guy', cursive; color: #facc15; font-size: 1.8rem; margin: 0; text-shadow: 2px 2px 0px #000; }}
-          .export-header p {{ color: #94a3b8; font-size: 0.85rem; margin: 2px 0 0 0; font-weight: 800; }}
-
           .viewport {{ width:100%; overflow:auto; max-height:68vh; border:1px solid #334155; border-radius:10px; -webkit-overflow-scrolling:touch; }}
           table {{ border-collapse:separate; border-spacing:0; min-width:760px; width:max-content; }}
           th,td {{ padding:8px 10px; border-right:1px solid #334155; border-bottom:1px solid #334155; text-align:center; white-space:nowrap; font-size:12px; color:#e2e8f0; background:#0f172a; }}
@@ -1101,90 +994,35 @@ else:
         </style>
       </head>
       <body>
-        <div class="top-bar">
-          <div class="legenda">
-            <span class="badge"><b>🎮 Jogos</b> = Jogos do Clã</span>
-            <span class="badge"><b>🎉 Eventos</b> = Eventos especiais</span>
-            <span class="badge"><b>⚔️ Guerra</b> = Pontos de guerras</span>
-            <span class="badge"><b>🏆 Liga</b> = Pontos de ligas</span>
-            <span class="badge"><b>⚡ Raide</b> = Pontos de Raides</span>
-          </div>
-          <button class="btn-download-tabela" id="btn-export-detalhada" onclick="baixarTabelaCompleta()">
-            📸 Baixar Tabela Completa em Imagem
-          </button>
+        <div class="legenda">
+          <span class="badge"><b>🎮 Jogos</b> = Jogos do Clã</span>
+          <span class="badge"><b>🎉 Eventos</b> = Eventos especiais</span>
+          <span class="badge"><b>⚔️ Guerra</b> = Pontos de guerras</span>
+          <span class="badge"><b>🏆 Liga</b> = Pontos de ligas</span>
+          <span class="badge"><b>⚡ Raide</b> = Pontos de Raides</span>
+          <span class="badge">👈 Deslize horizontalmente</span>
+          <span class="badge">📌 Nome e Total ficam fixos</span>
         </div>
-
-        <div class="export-card-wrapper" id="container-tabela-export">
-          <div class="export-header" id="export-header-title">
-            <h2>⚔️ Clã Winning Wars</h2>
-            <p>Tabela Geral Detalhada de Pontuações</p>
-          </div>
-          <div class="viewport" id="viewport-tabela">
-            <table>
-              <thead>
-                <tr>
-                  <th class="grupo-canto-esq">JOGADOR</th>
-                  <th colspan="{len(cols_exibicao)-2}" class="grupo">PONTUAÇÃO POR ATIVIDADE</th>
-                  <th class="grupo-canto-dir">TOTAL</th>
-                </tr>
-                <tr>{header_html}</tr>
-              </thead>
-              <tbody>
-                {''.join(linhas) if linhas else f'<tr><td colspan="{len(cols_exibicao)}" class="vazio">Nenhum jogador encontrado.</td></tr>'}
-              </tbody>
-            </table>
-          </div>
+        <div class="viewport">
+          <table>
+            <thead>
+              <tr>
+                <th class="grupo-canto-esq">JOGADOR</th>
+                <th colspan="{len(cols_exibicao)-2}" class="grupo">PONTUAÇÃO POR ATIVIDADE</th>
+                <th class="grupo-canto-dir">TOTAL</th>
+              </tr>
+              <tr>{header_html}</tr>
+            </thead>
+            <tbody>
+              {''.join(linhas) if linhas else f'<tr><td colspan="{len(cols_exibicao)}" class="vazio">Nenhum jogador encontrado.</td></tr>'}
+            </tbody>
+          </table>
         </div>
-
-        <script>
-          function baixarTabelaCompleta() {{
-            const btn = document.getElementById('btn-export-detalhada');
-            const target = document.getElementById('container-tabela-export');
-            const headerTitle = document.getElementById('export-header-title');
-            const viewport = document.getElementById('viewport-tabela');
-
-            btn.innerText = "⏳ Criando imagem...";
-            btn.disabled = true;
-
-            // Ajusta o contêiner temporariamente para capturar a tabela inteira sem barra de rolagem
-            const prevMaxHeight = viewport.style.maxHeight;
-            const prevOverflow = viewport.style.overflow;
-            viewport.style.maxHeight = 'none';
-            viewport.style.overflow = 'visible';
-            headerTitle.style.display = 'block';
-
-            html2canvas(target, {{
-              scale: 2,
-              useCORS: true,
-              backgroundColor: '#0f172a'
-            }}).then(canvas => {{
-              viewport.style.maxHeight = prevMaxHeight;
-              viewport.style.overflow = prevOverflow;
-              headerTitle.style.display = 'none';
-
-              const link = document.createElement('a');
-              link.download = 'tabela-detalhada-winning-wars.png';
-              link.href = canvas.toDataURL('image/png');
-              link.click();
-
-              btn.innerText = "📸 Baixar Tabela Completa em Imagem";
-              btn.disabled = false;
-            }}).catch(err => {{
-              viewport.style.maxHeight = prevMaxHeight;
-              viewport.style.overflow = prevOverflow;
-              headerTitle.style.display = 'none';
-
-              alert('Erro ao exportar a tabela. Tente novamente.');
-              btn.innerText = "📸 Baixar Tabela Completa em Imagem";
-              btn.disabled = false;
-            }});
-          }}
-        </script>
       </body>
       </html>
       """
 
-      altura = min(950, max(350, 180 + len(df_tabela_mobile) * 38))
+      altura = min(900, max(300, 150 + len(df_tabela_mobile) * 38))
       components.html(html_tabela, height=altura, scrolling=False)
 
   # ABA 3: ÁREA ADMIN
@@ -1202,13 +1040,14 @@ else:
           " Liberado)"
       )
 
-      sub_tab1, sub_tab2, sub_tab3, sub_tab4, sub_tab5, sub_tab6 = st.tabs([
+      sub_tab1, sub_tab2, sub_tab3, sub_tab4, sub_tab5, sub_tab6, sub_tab7 = st.tabs([
           "➕ Players",
           "👤 Novo Admin",
           "✏️ Gerenciar Pontos e Colunas",
           "📢 Recado / Arquivar Mês",
           "📜 Logs do Sistema",
           "💾 Backup de Dados",
+          "🎲 Sorteio de Desempate",
       ])
 
       with sub_tab1:
@@ -1501,6 +1340,120 @@ else:
           )
         else:
           st.info("Nenhum dado disponível para backup.")
+
+      with sub_tab7:
+        st.markdown("#### 🎲 Sorteio de Desempate Transparente (Gravação de Tela)")
+        st.info(
+            "🎥 **Dica para Gravação:** Inicie a gravação da sua tela antes de"
+            " clicar no botão de sorteio para enviar o vídeo ao grupo do WhatsApp"
+            " do clã."
+        )
+
+        if not df_rank.empty and "Total" in df_rank.columns:
+          # Identifica a maior pontuação da tabela
+          maior_pontuacao = df_rank["Total"].max()
+
+          # Filtra estritamente os jogadores empatados na pontuação máxima
+          df_empatados = df_rank[df_rank["Total"] == maior_pontuacao]
+          lista_empatados = df_empatados["Nome"].tolist()
+          qtd_empatados = len(lista_empatados)
+
+          st.markdown(f"**Pontuação do Topo:** `{int(maior_pontuacao)} pts`")
+
+          if qtd_empatados <= 1:
+            st.success(
+                "✅ **Não há empate no 1º lugar!** O líder isolado é:"
+                f" **{df_rank.iloc[0]['Nome']}**."
+            )
+          else:
+            st.warning(
+                f"⚠️ **Empate Detectado!** Existem **{qtd_empatados} jogadores**"
+                f" empatados no topo com {int(maior_pontuacao)} pontos."
+            )
+
+            # Exibição dos Participantes
+            st.markdown("### 👥 Jogadores Participantes do Sorteio:")
+            cols_participantes = st.columns(min(qtd_empatados, 4))
+            for idx, nome_p in enumerate(lista_empatados):
+              with cols_participantes[idx % 4]:
+                st.markdown(
+                    f"""
+                    <div style="background-color: #1e293b; border: 2px solid #facc15; border-radius: 10px; padding: 12px; text-align: center; margin-bottom: 10px;">
+                        <span style="font-size: 1.5rem;">⚔️</span><br>
+                        <strong style="color: #facc15; font-size: 1.1rem;">{nome_p}</strong><br>
+                        <small style="color: #94a3b8;">{int(maior_pontuacao)} pts</small>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+            st.divider()
+
+            # Configuração da quantidade de prêmios a sortear
+            qtd_vagas = st.number_input(
+                "Número de ganhadores a sortear entre os empatados:",
+                min_value=1,
+                max_value=qtd_empatados,
+                value=1,
+                step=1,
+            )
+
+            if st.button("🎰 INICIAR SORTEIO AO VIVO", type="primary"):
+              # Animação de Contagem Regressiva para o Vídeo
+              status_text = st.empty()
+              bar = st.progress(0)
+
+              for i in range(100):
+                time.sleep(0.03)  # Delay dramático para a gravação
+                bar.progress(i + 1)
+                if i < 30:
+                  status_text.markdown(
+                      "### 🎲 Embaralhando nomes dos guerreiros..."
+                  )
+                elif i < 70:
+                  status_text.markdown(
+                      "### ⚡ Auditando pontuações e validando..."
+                  )
+                else:
+                  status_text.markdown(
+                      "### 🏆 Selecionando o(s) vencedor(es)..."
+                  )
+
+              status_text.empty()
+              bar.empty()
+
+              # Realiza o sorteio
+              vencedores = random.sample(lista_empatados, int(qtd_vagas))
+
+              # Efeitos visuais
+              st.balloons()
+
+              # Registro de data/hora e Hash de verificação para auditoria
+              data_hora_sorteio = datetime.now().strftime("%d/%m/%Y às %H:%M:%S")
+              hash_auditoria = hashlib.sha256(
+                  f"{vencedores}{data_hora_sorteio}".encode()
+              ).hexdigest()[:12]
+
+              st.markdown(
+                  f"""
+                  <div style="background: linear-gradient(135deg, #15803d 0%, #166534 100%); border: 3px solid #86efac; border-radius: 15px; padding: 25px; text-align: center; margin-top: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+                      <h2 style="color: #facc15; font-family: 'Luckiest Guy', cursive; margin-bottom: 5px;">🎉 GANHADOR(ES) DO SORTEIO 🎉</h2>
+                      <h1 style="color: #ffffff; font-size: 2.5rem; margin: 10px 0;">{", ".join(vencedores)}</h1>
+                      <p style="color: #dcfce7; font-size: 1.1rem;">Parabéns! Vencedor(es) do desempate pelo Passe Dourado 🎟️</p>
+                      <hr style="border-color: #22c55e; margin: 15px 0;">
+                      <small style="color: #93c5fd;">🕒 <b>Data/Hora do Sorteio:</b> {data_hora_sorteio}<br>🔑 <b>Código de Verificação:</b> {hash_auditoria.upper()}</small>
+                  </div>
+                  """,
+                  unsafe_allow_html=True,
+              )
+
+              # Registrar ação no Log
+              registrar_log(
+                  st.session_state["admin_logado"],
+                  f"Realizou sorteio de desempate entre {lista_empatados}. Vencedor(es): {vencedores} (Hash: {hash_auditoria.upper()})",
+              )
+        else:
+          st.info("Nenhum dado de ranking encontrado para realizar o sorteio.")
 
   # SEÇÃO EXPLICATIVA (RODAPÉ)
   st.write("---")
