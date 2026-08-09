@@ -183,9 +183,9 @@ def obter_proxima_coluna_sequencial(col_prefixo: str, df_cols) -> str:
   return f"{col_prefixo}_{max_num + 1}"
 
 
-# --- FUNÇÃO PARA GERAR A TABELA COMPLETA EM HTML ---
+# --- FUNÇÃO PARA GERAR A TABELA COMPLETA EM HTML DO BILHETE DOURADO COM EXPORTAÇÃO EM PNG ---
 def gerar_tabela_bilhete_dourado(df_exib):
-  """Gera o HTML completo do ranking para renderização em iframe com visual padronizado ao app."""
+  """Gera o HTML completo do ranking para renderização em iframe com suporte a captura PNG."""
   from html import escape
 
   linhas_html = []
@@ -198,16 +198,17 @@ def gerar_tabela_bilhete_dourado(df_exib):
       pontuacao = 0
 
     linhas_html.append(
-      f"<tr><td class=\"tabela-posicao\">{posicao}</td>"
-      f"<td class=\"tabela-nome\">{jogador}</td>"
-      f"<td class=\"tabela-pontos\">{pontuacao}</td></tr>"
+        f'<tr><td class="tabela-posicao">{posicao}</td>'
+        f'<td class="tabela-nome">{jogador}</td>'
+        f'<td class="tabela-pontos">{pontuacao}</td></tr>'
     )
 
   return f"""
   <!DOCTYPE html>
   <html>
   <head>
-    <meta charset=\"UTF-8\">
+    <meta charset="UTF-8">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@600;800&display=swap');
 
@@ -218,6 +219,25 @@ def gerar_tabela_bilhete_dourado(df_exib):
         font-family: 'Nunito', sans-serif; 
       }}
 
+      .btn-export {{
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin: 0 auto 15px auto;
+        padding: 10px 18px;
+        background: linear-gradient(180deg, #eab308 0%, #ca8a04 100%);
+        color: #000;
+        font-family: 'Luckiest Guy', cursive;
+        font-size: 1rem;
+        border: 2px solid #fef08a;
+        border-radius: 10px;
+        cursor: pointer;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        transition: transform 0.1s ease;
+      }}
+      .btn-export:hover {{ transform: scale(1.03); }}
+
       .bilhete-dourado-container {{
         background-color: #0f172a; 
         border: 2px solid #334155;
@@ -225,7 +245,7 @@ def gerar_tabela_bilhete_dourado(df_exib):
         border-radius: 14px; 
         padding: 20px;
         max-width: 550px; 
-        margin: 10px auto 25px auto;
+        margin: 0 auto 25px auto;
         box-shadow: 0 8px 25px rgba(0,0,0,0.6);
       }}
 
@@ -307,24 +327,42 @@ def gerar_tabela_bilhete_dourado(df_exib):
     </style>
   </head>
   <body>
-    <div class=\"bilhete-dourado-container\">
-      <div class=\"bilhete-dourado-header\">
-        <h2 class=\"bilhete-dourado-title\">🏆 Bilhete Dourado</h2>
+    <button class="btn-export" onclick="exportarPNG()">📸 Baixar Ranking em Imagem (PNG)</button>
+
+    <div class="bilhete-dourado-container" id="area-ranking">
+      <div class="bilhete-dourado-header">
+        <h2 class="bilhete-dourado-title">🏆 Bilhete Dourado</h2>
       </div>
-      <table class=\"tabela-bilhete\">
+      <table class="tabela-bilhete">
         <thead>
           <tr>
-            <th style=\"width:20%\">Pos.</th>
-            <th style=\"width:55%; text-align: left; padding-left: 15px;\">Membro</th>
-            <th style=\"width:25%\">Pontos</th>
+            <th style="width:20%">Pos.</th>
+            <th style="width:55%; text-align: left; padding-left: 15px;">Membro</th>
+            <th style="width:25%">Pontos</th>
           </tr>
         </thead>
         <tbody>{''.join(linhas_html)}</tbody>
       </table>
-      <div class=\"emblema\">
-        <img src=\"https://i.ibb.co/YFbsJ97x/Clash-of-Clans-emblem.png\" alt=\"Emblema Clash of Clans\">
+      <div class="emblema">
+        <img src="https://i.ibb.co/YFbsJ97x/Clash-of-Clans-emblem.png" alt="Emblema Clash of Clans" crossorigin="anonymous">
       </div>
     </div>
+
+    <script>
+      function exportarPNG() {{
+        const element = document.getElementById("area-ranking");
+        html2canvas(element, {{
+          useCORS: true,
+          scale: 2,
+          backgroundColor: "#0b0e14"
+        }}).then(canvas => {{
+          const link = document.createElement('a');
+          link.download = 'ranking_winning_wars.png';
+          link.href = canvas.toDataURL("image/png");
+          link.click();
+        }});
+      }}
+    </script>
   </body>
   </html>
   """
@@ -862,7 +900,7 @@ else:
       # RENDERIZA A TABELA BILHETE DOURADO
       components.html(
           gerar_tabela_bilhete_dourado(df_exibicao),
-          height=min(2200, max(300, 175 + len(df_exibicao) * 39)),
+          height=min(2200, max(350, 220 + len(df_exibicao) * 39)),
           scrolling=False,
       )
 
@@ -950,13 +988,34 @@ else:
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
         <style>
+          @import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@600;800&display=swap');
+
           * {{ box-sizing: border-box; }}
-          body {{ margin: 0; background: transparent; font-family: Arial, sans-serif; }}
-          .legenda {{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 8px; color:#cbd5e1; font-size:11px; line-height:1.3; }}
+          body {{ margin: 0; background: transparent; font-family: 'Nunito', sans-serif; }}
+          .legenda {{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 12px; color:#cbd5e1; font-size:11px; line-height:1.3; align-items:center; }}
           .badge {{ padding:5px 8px; border-radius:999px; background:#1e293b; border:1px solid #475569; }}
-          .viewport {{ width:100%; overflow:auto; max-height:68vh; border:1px solid #334155; border-radius:10px; -webkit-overflow-scrolling:touch; }}
-          table {{ border-collapse:separate; border-spacing:0; min-width:760px; width:max-content; }}
+          
+          .btn-export-detalhado {{
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+            color: #fff;
+            font-family: 'Luckiest Guy', cursive;
+            font-size: 0.9rem;
+            border: 2px solid #93c5fd;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+            margin-bottom: 8px;
+          }}
+          .btn-export-detalhado:hover {{ transform: scale(1.02); }}
+
+          .viewport {{ width:100%; overflow:auto; max-height:68vh; border:1px solid #334155; border-radius:10px; -webkit-overflow-scrolling:touch; background:#0f172a; padding:10px; }}
+          table {{ border-collapse:separate; border-spacing:0; min-width:760px; width:max-content; margin:0 auto; }}
           th,td {{ padding:8px 10px; border-right:1px solid #334155; border-bottom:1px solid #334155; text-align:center; white-space:nowrap; font-size:12px; color:#e2e8f0; background:#0f172a; }}
           thead th {{ background:#1e293b; font-weight:800; position:sticky; z-index:5; }}
           thead tr:first-child th {{ top:0; color:#facc15; font-size:10px; letter-spacing:.5px; height:28px; }}
@@ -983,15 +1042,15 @@ else:
       </head>
       <body>
         <div class="legenda">
+          <button class="btn-export-detalhado" onclick="exportarDetalhadoPNG()">📸 Baixar Tabela em Imagem (PNG)</button>
           <span class="badge"><b>🎮 Jogos</b> = Jogos do Clã</span>
           <span class="badge"><b>🎉 Eventos</b> = Eventos especiais</span>
           <span class="badge"><b>⚔️ Guerra</b> = Pontos de guerras</span>
           <span class="badge"><b>🏆 Liga</b> = Pontos de ligas</span>
           <span class="badge"><b>⚡ Raide</b> = Pontos de Raides</span>
           <span class="badge">👈 Deslize horizontalmente</span>
-          <span class="badge">📌 Nome e Total ficam fixos</span>
         </div>
-        <div class="viewport">
+        <div class="viewport" id="area-detalhada">
           <table>
             <thead>
               <tr>
@@ -1006,11 +1065,26 @@ else:
             </tbody>
           </table>
         </div>
+
+        <script>
+          function exportarDetalhadoPNG() {{
+            const element = document.getElementById("area-detalhada");
+            html2canvas(element, {{
+              scale: 2,
+              backgroundColor: "#0b0e14"
+            }}).then(canvas => {{
+              const link = document.createElement('a');
+              link.download = 'pontuacao_detalhada_winning_wars.png';
+              link.href = canvas.toDataURL("image/png");
+              link.click();
+            }});
+          }}
+        </script>
       </body>
       </html>
       """
 
-      altura = min(900, max(300, 150 + len(df_tabela_mobile) * 38))
+      altura = min(950, max(350, 190 + len(df_tabela_mobile) * 38))
       components.html(html_tabela, height=altura, scrolling=False)
 
   # ABA 3: ÁREA ADMIN
