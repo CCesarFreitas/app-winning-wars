@@ -922,16 +922,23 @@ else:
       from html import escape
 
       def rotulo_coluna(col):
+        # Rótulos amigáveis para que o jogador identifique imediatamente
+        # a origem de cada pontuação, inclusive no celular.
         if col == "JogosCla":
-          return "Clã"
+          return "Jogos"
         if col == "Eventos":
           return "Eventos"
         if col == "Total":
           return "TOTAL"
-        prefixos = {"Guerra_": "G", "Liga_": "L", "Raide_": "R"}
+        prefixos = {
+            "Guerra_": "Guerra ",
+            "Liga_": "Liga ",
+            "Raide_": "Raide ",
+        }
         for prefixo, rotulo in prefixos.items():
           if col.startswith(prefixo):
-            return f"{rotulo}{col[len(prefixo):]}"
+            identificador = col[len(prefixo):].replace("_", " ")
+            return f"{rotulo}{identificador}".strip()
         return col
 
       headers = [rotulo_coluna(c) for c in cols_exibicao]
@@ -964,8 +971,8 @@ else:
         <style>
           * {{ box-sizing: border-box; }}
           body {{ margin: 0; background: transparent; font-family: Arial, sans-serif; }}
-          .legenda {{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 8px; color:#cbd5e1; font-size:11px; }}
-          .badge {{ padding:4px 8px; border-radius:999px; background:#1e293b; border:1px solid #475569; }}
+          .legenda {{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 8px; color:#cbd5e1; font-size:11px; line-height:1.3; }}
+          .badge {{ padding:5px 8px; border-radius:999px; background:#1e293b; border:1px solid #475569; }}
           .viewport {{ width:100%; overflow:auto; max-height:68vh; border:1px solid #334155; border-radius:10px; -webkit-overflow-scrolling:touch; }}
           table {{ border-collapse:separate; border-spacing:0; min-width:760px; width:max-content; }}
           th,td {{ padding:8px 10px; border-right:1px solid #334155; border-bottom:1px solid #334155; text-align:center; white-space:nowrap; font-size:12px; color:#e2e8f0; background:#0f172a; }}
@@ -994,7 +1001,12 @@ else:
       </head>
       <body>
         <div class="legenda">
-          <span class="badge">👈 Deslize para ver as atividades</span>
+          <span class="badge"><b>🎮 Jogos</b> = Jogos do Clã</span>
+          <span class="badge"><b>🎉 Eventos</b> = Eventos especiais</span>
+          <span class="badge"><b>⚔️ Guerra</b> = Pontos de guerras</span>
+          <span class="badge"><b>🏆 Liga</b> = Pontos de ligas</span>
+          <span class="badge"><b>⚡ Raide</b> = Pontos de Raides</span>
+          <span class="badge">👈 Deslize horizontalmente</span>
           <span class="badge">📌 Nome e Total ficam fixos</span>
         </div>
         <div class="viewport">
