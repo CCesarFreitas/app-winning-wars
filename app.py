@@ -887,8 +887,8 @@ else:
     if not df.empty and "Total" in df.columns:
       st.markdown("### 📋 Tabela Detalhada Geral de Pontuações")
       st.markdown(
-          "Acompanhe o detalhamento individual dos pontos em cada evento,"
-          " guerra e liga:"
+          "Acompanhe os pontos por atividade. No celular, **Nome** e **Total** "
+          "permanecem fixos enquanto você desliza para visualizar as atividades."
       )
 
       cols_exibicao = (
@@ -901,13 +901,123 @@ else:
       )
       df_detalhada = df[cols_exibicao].sort_values(
           by="Total", ascending=False
+      ).reset_index(drop=True)
+
+      _, col_busca, _ = st.columns([1, 2, 1])
+      with col_busca:
+        busca_detalhada = st.text_input(
+            "🔎 Localizar jogador",
+            placeholder="Digite parte do nome para localizar...",
+            key="busca_tabela_detalhada",
+        ).strip().lower()
+
+      if busca_detalhada:
+        mascara = df_detalhada["Nome"].astype(str).str.lower().str.contains(
+            busca_detalhada, regex=False, na=False
+        )
+        df_tabela_mobile = df_detalhada[mascara].copy()
+      else:
+        df_tabela_mobile = df_detalhada.copy()
+
+      from html import escape
+
+      def rotulo_coluna(col):
+        if col == "JogosCla":
+          return "Clã"
+        if col == "Eventos":
+          return "Eventos"
+        if col == "Total":
+          return "TOTAL"
+        prefixos = {"Guerra_": "G", "Liga_": "L", "Raide_": "R"}
+        for prefixo, rotulo in prefixos.items():
+          if col.startswith(prefixo):
+            return f"{rotulo}{col[len(prefixo):]}"
+        return col
+
+      headers = [rotulo_coluna(c) for c in cols_exibicao]
+      header_html = "".join(
+          f'<th class="{"sticky-nome" if i == 0 else "sticky-total" if i == len(cols_exibicao)-1 else ""}">{escape(str(h))}</th>'
+          for i, h in enumerate(headers)
       )
 
-      st.dataframe(
-          df_detalhada,
-          use_container_width=True,
-          hide_index=True,
-      )
+      linhas = []
+      for _, row in df_tabela_mobile.iterrows():
+        nome = str(row["Nome"])
+        destaque = " jogador-destaque" if busca_detalhada and busca_detalhada in nome.lower() else ""
+        cells = []
+        for i, col in enumerate(cols_exibicao):
+          valor = row[col]
+          try:
+            valor = int(float(valor))
+          except (TypeError, ValueError):
+            valor = str(valor)
+          classe = "sticky-nome" if i == 0 else "sticky-total" if i == len(cols_exibicao) - 1 else ""
+          cells.append(f'<td class="{classe}">{escape(str(valor))}</td>')
+        linhas.append(f'<tr class="{destaque}">' + "".join(cells) + "</tr>")
+
+      html_tabela = f"""
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          * {{ box-sizing: border-box; }}
+          body {{ margin: 0; background: transparent; font-family: Arial, sans-serif; }}
+          .legenda {{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 8px; color:#cbd5e1; font-size:11px; }}
+          .badge {{ padding:4px 8px; border-radius:999px; background:#1e293b; border:1px solid #475569; }}
+          .viewport {{ width:100%; overflow:auto; max-height:68vh; border:1px solid #334155; border-radius:10px; -webkit-overflow-scrolling:touch; }}
+          table {{ border-collapse:separate; border-spacing:0; min-width:760px; width:max-content; }}
+          th,td {{ padding:8px 10px; border-right:1px solid #334155; border-bottom:1px solid #334155; text-align:center; white-space:nowrap; font-size:12px; color:#e2e8f0; background:#0f172a; }}
+          thead th {{ background:#1e293b; font-weight:800; position:sticky; z-index:5; }}
+          thead tr:first-child th {{ top:0; color:#facc15; font-size:10px; letter-spacing:.5px; height:28px; }}
+          thead tr:nth-child(2) th {{ top:28px; color:#f8fafc; height:30px; }}
+          tbody tr:nth-child(even) td {{ background:#111827; }}
+          tbody tr:hover td {{ background:#1e293b; }}
+          .sticky-nome {{ position:sticky !important; left:0; z-index:4; min-width:145px; max-width:145px; text-align:left; font-weight:800; box-shadow:5px 0 8px rgba(0,0,0,.25); }}
+          thead .sticky-nome {{ z-index:8; background:#1e293b !important; }}
+          .sticky-total {{ position:sticky !important; right:0; z-index:4; min-width:78px; font-weight:900; color:#facc15 !important; background:#172554 !important; box-shadow:-5px 0 8px rgba(0,0,0,.25); }}
+          thead .sticky-total {{ z-index:8; background:#172554 !important; }}
+          .grupo {{ text-align:center; background:#334155 !important; color:#facc15 !important; }}
+          .grupo-canto-esq {{ min-width:145px; background:#334155 !important; position:sticky; left:0; z-index:9; }}
+          .grupo-canto-dir {{ min-width:78px; background:#334155 !important; position:sticky; right:0; z-index:9; }}
+          .jogador-destaque td {{ background:rgba(250,204,21,.18) !important; color:#fff !important; font-weight:900; }}
+          .jogador-destaque .sticky-nome,.jogador-destaque .sticky-total {{ background:#713f12 !important; color:#fff !important; }}
+          .vazio {{ padding:28px; text-align:center; color:#94a3b8; background:#0f172a; }}
+          @media (max-width:600px) {{
+            table {{ min-width:680px; }}
+            th,td {{ padding:7px 8px; font-size:11px; }}
+            .sticky-nome {{ min-width:125px; max-width:125px; }}
+            .sticky-total {{ min-width:68px; }}
+          }}
+        </style>
+      </head>
+      <body>
+        <div class="legenda">
+          <span class="badge">👈 Deslize para ver as atividades</span>
+          <span class="badge">📌 Nome e Total ficam fixos</span>
+        </div>
+        <div class="viewport">
+          <table>
+            <thead>
+              <tr>
+                <th class="grupo-canto-esq">JOGADOR</th>
+                <th colspan="{len(cols_exibicao)-2}" class="grupo">PONTUAÇÃO POR ATIVIDADE</th>
+                <th class="grupo-canto-dir">TOTAL</th>
+              </tr>
+              <tr>{header_html}</tr>
+            </thead>
+            <tbody>
+              {''.join(linhas) if linhas else f'<tr><td colspan="{len(cols_exibicao)}" class="vazio">Nenhum jogador encontrado.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </body>
+      </html>
+      """
+
+      altura = min(900, max(300, 150 + len(df_tabela_mobile) * 38))
+      components.html(html_tabela, height=altura, scrolling=False)
 
   # ABA 3: ÁREA ADMIN
   with tab_admin:
