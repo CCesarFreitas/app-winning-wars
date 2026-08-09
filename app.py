@@ -117,7 +117,7 @@ def registrar_log(admin: str, acao: str):
     pass
 
 
-# --- CARREGAR DADOS COM CACHE DE DESEMPENHO (120 SEGUNDOS) ---
+# --- CARREGAR DADOS COM CACHE DE DESEMPENHO ---
 @st.cache_data(ttl=120)
 def obter_dados_cached():
   try:
@@ -169,42 +169,6 @@ df_layouts = pd.DataFrame(obter_layouts_cached())
 df_fama = pd.DataFrame(obter_galeria_cached())
 
 
-# --- FUNÇÃO PARA GERAR A TABELA NO ESTILO BILHETE DOURADO ---
-def gerar_tabela_bilhete_dourado(df_exib):
-  html = """
-    <div class="bilhete-dourado-container">
-        <div class="bilhete-dourado-header">
-            <h2 class="bilhete-dourado-title">Bilhete dourado</h2>
-        </div>
-        <table class="tabela-bilhete">
-            <thead>
-                <tr>
-                    <th style="width: 25%;">Posição</th>
-                    <th style="width: 50%;">Membro</th>
-                    <th style="width: 25%;">Pontos</th>
-                </tr>
-            </thead>
-            <tbody>
-    """
-  for _, row in df_exib.iterrows():
-    html += f"""
-                <tr>
-                    <td class="tabela-posicao">{row['Posição']}</td>
-                    <td>{row['Jogador']}</td>
-                    <td>{int(row['Pontuação Total'])}</td>
-                </tr>
-        """
-  html += """
-            </tbody>
-        </table>
-        <div style="text-align: center; margin-top: 15px;">
-            <img src="https://i.ibb.co/YFbsJ97x/Clash-of-Clans-emblem.png" width="110">
-        </div>
-    </div>
-    """
-  return html
-
-
 # --- FUNÇÃO AUXILIAR PARA DETERMINAR A PRÓXIMA COLUNA SEQUENCIAL ---
 def obter_proxima_coluna_sequencial(col_prefixo: str, df_cols) -> str:
   max_num = 0
@@ -218,7 +182,43 @@ def obter_proxima_coluna_sequencial(col_prefixo: str, df_cols) -> str:
   return f"{col_prefixo}_{max_num + 1}"
 
 
-# --- ESTILIZAÇÃO CSS CUSTOMIZADA COM RESPONSIVIDADE MOBILE E BILHETE DOURADO ---
+# --- FUNÇÃO PARA GERAR A TABELA COMPLETA EM HTML LIMPO ---
+def gerar_tabela_bilhete_dourado(df_exib):
+  linhas_html = ""
+  for _, row in df_exib.iterrows():
+    linhas_html += f"""
+        <tr>
+            <td class="tabela-posicao">{row['Posição']}</td>
+            <td>{row['Jogador']}</td>
+            <td>{int(row['Pontuação Total'])}</td>
+        </tr>"""
+
+  html_completo = f"""
+    <div class="bilhete-dourado-container">
+        <div class="bilhete-dourado-header">
+            <h2 class="bilhete-dourado-title">Bilhete dourado</h2>
+        </div>
+        <table class="tabela-bilhete">
+            <thead>
+                <tr>
+                    <th style="width: 25%;">Posição</th>
+                    <th style="width: 50%;">Membro</th>
+                    <th style="width: 25%;">Pontos</th>
+                </tr>
+            </thead>
+            <tbody>
+                {linhas_html}
+            </tbody>
+        </table>
+        <div style="text-align: center; margin-top: 15px;">
+            <img src="https://i.ibb.co/YFbsJ97x/Clash-of-Clans-emblem.png" width="110">
+        </div>
+    </div>
+    """
+  return html_completo
+
+
+# --- ESTILIZAÇÃO CSS CUSTOMIZADA ---
 st.markdown(
     """
     <style>
@@ -252,7 +252,7 @@ st.markdown(
         padding: 0 10px;
     }
     
-    /* ESTILIZAÇÃO DOS BOTÕES GERAIS */
+    /* BOTÕES */
     div.stButton > button {
         background: linear-gradient(180deg, #22c55e 0%, #15803d 100%) !important;
         color: #ffffff !important;
@@ -274,7 +274,7 @@ st.markdown(
         background: linear-gradient(180deg, #4ade80 0%, #16a34a 100%) !important;
     }
 
-    /* DESTAQUE E FONTE MAIOR NAS ABAS PRINCIPAIS E CENTROS DE VILA */
+    /* ABAS */
     button[data-baseweb="tab"] {
         font-size: 1.25rem !important;
         font-weight: 800 !important;
@@ -302,7 +302,7 @@ st.markdown(
         color: #facc15 !important;
     }
 
-    /* PODIUM E CARDS */
+    /* CARDS PODIUM */
     .podium-card { 
         padding: 16px; 
         border-radius: 16px; 
@@ -345,7 +345,6 @@ st.markdown(
     }
     .mural-header { font-family: 'Luckiest Guy', cursive; color: #facc15; font-size: 1rem; margin-bottom: 4px; }
 
-    /* ESTILOS DOS INFO CARDS DO REGULAMENTO */
     .info-card {
         background: #0f172a; border: 2px solid #334155; border-radius: 14px; padding: 20px; margin-bottom: 15px;
         font-family: 'Nunito', sans-serif; color: #e2e8f0; box-shadow: 0 6px 18px rgba(0,0,0,0.4); height: 100%;
@@ -362,14 +361,14 @@ st.markdown(
     .rules-card ul { margin-bottom: 0px; padding-left: 20px; }
     .rules-card li { margin-bottom: 10px; line-height: 1.5; }
 
-    /* ESTILIZAÇÃO COMPLETA DO BILHETE DOURADO */
+    /* ESTILO BILHETE DOURADO */
     .bilhete-dourado-container {
         background-color: #ffffff;
         border: 6px solid #facc15;
         outline: 4px solid #6b21a8;
         border-radius: 14px;
         padding: 16px;
-        max-width: 480px;
+        max-width: 500px;
         margin: 10px auto 25px auto;
         box-shadow: 0 10px 30px rgba(0,0,0,0.6);
     }
@@ -503,7 +502,7 @@ with col_admin_top:
             ]
             if not val.empty:
               st.session_state["admin_logado"] = u_top
-              registrar_log(u_top, "Logou pelo painel no canto superior direito")
+              registrar_log(u_top, "Logou pelo painel topo direito")
               st.success("Logado com sucesso!")
               st.rerun()
             else:
@@ -711,7 +710,7 @@ else:
       unsafe_allow_html=True,
   )
 
-  # MURAL DE RECADOS DA LIDERANÇA
+  # MURAL DE RECADOS
   if mural_recado.strip():
     st.markdown(
         f"""
@@ -724,7 +723,6 @@ else:
     )
 
   if not df.empty:
-    # MAPEAMENTO DINÂMICO DAS COLUNAS DE PONTUAÇÃO
     colunas_raides = [c for c in df.columns if c.startswith("Raide_")]
     colunas_guerras = [c for c in df.columns if c.startswith("Guerra_")]
     colunas_liga = [c for c in df.columns if c.startswith("Liga_")]
@@ -798,7 +796,7 @@ else:
                 unsafe_allow_html=True,
             )
 
-      # BARRA DE BUSCA DE JOGADORES
+      # BARRA DE BUSCA
       _, col_busca, _ = st.columns([1, 2, 1])
       with col_busca:
         busca_player = st.text_input(
@@ -819,12 +817,12 @@ else:
             .str.contains(busca_player.strip().lower())
         ]
 
-      # RENDERIZA A TABELA ESTILIZADA DO BILHETE DOURADO
+      # RENDERIZA A TABELA BILHETE DOURADO CORRIGIDA
       st.markdown(
           gerar_tabela_bilhete_dourado(df_exibicao), unsafe_allow_html=True
       )
 
-  # ABA 2: TABELA DETALHADA GERAL (EXIBE TODAS AS COLUNAS DINÂMICAS)
+  # ABA 2: TABELA DETALHADA GERAL
   with tab_tabela:
     if not df.empty and "Total" in df.columns:
       st.markdown("### 📋 Tabela Detalhada Geral de Pontuações")
@@ -851,7 +849,7 @@ else:
           hide_index=True,
       )
 
-  # ABA 3: ÁREA ADMIN (SOMENTE PARA ADMINISTRADORES LOGADOS)
+  # ABA 3: ÁREA ADMIN
   with tab_admin:
     st.subheader("🔐 Painel de Controle e Administração")
 
@@ -917,10 +915,6 @@ else:
 
       with sub_tab2:
         st.markdown("#### 👤 Cadastrar Novo Administrador")
-        st.markdown(
-            "Crie novas contas de administrador com acesso total ao painel."
-        )
-
         with st.form("form_novo_admin", clear_on_submit=True):
           c_adm1, c_adm2 = st.columns(2)
           with c_adm1:
@@ -962,7 +956,6 @@ else:
                 )
                 st.rerun()
 
-      # SUB TAB 3: GERENCIAR COLUNAS (GUERRAS / LIGA) E EDITAR PONTOS (EXCLUSIVO ADMIN)
       with sub_tab3:
         st.markdown("#### ➕ Criar Novas Colunas de Guerras ou Liga")
         st.markdown(
@@ -988,7 +981,6 @@ else:
               proxima_col_num = len(headers) + 1
               sheet_dados.update_cell(1, proxima_col_num, proxima_guerra)
 
-              # Inicializa os pontos dos jogadores existentes com 0
               if not df.empty:
                 num_linhas = len(df)
                 sheet_dados.update(
@@ -1002,8 +994,7 @@ else:
               )
               st.cache_data.clear()
               st.success(
-                  f"✅ Coluna **{proxima_guerra}** adicionada com sucesso ao"
-                  " banco de dados e à tabela!"
+                  f"✅ Coluna **{proxima_guerra}** adicionada com sucesso!"
               )
               st.rerun()
 
@@ -1022,7 +1013,6 @@ else:
               proxima_col_num = len(headers) + 1
               sheet_dados.update_cell(1, proxima_col_num, proxima_liga)
 
-              # Inicializa os pontos dos jogadores existentes com 0
               if not df.empty:
                 num_linhas = len(df)
                 sheet_dados.update(
@@ -1036,19 +1026,13 @@ else:
               )
               st.cache_data.clear()
               st.success(
-                  f"✅ Coluna **{proxima_liga}** adicionada com sucesso ao"
-                  " banco de dados e à tabela!"
+                  f"✅ Coluna **{proxima_liga}** adicionada com sucesso!"
               )
               st.rerun()
 
         st.divider()
 
         st.markdown("#### ✏️ Edição de Pontos dos Jogadores")
-        st.markdown(
-            "Altere a pontuação dos membros diretamente na tabela abaixo e"
-            " clique em **Salvar Alterações** para atualizar o banco de dados."
-        )
-
         if not df.empty:
           df_editavel = df.drop(
               columns=["Total", "WarTotal"], errors="ignore"
@@ -1144,7 +1128,7 @@ else:
         else:
           st.info("Nenhum dado disponível para backup.")
 
-  # SEÇÃO EXPLICATIVA (RODAPÉ) - REGULAMENTO & PREMIAÇÃO COM ELEMENTOS OFICIAIS
+  # SEÇÃO EXPLICATIVA (RODAPÉ)
   st.write("---")
   st.markdown(
       "<h2 style='text-align: center;'>📜 Regulamento & Sistema de"
@@ -1217,7 +1201,7 @@ else:
       st.session_state["pagina_atual"] = "regras_cla"
       st.rerun()
 
-  # SEÇÃO: GALERIA DA FAMA NO FINAL DA PÁGINA
+  # GALERIA DA FAMA
   st.write("---")
   st.markdown(
       "<h2 style='text-align: center;'>🌟 Galeria da Fama</h2>",
