@@ -183,9 +183,9 @@ def obter_proxima_coluna_sequencial(col_prefixo: str, df_cols) -> str:
   return f"{col_prefixo}_{max_num + 1}"
 
 
-# --- FUNÇÃO PARA GERAR A TABELA COMPLETA EM HTML ---
+# --- FUNÇÃO PARA GERAR A TABELA COMPLETA EM HTML COM BOTÃO DE DOWNLOAD HD ---
 def gerar_tabela_bilhete_dourado(df_exib):
-  """Gera o HTML completo do ranking para renderização em iframe com visual padronizado ao app."""
+  """Gera o HTML do ranking Bilhete Dourado com botão integrado para salvar imagem HD para redes sociais."""
   from html import escape
 
   linhas_html = []
@@ -197,10 +197,20 @@ def gerar_tabela_bilhete_dourado(df_exib):
     except (TypeError, ValueError):
       pontuacao = 0
 
+    col_pos_style = "color: #facc15; font-weight: 800;"
+    if posicao in ["1º", "1"]:
+      pos_icon = "🥇 "
+    elif posicao in ["2º", "2"]:
+      pos_icon = "🥈 "
+    elif posicao in ["3º", "3"]:
+      pos_icon = "🥉 "
+    else:
+      pos_icon = ""
+
     linhas_html.append(
-        f'<tr><td class="tabela-posicao">{posicao}</td>'
+        f'<tr><td class="tabela-posicao" style="{col_pos_style}">{pos_icon}{posicao}</td>'
         f'<td class="tabela-nome">{jogador}</td>'
-        f'<td class="tabela-pontos">{pontuacao}</td></tr>'
+        f'<td class="tabela-pontos">{pontuacao} pts</td></tr>'
     )
 
   return f"""
@@ -208,8 +218,9 @@ def gerar_tabela_bilhete_dourado(df_exib):
   <html>
   <head>
     <meta charset="UTF-8">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@600;800&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@600;800;900&display=swap');
 
       * {{ box-sizing: border-box; }}
       body {{ 
@@ -218,29 +229,65 @@ def gerar_tabela_bilhete_dourado(df_exib):
         font-family: 'Nunito', sans-serif; 
       }}
 
+      .action-bar {{
+        text-align: center;
+        margin-bottom: 12px;
+      }}
+
+      .btn-download {{
+        background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+        color: #ffffff;
+        font-family: 'Luckiest Guy', cursive, sans-serif;
+        font-size: 1rem;
+        padding: 10px 20px;
+        border: 2px solid #7dd3fc;
+        border-radius: 12px;
+        box-shadow: 0px 4px 12px rgba(2, 132, 199, 0.4);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-shadow: 1px 1px 0px #000;
+      }}
+
+      .btn-download:hover {{
+        transform: translateY(-2px);
+        background: linear-gradient(180deg, #7dd3fc 0%, #0369a1 100%);
+      }}
+
       .bilhete-dourado-container {{
-        background-color: #0f172a; 
+        background: radial-gradient(circle at top, #1e293b 0%, #0f172a 100%); 
         border: 2px solid #334155;
-        border-top: 4px solid #facc15;
-        border-radius: 14px; 
-        padding: 20px;
+        border-top: 5px solid #facc15;
+        border-radius: 16px; 
+        padding: 24px;
         max-width: 550px; 
-        margin: 10px auto 25px auto;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.6);
+        margin: 0 auto;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.7);
       }}
 
       .bilhete-dourado-header {{
         text-align: center;
-        margin-bottom: 16px;
+        margin-bottom: 18px;
       }}
 
       .bilhete-dourado-title {{
         font-family: 'Luckiest Guy', cursive !important;
         color: #facc15 !important;
-        font-size: 2rem !important;
+        font-size: 2.2rem !important;
         letter-spacing: 1px;
         text-shadow: 2px 2px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000;
         margin: 0 !important;
+      }}
+
+      .bilhete-dourado-sub {{
+        color: #94a3b8;
+        font-size: 0.88rem;
+        font-weight: 800;
+        margin-top: 4px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
       }}
 
       .tabela-bilhete {{ 
@@ -252,31 +299,26 @@ def gerar_tabela_bilhete_dourado(df_exib):
       .tabela-bilhete th {{
         background-color: #1e293b; 
         color: #facc15; 
-        font-weight: 800;
-        font-size: 1.1rem; 
-        padding: 10px; 
+        font-weight: 900;
+        font-size: 1.05rem; 
+        padding: 12px 10px; 
         border-bottom: 2px solid #334155;
       }}
 
       .tabela-bilhete td {{
-        border-bottom: 1px solid #334155; 
-        padding: 10px 8px; 
+        border-bottom: 1px solid #1e293b; 
+        padding: 11px 8px; 
         font-size: 1rem;
         font-weight: 800; 
         color: #e2e8f0;
       }}
 
       .tabela-bilhete tr:nth-child(even) {{ 
-        background-color: #111827; 
+        background-color: rgba(15, 23, 42, 0.6); 
       }}
 
       .tabela-bilhete tr:hover {{ 
         background-color: #1e293b; 
-      }}
-
-      .tabela-posicao {{ 
-        color: #facc15 !important; 
-        font-weight: 800; 
       }}
 
       .tabela-nome {{
@@ -291,31 +333,47 @@ def gerar_tabela_bilhete_dourado(df_exib):
 
       .emblema {{ 
         text-align: center; 
-        margin-top: 18px; 
+        margin-top: 20px; 
+        padding-top: 10px;
+        border-top: 1px dashed #334155;
       }}
 
       .emblema img {{ 
-        width: 90px; 
-        filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.5));
+        width: 80px; 
+        filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.6));
+      }}
+
+      .watermark {{
+        color: #64748b;
+        font-size: 0.78rem;
+        font-weight: 800;
+        margin-top: 6px;
       }}
 
       @media (max-width: 768px) {{
-        .bilhete-dourado-container {{ padding: 12px; }}
-        .bilhete-dourado-title {{ font-size: 1.6rem !important; }}
-        .tabela-bilhete th, .tabela-bilhete td {{ padding: 8px 6px; font-size: 0.95rem; }}
+        .bilhete-dourado-container {{ padding: 15px; }}
+        .bilhete-dourado-title {{ font-size: 1.7rem !important; }}
+        .tabela-bilhete th, .tabela-bilhete td {{ padding: 8px 6px; font-size: 0.92rem; }}
       }}
     </style>
   </head>
   <body>
-    <div class="bilhete-dourado-container">
+    <div class="action-bar">
+      <button class="btn-download" id="btn-export-ranking" onclick="baixarCardRanking()">
+        📸 Baixar Imagem HD (WhatsApp / Redes)
+      </button>
+    </div>
+
+    <div class="bilhete-dourado-container" id="card-ranking-target">
       <div class="bilhete-dourado-header">
         <h2 class="bilhete-dourado-title">🏆 Bilhete Dourado</h2>
+        <div class="bilhete-dourado-sub">⚔️ Ranking Oficial - Clã Winning Wars ⚔️</div>
       </div>
       <table class="tabela-bilhete">
         <thead>
           <tr>
-            <th style="width:20%">Pos.</th>
-            <th style="width:55%; text-align: left; padding-left: 15px;">Membro</th>
+            <th style="width:22%">Pos.</th>
+            <th style="width:53%; text-align: left; padding-left: 15px;">Membro</th>
             <th style="width:25%">Pontos</th>
           </tr>
         </thead>
@@ -323,8 +381,36 @@ def gerar_tabela_bilhete_dourado(df_exib):
       </table>
       <div class="emblema">
         <img src="https://i.ibb.co/YFbsJ97x/Clash-of-Clans-emblem.png" alt="Emblema Clash of Clans">
+        <div class="watermark">Winning Wars • Competição Mensal</div>
       </div>
     </div>
+
+    <script>
+      function baixarCardRanking() {{
+        const btn = document.getElementById('btn-export-ranking');
+        const target = document.getElementById('card-ranking-target');
+        
+        btn.innerText = "⏳ Gerando imagem...";
+        btn.disabled = true;
+
+        html2canvas(target, {{
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#0f172a'
+        }}).then(canvas => {{
+          const link = document.createElement('a');
+          link.download = 'ranking-winning-wars.png';
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+          btn.innerText = "📸 Baixar Imagem HD (WhatsApp / Redes)";
+          btn.disabled = false;
+        }}).catch(err => {{
+          alert('Não foi possível gerar a imagem. Tente novamente.');
+          btn.innerText = "📸 Baixar Imagem HD (WhatsApp / Redes)";
+          btn.disabled = false;
+        }});
+      }}
+    </script>
   </body>
   </html>
   """
@@ -651,18 +737,17 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
               try:
                 st.markdown(
                     f"""
-                                    <div style="text-align: center; margin-bottom: 12px;">
-                                        <img src="{img_url_limpa}" style="max-width: 100%; border-radius: 12px; border: 2px solid #334155; box-shadow: 0 6px 16px rgba(0,0,0,0.5);">
-                                    </div>
-                                    """,
+                    <div style="text-align: center; margin-bottom: 12px;">
+                        <img src="{img_url_limpa}" style="max-width: 100%; border-radius: 12px; border: 2px solid #334155; box-shadow: 0 6px 16px rgba(0,0,0,0.5);">
+                    </div>
+                    """,
                     unsafe_allow_html=True,
                 )
-                # Botão para baixar a imagem visível APENAS para Admins
-                if eh_admin:
-                  st.markdown(
-                      f'<div style="text-align: center; margin-bottom: 10px;"><a href="{img_url_limpa}" target="_blank" download style="color: #38bdf8; text-decoration: underline; font-weight: bold; font-size: 0.9rem;">📥 Baixar Imagem (Admin)</a></div>',
-                      unsafe_allow_html=True,
-                  )
+                # Botão para abrir/baixar a imagem liberado para TODOS os usuários
+                st.markdown(
+                    f'<div style="text-align: center; margin-bottom: 10px;"><a href="{img_url_limpa}" target="_blank" download style="color: #38bdf8; text-decoration: underline; font-weight: bold; font-size: 0.9rem;">📥 Abrir / Baixar Imagem</a></div>',
+                    unsafe_allow_html=True,
+                )
               except Exception:
                 pass
 
@@ -868,10 +953,10 @@ else:
             .str.contains(busca_player.strip().lower())
         ]
 
-      # RENDERIZA A TABELA BILHETE DOURADO
+      # RENDERIZA A TABELA BILHETE DOURADO COM BOTAO DE DOWNLOAD
       components.html(
           gerar_tabela_bilhete_dourado(df_exibicao),
-          height=min(2200, max(300, 175 + len(df_exibicao) * 39)),
+          height=min(2400, max(350, 220 + len(df_exibicao) * 42)),
           scrolling=False,
       )
 
@@ -959,11 +1044,36 @@ else:
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
         <style>
+          @import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@600;800;900&display=swap');
           * {{ box-sizing: border-box; }}
-          body {{ margin: 0; background: transparent; font-family: Arial, sans-serif; }}
-          .legenda {{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 8px; color:#cbd5e1; font-size:11px; line-height:1.3; }}
+          body {{ margin: 0; background: transparent; font-family: 'Nunito', sans-serif; }}
+          
+          .top-bar {{ display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }}
+          .legenda {{ display:flex; flex-wrap:wrap; gap:6px; color:#cbd5e1; font-size:11px; line-height:1.3; }}
           .badge {{ padding:5px 8px; border-radius:999px; background:#1e293b; border:1px solid #475569; }}
+          
+          .btn-download-tabela {{
+            background: linear-gradient(180deg, #22c55e 0%, #15803d 100%);
+            color: white;
+            font-family: 'Luckiest Guy', cursive, sans-serif;
+            font-size: 0.92rem;
+            padding: 8px 16px;
+            border: 2px solid #86efac;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0px 4px 10px rgba(22, 163, 74, 0.4);
+            text-shadow: 1px 1px 0px #000;
+            transition: all 0.2s ease;
+          }}
+          .btn-download-tabela:hover {{ transform: translateY(-2px); }}
+
+          .export-card-wrapper {{ background: #0f172a; padding: 15px; border-radius: 12px; border: 2px solid #334155; }}
+          .export-header {{ text-align: center; margin-bottom: 12px; display: none; }}
+          .export-header h2 {{ font-family: 'Luckiest Guy', cursive; color: #facc15; font-size: 1.8rem; margin: 0; text-shadow: 2px 2px 0px #000; }}
+          .export-header p {{ color: #94a3b8; font-size: 0.85rem; margin: 2px 0 0 0; font-weight: 800; }}
+
           .viewport {{ width:100%; overflow:auto; max-height:68vh; border:1px solid #334155; border-radius:10px; -webkit-overflow-scrolling:touch; }}
           table {{ border-collapse:separate; border-spacing:0; min-width:760px; width:max-content; }}
           th,td {{ padding:8px 10px; border-right:1px solid #334155; border-bottom:1px solid #334155; text-align:center; white-space:nowrap; font-size:12px; color:#e2e8f0; background:#0f172a; }}
@@ -991,35 +1101,90 @@ else:
         </style>
       </head>
       <body>
-        <div class="legenda">
-          <span class="badge"><b>🎮 Jogos</b> = Jogos do Clã</span>
-          <span class="badge"><b>🎉 Eventos</b> = Eventos especiais</span>
-          <span class="badge"><b>⚔️ Guerra</b> = Pontos de guerras</span>
-          <span class="badge"><b>🏆 Liga</b> = Pontos de ligas</span>
-          <span class="badge"><b>⚡ Raide</b> = Pontos de Raides</span>
-          <span class="badge">👈 Deslize horizontalmente</span>
-          <span class="badge">📌 Nome e Total ficam fixos</span>
+        <div class="top-bar">
+          <div class="legenda">
+            <span class="badge"><b>🎮 Jogos</b> = Jogos do Clã</span>
+            <span class="badge"><b>🎉 Eventos</b> = Eventos especiais</span>
+            <span class="badge"><b>⚔️ Guerra</b> = Pontos de guerras</span>
+            <span class="badge"><b>🏆 Liga</b> = Pontos de ligas</span>
+            <span class="badge"><b>⚡ Raide</b> = Pontos de Raides</span>
+          </div>
+          <button class="btn-download-tabela" id="btn-export-detalhada" onclick="baixarTabelaCompleta()">
+            📸 Baixar Tabela Completa em Imagem
+          </button>
         </div>
-        <div class="viewport">
-          <table>
-            <thead>
-              <tr>
-                <th class="grupo-canto-esq">JOGADOR</th>
-                <th colspan="{len(cols_exibicao)-2}" class="grupo">PONTUAÇÃO POR ATIVIDADE</th>
-                <th class="grupo-canto-dir">TOTAL</th>
-              </tr>
-              <tr>{header_html}</tr>
-            </thead>
-            <tbody>
-              {''.join(linhas) if linhas else f'<tr><td colspan="{len(cols_exibicao)}" class="vazio">Nenhum jogador encontrado.</td></tr>'}
-            </tbody>
-          </table>
+
+        <div class="export-card-wrapper" id="container-tabela-export">
+          <div class="export-header" id="export-header-title">
+            <h2>⚔️ Clã Winning Wars</h2>
+            <p>Tabela Geral Detalhada de Pontuações</p>
+          </div>
+          <div class="viewport" id="viewport-tabela">
+            <table>
+              <thead>
+                <tr>
+                  <th class="grupo-canto-esq">JOGADOR</th>
+                  <th colspan="{len(cols_exibicao)-2}" class="grupo">PONTUAÇÃO POR ATIVIDADE</th>
+                  <th class="grupo-canto-dir">TOTAL</th>
+                </tr>
+                <tr>{header_html}</tr>
+              </thead>
+              <tbody>
+                {''.join(linhas) if linhas else f'<tr><td colspan="{len(cols_exibicao)}" class="vazio">Nenhum jogador encontrado.</td></tr>'}
+              </tbody>
+            </table>
+          </div>
         </div>
+
+        <script>
+          function baixarTabelaCompleta() {{
+            const btn = document.getElementById('btn-export-detalhada');
+            const target = document.getElementById('container-tabela-export');
+            const headerTitle = document.getElementById('export-header-title');
+            const viewport = document.getElementById('viewport-tabela');
+
+            btn.innerText = "⏳ Criando imagem...";
+            btn.disabled = true;
+
+            // Ajusta o contêiner temporariamente para capturar a tabela inteira sem barra de rolagem
+            const prevMaxHeight = viewport.style.maxHeight;
+            const prevOverflow = viewport.style.overflow;
+            viewport.style.maxHeight = 'none';
+            viewport.style.overflow = 'visible';
+            headerTitle.style.display = 'block';
+
+            html2canvas(target, {{
+              scale: 2,
+              useCORS: true,
+              backgroundColor: '#0f172a'
+            }}).then(canvas => {{
+              viewport.style.maxHeight = prevMaxHeight;
+              viewport.style.overflow = prevOverflow;
+              headerTitle.style.display = 'none';
+
+              const link = document.createElement('a');
+              link.download = 'tabela-detalhada-winning-wars.png';
+              link.href = canvas.toDataURL('image/png');
+              link.click();
+
+              btn.innerText = "📸 Baixar Tabela Completa em Imagem";
+              btn.disabled = false;
+            }}).catch(err => {{
+              viewport.style.maxHeight = prevMaxHeight;
+              viewport.style.overflow = prevOverflow;
+              headerTitle.style.display = 'none';
+
+              alert('Erro ao exportar a tabela. Tente novamente.');
+              btn.innerText = "📸 Baixar Tabela Completa em Imagem";
+              btn.disabled = false;
+            }});
+          }}
+        </script>
       </body>
       </html>
       """
 
-      altura = min(900, max(300, 150 + len(df_tabela_mobile) * 38))
+      altura = min(950, max(350, 180 + len(df_tabela_mobile) * 38))
       components.html(html_tabela, height=altura, scrolling=False)
 
   # ABA 3: ÁREA ADMIN
