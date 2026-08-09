@@ -240,7 +240,7 @@ def gerar_tabela_bilhete_dourado(df_exib):
       .bilhete-dourado-title {{
         font-family: 'Luckiest Guy', cursive !important;
         color: #facc15 !important;
-        font-size: 2rem !important;
+        font-size: 2.2rem !important;
         letter-spacing: 1px;
         text-shadow: 2px 2px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000;
         margin: 0 0 10px 0 !important;
@@ -250,17 +250,17 @@ def gerar_tabela_bilhete_dourado(df_exib):
         background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
         color: #ffffff !important;
         font-family: 'Luckiest Guy', cursive;
-        font-size: 0.95rem;
-        padding: 8px 16px;
+        font-size: 1.05rem;
+        padding: 10px 20px;
         border: 2px solid #93c5fd;
         border-radius: 10px;
         box-shadow: 0px 4px 0px #1e3a8a;
         cursor: pointer;
-        transition: all 0.1s ease;
+        transition: all 0.2s ease;
         text-shadow: 1px 1px 0px #000;
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: 8px;
         margin-top: 5px;
       }}
 
@@ -280,15 +280,15 @@ def gerar_tabela_bilhete_dourado(df_exib):
         background-color: #1e293b; 
         color: #facc15; 
         font-weight: 800;
-        font-size: 1.1rem; 
-        padding: 10px; 
+        font-size: 1.2rem; 
+        padding: 12px; 
         border-bottom: 2px solid #334155;
       }}
 
       .tabela-bilhete td {{
         border-bottom: 1px solid #334155; 
-        padding: 10px 8px; 
-        font-size: 1rem;
+        padding: 12px 10px; 
+        font-size: 1.05rem;
         font-weight: 800; 
         color: #e2e8f0;
       }}
@@ -322,19 +322,19 @@ def gerar_tabela_bilhete_dourado(df_exib):
       }}
 
       .emblema img {{ 
-        width: 90px; 
+        width: 100px; 
         filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.5));
       }}
 
       @media (max-width: 768px) {{
-        .bilhete-dourado-container {{ padding: 12px; }}
-        .bilhete-dourado-title {{ font-size: 1.6rem !important; }}
-        .tabela-bilhete th, .tabela-bilhete td {{ padding: 8px 6px; font-size: 0.95rem; }}
+        .bilhete-dourado-container {{ padding: 14px; }}
+        .bilhete-dourado-title {{ font-size: 1.8rem !important; }}
+        .tabela-bilhete th, .tabela-bilhete td {{ padding: 9px 7px; font-size: 1rem; }}
       }}
     </style>
   </head>
   <body>
-    <div style="text-align: center; margin-bottom: 10px;">
+    <div style="text-align: center; margin-bottom: 12px;">
       <button class="btn-download-img" id="btn-download-card" onclick="baixarTabelaHD()">
         📸 Baixar Imagem do Ranking (HD)
       </button>
@@ -392,13 +392,32 @@ def gerar_tabela_bilhete_dourado(df_exib):
   """
 
 
-# --- ESTILIZAÇÃO CSS CUSTOMIZADA ---
+# --- ESTILIZAÇÃO CSS CUSTOMIZADA COM ANIMAÇÃO E FONTES MAIORES ---
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@600;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@600;800;900&display=swap');
 
-    .main { background: radial-gradient(circle, #1e293b 0%, #0b0e14 100%); }
+    /* ANIMAÇÃO DE TRANSIÇÃO SUAVE ENTRE PÁGINAS */
+    @keyframes fadeInPage {
+        from {
+            opacity: 0;
+            transform: translateY(12px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .main .block-container {
+        animation: fadeInPage 0.45s ease-in-out;
+    }
+
+    .main { 
+        background: radial-gradient(circle, #1e293b 0%, #0b0e14 100%); 
+        font-size: 1.05rem;
+    }
 
     h1, h2, h3 { 
         font-family: 'Luckiest Guy', cursive !important; 
@@ -410,19 +429,19 @@ st.markdown(
     
     .main-title { 
         text-align: center; 
-        margin-top: 5px; 
-        margin-bottom: 5px; 
-        font-size: 2.2rem; 
+        margin-top: 8px; 
+        margin-bottom: 8px; 
+        font-size: 2.8rem !important; 
         line-height: 1.2;
     }
 
     .main-subtitle { 
         text-align: center; 
-        color: #94a3b8; 
+        color: #cbd5e1; 
         font-family: 'Nunito', sans-serif; 
-        font-weight: 600; 
-        margin-bottom: 20px; 
-        font-size: 1rem;
+        font-weight: 700; 
+        margin-bottom: 25px; 
+        font-size: 1.15rem !important;
         padding: 0 10px;
     }
     
@@ -431,15 +450,15 @@ st.markdown(
         background: linear-gradient(180deg, #22c55e 0%, #15803d 100%) !important;
         color: #ffffff !important;
         font-family: 'Luckiest Guy', cursive, sans-serif !important;
-        font-size: 0.95rem !important;
+        font-size: 1.05rem !important;
         border: 2px solid #86efac !important;
-        border-radius: 10px !important;
+        border-radius: 12px !important;
         box-shadow: 0px 4px 0px #14532d !important;
-        transition: all 0.1s ease;
+        transition: all 0.2s ease;
         text-shadow: 1px 1px 0px #000;
         white-space: normal !important;
         height: auto !important;
-        padding: 8px 12px !important;
+        padding: 10px 14px !important;
     }
 
     div.stButton > button:hover {
@@ -450,13 +469,13 @@ st.markdown(
 
     /* ABAS */
     button[data-baseweb="tab"] {
-        font-size: 1.25rem !important;
+        font-size: 1.35rem !important;
         font-weight: 800 !important;
         font-family: 'Nunito', sans-serif !important;
-        padding: 12px 22px !important;
+        padding: 14px 24px !important;
         background-color: #1e293b !important;
         border: 2px solid #334155 !important;
-        border-radius: 10px 10px 0 0 !important;
+        border-radius: 12px 12px 0 0 !important;
         color: #cbd5e1 !important;
         margin-right: 6px !important;
         transition: all 0.2s ease !important;
@@ -468,7 +487,7 @@ st.markdown(
         border-color: #fef08a !important;
         text-shadow: none !important;
         transform: translateY(-2px);
-        box-shadow: 0px 4px 12px rgba(250, 204, 21, 0.3) !important;
+        box-shadow: 0px 4px 14px rgba(250, 204, 21, 0.35) !important;
     }
 
     button[data-baseweb="tab"]:hover {
@@ -478,7 +497,7 @@ st.markdown(
 
     /* PODIUM E CARDS */
     .podium-card { 
-        padding: 16px; 
+        padding: 18px; 
         border-radius: 16px; 
         text-align: center; 
         margin-bottom: 15px; 
@@ -486,9 +505,9 @@ st.markdown(
         box-shadow: 0 8px 25px rgba(0,0,0,0.6); 
         font-family: 'Nunito', sans-serif; 
     }
-    .podium-title { font-family: 'Luckiest Guy', cursive; font-size: 1.2rem; margin-top: 6px; margin-bottom: 6px; text-shadow: 1px 1px 0px #000; }
-    .podium-name { font-size: 1.1rem; font-weight: 800; word-break: break-word; }
-    .podium-score { font-size: 1rem; margin-top: 4px; }
+    .podium-title { font-family: 'Luckiest Guy', cursive; font-size: 1.35rem; margin-top: 6px; margin-bottom: 6px; text-shadow: 1px 1px 0px #000; }
+    .podium-name { font-size: 1.2rem; font-weight: 800; word-break: break-word; }
+    .podium-score { font-size: 1.1rem; margin-top: 4px; }
     .gold { background: linear-gradient(135deg, #f59e0b 0%, #78350f 100%); border: 3px solid #facc15; }
     .silver { background: linear-gradient(135deg, #64748b 0%, #1e293b 100%); border: 3px solid #cbd5e1; }
     .bronze { background: linear-gradient(135deg, #d97706 0%, #451a03 100%); border: 3px solid #f97316; }
@@ -497,50 +516,50 @@ st.markdown(
         display: inline-block; width: 100%; max-width: 100%; text-align: center;
         background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%); color: white !important;
         padding: 12px 16px; border-radius: 10px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
-        border: 2px solid #93c5fd; box-shadow: 0px 4px 0px #1e3a8a; font-size: 1.05rem;
+        border: 2px solid #93c5fd; box-shadow: 0px 4px 0px #1e3a8a; font-size: 1.1rem;
     }
     .btn-external-link {
         display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; text-align: center;
         background: linear-gradient(180deg, #16a34a 0%, #15803d 100%); color: white !important;
-        padding: 8px 10px; border-radius: 8px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
-        border: 2px solid #86efac; box-shadow: 0px 4px 0px #14532d; font-size: 0.88rem;
+        padding: 10px 12px; border-radius: 10px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
+        border: 2px solid #86efac; box-shadow: 0px 4px 0px #14532d; font-size: 0.95rem;
     }
     .btn-scid {
         display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; text-align: center;
         background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%); color: white !important;
-        padding: 8px 10px; border-radius: 8px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
-        border: 2px solid #60a5fa; box-shadow: 0px 4px 0px #1e3a8a; font-size: 0.88rem;
+        padding: 10px 12px; border-radius: 10px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
+        border: 2px solid #60a5fa; box-shadow: 0px 4px 0px #1e3a8a; font-size: 0.95rem;
     }
 
     .mural-banner {
-        background: #1e293b; border-radius: 12px; padding: 12px 15px; margin-bottom: 20px;
+        background: #1e293b; border-radius: 14px; padding: 14px 18px; margin-bottom: 22px;
         border: 2px solid #334155; border-left: 6px solid #facc15;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-family: 'Nunito', sans-serif;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.3); font-family: 'Nunito', sans-serif;
     }
-    .mural-header { font-family: 'Luckiest Guy', cursive; color: #facc15; font-size: 1rem; margin-bottom: 4px; }
+    .mural-header { font-family: 'Luckiest Guy', cursive; color: #facc15; font-size: 1.15rem; margin-bottom: 4px; }
 
     .info-card {
-        background: #0f172a; border: 2px solid #334155; border-radius: 14px; padding: 20px; margin-bottom: 15px;
+        background: #0f172a; border: 2px solid #334155; border-radius: 14px; padding: 22px; margin-bottom: 15px;
         font-family: 'Nunito', sans-serif; color: #e2e8f0; box-shadow: 0 6px 18px rgba(0,0,0,0.4); height: 100%;
     }
-    .info-card-header { font-family: 'Luckiest Guy', cursive; color: #facc15; font-size: 1.15rem; margin-bottom: 10px; }
+    .info-card-header { font-family: 'Luckiest Guy', cursive; color: #facc15; font-size: 1.25rem; margin-bottom: 10px; }
     .info-card-list { padding-left: 18px; margin-bottom: 0px; }
-    .info-card-list li { margin-bottom: 8px; line-height: 1.4; font-size: 0.95rem; }
+    .info-card-list li { margin-bottom: 8px; line-height: 1.5; font-size: 1.05rem; }
 
     .rules-card {
-        background: #0f172a; border: 2px solid #334155; border-radius: 14px; padding: 22px; margin-top: 35px;
+        background: #0f172a; border: 2px solid #334155; border-radius: 14px; padding: 25px; margin-top: 35px;
         font-family: 'Nunito', sans-serif; color: #e2e8f0; box-shadow: 0 6px 18px rgba(0,0,0,0.4);
     }
-    .rules-title { font-family: 'Luckiest Guy', cursive; color: #facc15; font-size: 1.3rem; margin-bottom: 12px; }
+    .rules-title { font-family: 'Luckiest Guy', cursive; color: #facc15; font-size: 1.45rem; margin-bottom: 14px; }
     .rules-card ul { margin-bottom: 0px; padding-left: 20px; }
-    .rules-card li { margin-bottom: 10px; line-height: 1.5; }
+    .rules-card li { margin-bottom: 12px; line-height: 1.55; font-size: 1.05rem; }
 
     @media (max-width: 768px) {
-        .main-title { font-size: 1.6rem !important; }
-        .main-subtitle { font-size: 0.88rem !important; }
-        .mural-banner { padding: 10px !important; }
-        .podium-card { padding: 12px !important; }
-        button[data-baseweb="tab"] { font-size: 1rem !important; padding: 8px 10px !important; }
+        .main-title { font-size: 2rem !important; }
+        .main-subtitle { font-size: 0.95rem !important; }
+        .mural-banner { padding: 12px !important; }
+        .podium-card { padding: 14px !important; }
+        button[data-baseweb="tab"] { font-size: 1.05rem !important; padding: 10px 12px !important; }
     }
     </style>
 """,
@@ -648,8 +667,8 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
       st.markdown(
           f"""
             <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-top: 15px; margin-bottom: 20px;">
-                <img src="{th_img_url}" width="80" style="filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.5));">
-                <h2 style="margin: 0; font-size: 1.8rem;">Bases de {tipo_layout} - {cv_nome}</h2>
+                <img src="{th_img_url}" width="90" style="filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.5));">
+                <h2 style="margin: 0; font-size: 2rem;">Bases de {tipo_layout} - {cv_nome}</h2>
             </div>
             """,
           unsafe_allow_html=True,
@@ -720,7 +739,7 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
                 )
                 if eh_admin:
                   st.markdown(
-                      f'<div style="text-align: center; margin-bottom: 10px;"><a href="{img_url_limpa}" target="_blank" download style="color: #38bdf8; text-decoration: underline; font-weight: bold; font-size: 0.9rem;">📥 Baixar Imagem (Admin)</a></div>',
+                      f'<div style="text-align: center; margin-bottom: 10px;"><a href="{img_url_limpa}" target="_blank" download style="color: #38bdf8; text-decoration: underline; font-weight: bold; font-size: 0.95rem;">📥 Baixar Imagem (Admin)</a></div>',
                       unsafe_allow_html=True,
                   )
               except Exception:
@@ -802,17 +821,19 @@ elif st.session_state["pagina_atual"] == "regras_cla":
 # PÁGINA PRINCIPAL
 # ==============================================================================
 else:
+  # LOGO COM TAMANHO AUMENTADO (180px) COM VISIBILIDADE EXPANDIDA
   st.markdown(
       """
-    <div style="text-align: center; margin-bottom: 10px;">
-        <img src="https://i.ibb.co/yBShz18b/winning.png" width="110" style="filter: drop-shadow(0px 6px 12px rgba(0,0,0,0.6));">
+    <div style="text-align: center; margin-top: 10px; margin-bottom: 12px;">
+        <img src="https://i.ibb.co/yBShz18b/winning.png" width="180" style="filter: drop-shadow(0px 8px 16px rgba(0,0,0,0.7)); transition: transform 0.3s ease;">
     </div>
     """,
       unsafe_allow_html=True,
   )
 
+  # TÍTULO PRINCIPAL ATUALIZADO
   st.markdown(
-      "<h1 class='main-title'>⚔️ Clã Winning Wars - Competição Mensal</h1>",
+      "<h1 class='main-title'>⚔️ Winning Wars APP</h1>",
       unsafe_allow_html=True,
   )
   st.markdown(
@@ -827,7 +848,7 @@ else:
         f"""
         <div class="mural-banner">
             <div class="mural-header">📢 MURAL DA LIDERANÇA</div>
-            <div style="color: #e2e8f0; font-size: 0.95rem;">{mural_recado}</div>
+            <div style="color: #e2e8f0; font-size: 1.05rem;">{mural_recado}</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -875,7 +896,7 @@ else:
           with col1:
             st.markdown(
                 f'<div class="podium-card gold"><img'
-                ' src="https://i.ibb.co/mkC43vT/goldenpass.png" width="50"><div'
+                ' src="https://i.ibb.co/mkC43vT/goldenpass.png" width="55"><div'
                 ' class="podium-title">🥇 1º LUGAR</div><div'
                 f' class="podium-name">{df_rank.iloc[0]["Nome"]}</div><div'
                 ' class="podium-score">'
@@ -887,7 +908,7 @@ else:
           with col2:
             st.markdown(
                 f'<div class="podium-card silver"><img'
-                ' src="https://i.ibb.co/mkC43vT/goldenpass.png" width="50"><div'
+                ' src="https://i.ibb.co/mkC43vT/goldenpass.png" width="55"><div'
                 ' class="podium-title">🥈 2º LUGAR</div><div'
                 f' class="podium-name">{df_rank.iloc[1]["Nome"]}</div><div'
                 ' class="podium-score">'
@@ -899,7 +920,7 @@ else:
           with col3:
             st.markdown(
                 f'<div class="podium-card bronze"><img'
-                ' src="https://i.ibb.co/mkC43vT/goldenpass.png" width="50"><div'
+                ' src="https://i.ibb.co/mkC43vT/goldenpass.png" width="55"><div'
                 ' class="podium-title">🥉 3º LUGAR</div><div'
                 f' class="podium-name">{df_rank.iloc[2]["Nome"]}</div><div'
                 ' class="podium-score">'
@@ -932,7 +953,7 @@ else:
       # RENDERIZA A TABELA BILHETE DOURADO COM BOTAO DE DOWNLOAD EM HD
       components.html(
           gerar_tabela_bilhete_dourado(df_exibicao),
-          height=min(2200, max(350, 220 + len(df_exibicao) * 39)),
+          height=min(2200, max(350, 220 + len(df_exibicao) * 42)),
           scrolling=False,
       )
 
@@ -1023,31 +1044,31 @@ else:
         <style>
           * {{ box-sizing: border-box; }}
           body {{ margin: 0; background: transparent; font-family: Arial, sans-serif; }}
-          .legenda {{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 8px; color:#cbd5e1; font-size:11px; line-height:1.3; }}
-          .badge {{ padding:5px 8px; border-radius:999px; background:#1e293b; border:1px solid #475569; }}
+          .legenda {{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 8px; color:#cbd5e1; font-size:12px; line-height:1.3; }}
+          .badge {{ padding:6px 10px; border-radius:999px; background:#1e293b; border:1px solid #475569; }}
           .viewport {{ width:100%; overflow:auto; max-height:68vh; border:1px solid #334155; border-radius:10px; -webkit-overflow-scrolling:touch; }}
           table {{ border-collapse:separate; border-spacing:0; min-width:760px; width:max-content; }}
-          th,td {{ padding:8px 10px; border-right:1px solid #334155; border-bottom:1px solid #334155; text-align:center; white-space:nowrap; font-size:12px; color:#e2e8f0; background:#0f172a; }}
+          th,td {{ padding:9px 11px; border-right:1px solid #334155; border-bottom:1px solid #334155; text-align:center; white-space:nowrap; font-size:13px; color:#e2e8f0; background:#0f172a; }}
           thead th {{ background:#1e293b; font-weight:800; position:sticky; z-index:5; }}
-          thead tr:first-child th {{ top:0; color:#facc15; font-size:10px; letter-spacing:.5px; height:28px; }}
+          thead tr:first-child th {{ top:0; color:#facc15; font-size:11px; letter-spacing:.5px; height:28px; }}
           thead tr:nth-child(2) th {{ top:28px; color:#f8fafc; height:30px; }}
           tbody tr:nth-child(even) td {{ background:#111827; }}
           tbody tr:hover td {{ background:#1e293b; }}
-          .sticky-nome {{ position:sticky !important; left:0; z-index:4; min-width:145px; max-width:145px; text-align:left; font-weight:800; box-shadow:5px 0 8px rgba(0,0,0,.25); }}
+          .sticky-nome {{ position:sticky !important; left:0; z-index:4; min-width:150px; max-width:150px; text-align:left; font-weight:800; box-shadow:5px 0 8px rgba(0,0,0,.25); }}
           thead .sticky-nome {{ z-index:8; background:#1e293b !important; }}
-          .sticky-total {{ position:sticky !important; right:0; z-index:4; min-width:78px; font-weight:900; color:#facc15 !important; background:#172554 !important; box-shadow:-5px 0 8px rgba(0,0,0,.25); }}
+          .sticky-total {{ position:sticky !important; right:0; z-index:4; min-width:85px; font-weight:900; color:#facc15 !important; background:#172554 !important; box-shadow:-5px 0 8px rgba(0,0,0,.25); }}
           thead .sticky-total {{ z-index:8; background:#172554 !important; }}
           .grupo {{ text-align:center; background:#334155 !important; color:#facc15 !important; }}
-          .grupo-canto-esq {{ min-width:145px; background:#334155 !important; position:sticky; left:0; z-index:9; }}
-          .grupo-canto-dir {{ min-width:78px; background:#334155 !important; position:sticky; right:0; z-index:9; }}
+          .grupo-canto-esq {{ min-width:150px; background:#334155 !important; position:sticky; left:0; z-index:9; }}
+          .grupo-canto-dir {{ min-width:85px; background:#334155 !important; position:sticky; right:0; z-index:9; }}
           .jogador-destaque td {{ background:rgba(250,204,21,.18) !important; color:#fff !important; font-weight:900; }}
           .jogador-destaque .sticky-nome,.jogador-destaque .sticky-total {{ background:#713f12 !important; color:#fff !important; }}
           .vazio {{ padding:28px; text-align:center; color:#94a3b8; background:#0f172a; }}
           @media (max-width:600px) {{
             table {{ min-width:680px; }}
-            th,td {{ padding:7px 8px; font-size:11px; }}
-            .sticky-nome {{ min-width:125px; max-width:125px; }}
-            .sticky-total {{ min-width:68px; }}
+            th,td {{ padding:8px 9px; font-size:12px; }}
+            .sticky-nome {{ min-width:130px; max-width:130px; }}
+            .sticky-total {{ min-width:75px; }}
           }}
         </style>
       </head>
@@ -1080,7 +1101,7 @@ else:
       </html>
       """
 
-      altura = min(900, max(300, 150 + len(df_tabela_mobile) * 38))
+      altura = min(900, max(300, 150 + len(df_tabela_mobile) * 40))
       components.html(html_tabela, height=altura, scrolling=False)
 
   # ABA 3: ÁREA ADMIN
@@ -1508,7 +1529,7 @@ else:
       unsafe_allow_html=True,
   )
   st.markdown(
-      "<p style='text-align: center; color: #94a3b8;'>A ideia é simples:"
+      "<p style='text-align: center; color: #cbd5e1;'>A ideia é simples:"
       " valorizar quem joga bem, participa ativamente e ajuda o clã a"
       " crescer!</p><br>",
       unsafe_allow_html=True,
@@ -1520,7 +1541,7 @@ else:
     st.markdown(
         """
         <div class="info-card" style="text-align: center;">
-            <img src="https://i.ibb.co/mkC43vT/goldenpass.png" width="55" style="margin-bottom: 8px;">
+            <img src="https://i.ibb.co/mkC43vT/goldenpass.png" width="60" style="margin-bottom: 8px;">
             <div class="info-card-header">🏆 Premiação Mensal</div>
             <ul class="info-card-list" style="text-align: left;">
                 <li><b>Top 3 Destaques:</b> Garantem <b>1 Passe Dourado 🎟️</b> cada um no final do mês.</li>
@@ -1535,7 +1556,7 @@ else:
     st.markdown(
         """
         <div class="info-card" style="text-align: center;">
-            <img src="https://i.ibb.co/3PPkJD8/War-League-Main-Banner.webp" width="70" style="margin-bottom: 8px;">
+            <img src="https://i.ibb.co/3PPkJD8/War-League-Main-Banner.webp" width="75" style="margin-bottom: 8px;">
             <div class="info-card-header">📊 Sistema de Pontuação</div>
             <ul class="info-card-list" style="text-align: left;">
                 <li><b>⚔️ Guerras & Liga (CWL):</b> 1 Ponto por ⭐ conquistada.</li>
@@ -1551,7 +1572,7 @@ else:
     st.markdown(
         """
         <div class="info-card" style="text-align: center;">
-            <img src="https://i.ibb.co/YFbsJ97x/Clash-of-Clans-emblem.png" width="55" style="margin-bottom: 8px;">
+            <img src="https://i.ibb.co/YFbsJ97x/Clash-of-Clans-emblem.png" width="60" style="margin-bottom: 8px;">
             <div class="info-card-header">📜 Diretrizes Básicas</div>
             <ul class="info-card-list" style="text-align: left;">
                 <li><b>Conta Principal:</b> Válido estritamente para a conta principal.</li>
@@ -1580,7 +1601,7 @@ else:
       unsafe_allow_html=True,
   )
   st.markdown(
-      "<p style='text-align: center; color: #94a3b8;'>Histórico dos grandes"
+      "<p style='text-align: center; color: #cbd5e1;'>Histórico dos grandes"
       " guerreiros do clã que conquistarão o Passe Dourado!</p><br>",
       unsafe_allow_html=True,
   )
