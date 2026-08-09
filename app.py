@@ -117,7 +117,7 @@ def registrar_log(admin: str, acao: str):
     pass
 
 
-# --- CARREGAR DADOS COM CACHE DE DESEMPENHO ---
+# --- CARREGAR DADOS COM CACHE DE DESEMPENHO (120 SEGUNDOS) ---
 @st.cache_data(ttl=120)
 def obter_dados_cached():
   try:
@@ -182,7 +182,7 @@ def obter_proxima_coluna_sequencial(col_prefixo: str, df_cols) -> str:
   return f"{col_prefixo}_{max_num + 1}"
 
 
-# --- FUNÇÃO PARA GERAR A TABELA COMPLETA EM HTML LIMPO ---
+# --- FUNÇÃO PARA GERAR A TABELA COMPLETA EM HTML ---
 def gerar_tabela_bilhete_dourado(df_exib):
   linhas_html = ""
   for _, row in df_exib.iterrows():
@@ -252,7 +252,7 @@ st.markdown(
         padding: 0 10px;
     }
     
-    /* BOTÕES */
+    /* BOTÕES GERAIS */
     div.stButton > button {
         background: linear-gradient(180deg, #22c55e 0%, #15803d 100%) !important;
         color: #ffffff !important;
@@ -302,7 +302,7 @@ st.markdown(
         color: #facc15 !important;
     }
 
-    /* CARDS PODIUM */
+    /* PODIUM E CARDS */
     .podium-card { 
         padding: 16px; 
         border-radius: 16px; 
@@ -443,7 +443,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- TOPO DA PÁGINA: MENU DE NAVEGAÇÃO + LOGIN ADMIN NO CANTO DIREITO ---
+# --- TOPO DA PÁGINA: MENU DE NAVEGAÇÃO + LOGIN ADMIN ---
 col_nav, col_admin_top = st.columns([5, 1])
 
 with col_nav:
@@ -502,7 +502,7 @@ with col_admin_top:
             ]
             if not val.empty:
               st.session_state["admin_logado"] = u_top
-              registrar_log(u_top, "Logou pelo painel topo direito")
+              registrar_log(u_top, "Logou pelo painel no canto superior direito")
               st.success("Logado com sucesso!")
               st.rerun()
             else:
@@ -817,7 +817,7 @@ else:
             .str.contains(busca_player.strip().lower())
         ]
 
-      # RENDERIZA A TABELA BILHETE DOURADO CORRIGIDA
+      # RENDERIZA A TABELA BILHETE DOURADO
       st.markdown(
           gerar_tabela_bilhete_dourado(df_exibicao), unsafe_allow_html=True
       )
@@ -956,22 +956,24 @@ else:
                 )
                 st.rerun()
 
+      # === SUB TAB 3: GERENCIAR COLUNAS (GUERRA, LIGA, RAIDE) E PONTOS ===
       with sub_tab3:
-        st.markdown("#### ➕ Criar Novas Colunas de Guerras ou Liga")
+        st.markdown("#### ➕ Criar Novas Colunas de Guerras, Liga ou Raides")
         st.markdown(
             "Clique nos botões abaixo para criar automaticamente as próximas"
             " colunas na sequência. Elas serão salvas no banco de dados e"
             " somadas ao total geral automaticamente!"
         )
 
-        col_btn1, col_btn2 = st.columns(2)
+        col_btn1, col_btn2, col_btn3 = st.columns(3)
 
+        # BOTAO GUERRA
         with col_btn1:
           proxima_guerra = obter_proxima_coluna_sequencial(
               "Guerra", df.columns if not df.empty else []
           )
           if st.button(
-              f"⚔️ Criar Próxima Guerra Normal ({proxima_guerra})",
+              f"⚔️ Criar Guerra ({proxima_guerra})",
               use_container_width=True,
           ):
             headers = sheet_dados.row_values(1)
@@ -998,12 +1000,13 @@ else:
               )
               st.rerun()
 
+        # BOTAO LIGA
         with col_btn2:
           proxima_liga = obter_proxima_coluna_sequencial(
               "Liga", df.columns if not df.empty else []
           )
           if st.button(
-              f"🏆 Criar Próxima Guerra de Liga ({proxima_liga})",
+              f"🏆 Criar Liga ({proxima_liga})",
               use_container_width=True,
           ):
             headers = sheet_dados.row_values(1)
@@ -1027,6 +1030,39 @@ else:
               st.cache_data.clear()
               st.success(
                   f"✅ Coluna **{proxima_liga}** adicionada com sucesso!"
+              )
+              st.rerun()
+
+        # BOTAO RAIDE (NOVO)
+        with col_btn3:
+          proxima_raide = obter_proxima_coluna_sequencial(
+              "Raide", df.columns if not df.empty else []
+          )
+          if st.button(
+              f"🏰 Criar Raide ({proxima_raide})",
+              use_container_width=True,
+          ):
+            headers = sheet_dados.row_values(1)
+            if proxima_raide in headers:
+              st.error(f"⚠️ A coluna {proxima_raide} já existe!")
+            else:
+              proxima_col_num = len(headers) + 1
+              sheet_dados.update_cell(1, proxima_col_num, proxima_raide)
+
+              if not df.empty:
+                num_linhas = len(df)
+                sheet_dados.update(
+                    f"{gspread.utils.rowcol_to_a1(2, proxima_col_num)}:{gspread.utils.rowcol_to_a1(num_linhas + 1, proxima_col_num)}",
+                    [[0]] * num_linhas,
+                )
+
+              registrar_log(
+                  st.session_state["admin_logado"],
+                  f"Criou a coluna de Raide '{proxima_raide}'",
+              )
+              st.cache_data.clear()
+              st.success(
+                  f"✅ Coluna **{proxima_raide}** adicionada com sucesso!"
               )
               st.rerun()
 
@@ -1209,7 +1245,7 @@ else:
   )
   st.markdown(
       "<p style='text-align: center; color: #94a3b8;'>Histórico dos grandes"
-      " guerreiros do clã que conquistaram o Passe Dourado!</p><br>",
+      " guerreiros do clã que conquistarão o Passe Dourado!</p><br>",
       unsafe_allow_html=True,
   )
 
