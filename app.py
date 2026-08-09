@@ -5,6 +5,7 @@ from datetime import datetime
 import gspread
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 from oauth2client.service_account import ServiceAccountCredentials
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
@@ -184,7 +185,12 @@ def obter_proxima_coluna_sequencial(col_prefixo: str, df_cols) -> str:
 
 # --- FUNÇÃO PARA GERAR A TABELA COMPLETA EM HTML ---
 def gerar_tabela_bilhete_dourado(df_exib):
-  """Gera a tabela do ranking como HTML, com conteúdo dos jogadores escapado."""
+  """Gera o HTML completo do ranking para renderização em iframe.
+
+  A tabela é renderizada por components.html em vez de st.markdown.
+  Isso evita que o parser Markdown do Streamlit trate linhas HTML
+  subsequentes como texto literal.
+  """
   from html import escape
 
   linhas_html = []
@@ -196,35 +202,75 @@ def gerar_tabela_bilhete_dourado(df_exib):
     except (TypeError, ValueError):
       pontuacao = 0
 
-    linhas_html.append(f"""
-        <tr>
-            <td class="tabela-posicao">{posicao}</td>
-            <td>{jogador}</td>
-            <td>{pontuacao}</td>
-        </tr>
-    """)
+    linhas_html.append(
+      f"<tr><td class=\"tabela-posicao\">{posicao}</td>"
+      f"<td>{jogador}</td><td>{pontuacao}</td></tr>"
+    )
 
-  html_completo = f"""
-    <div class="bilhete-dourado-container">
-        <div class="bilhete-dourado-header">
-            <h2 class="bilhete-dourado-title">Bilhete dourado</h2>
-        </div>
-        <table class="tabela-bilhete">
-            <thead>
-                <tr>
-                    <th style="width: 25%;">Posição</th>
-                    <th style="width: 50%;">Membro</th>
-                    <th style="width: 25%;">Pontos</th>
-                </tr>
-            </thead>
-            <tbody>{"".join(linhas_html)}</tbody>
-        </table>
-        <div style="text-align: center; margin-top: 15px;">
-            <img src="https://i.ibb.co/YFbsJ97x/Clash-of-Clans-emblem.png" width="110" alt="Emblema Clash of Clans">
-        </div>
+  return f"""
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset=\"UTF-8\">
+    <style>
+      * {{ box-sizing: border-box; }}
+      body {{ margin: 0; background: transparent; font-family: Nunito, Arial, sans-serif; }}
+      .bilhete-dourado-container {{
+        background-color: #ffffff; border: 6px solid #facc15;
+        outline: 4px solid #6b21a8; border-radius: 14px; padding: 16px;
+        max-width: 500px; margin: 10px auto 25px auto;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      }}
+      .bilhete-dourado-header {{
+        background: linear-gradient(180deg, #fef08a 0%, #facc15 100%);
+        border: 3px solid #6b21a8; border-radius: 8px; text-align: center;
+        padding: 8px 10px; margin-bottom: 14px;
+      }}
+      .bilhete-dourado-title {{
+        margin: 0; color: #ffffff; font-size: 2.1rem; font-weight: 800;
+        text-shadow: 2px 2px 0 #6b21a8, -2px -2px 0 #6b21a8,
+                     2px -2px 0 #6b21a8, -2px 2px 0 #6b21a8;
+      }}
+      .tabela-bilhete {{ width: 100%; border-collapse: collapse; text-align: center; }}
+      .tabela-bilhete th {{
+        background-color: #5b21b6; color: #facc15; font-weight: 800;
+        font-size: 1.15rem; padding: 8px; border: 1.5px solid #3b0764;
+      }}
+      .tabela-bilhete td {{
+        border: 1.5px solid #4c1d95; padding: 6px 8px; font-size: 1rem;
+        font-weight: 800; color: #000000;
+      }}
+      .tabela-bilhete tr:nth-child(even) {{ background-color: #f8fafc; }}
+      .tabela-bilhete tr:hover {{ background-color: #fef08a; }}
+      .tabela-posicao {{ color: #5b21b6 !important; font-weight: 800; }}
+      .emblema {{ text-align: center; margin-top: 15px; }}
+      .emblema img {{ width: 110px; }}
+      @media (max-width: 768px) {{
+        .bilhete-dourado-container {{ padding: 10px; }}
+        .bilhete-dourado-title {{ font-size: 1.6rem; }}
+      }}
+    </style>
+  </head>
+  <body>
+    <div class=\"bilhete-dourado-container\">
+      <div class=\"bilhete-dourado-header\">
+        <h2 class=\"bilhete-dourado-title\">Bilhete dourado</h2>
+      </div>
+      <table class=\"tabela-bilhete\">
+        <thead>
+          <tr><th style=\"width:25%\">Posição</th>
+              <th style=\"width:50%\">Membro</th>
+              <th style=\"width:25%\">Pontos</th></tr>
+        </thead>
+        <tbody>{''.join(linhas_html)}</tbody>
+      </table>
+      <div class=\"emblema\">
+        <img src=\"https://i.ibb.co/YFbsJ97x/Clash-of-Clans-emblem.png\" alt=\"Emblema Clash of Clans\">
+      </div>
     </div>
+  </body>
+  </html>
   """
-  return html_completo
 
 
 # --- ESTILIZAÇÃO CSS CUSTOMIZADA ---
@@ -820,17 +866,20 @@ else:
       )
 
       if busca_player.strip():
-        termo_busca = busca_player.strip().lower()
         df_exibicao = df_exibicao[
             df_exibicao["Jogador"]
-            .astype(str)
             .str.lower()
-            .str.contains(termo_busca, regex=False, na=False)
+            .str.contains(busca_player.strip().lower())
         ]
 
       # RENDERIZA A TABELA BILHETE DOURADO
-      st.markdown(
-          gerar_tabela_bilhete_dourado(df_exibicao), unsafe_allow_html=True
+      # Renderiza em componente HTML dedicado.
+      # st.markdown pode interpretar parte de um bloco HTML como Markdown
+      # quando há múltiplas linhas <tr>, fazendo as tags aparecerem como texto.
+      components.html(
+          gerar_tabela_bilhete_dourado(df_exibicao),
+          height=min(2200, max(300, 175 + len(df_exibicao) * 39)),
+          scrolling=False,
       )
 
   # ABA 2: TABELA DETALHADA GERAL
