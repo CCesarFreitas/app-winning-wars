@@ -2,8 +2,6 @@ import hashlib
 import json
 import re
 from datetime import datetime
-from io import BytesIO
-import matplotlib.pyplot as plt
 import gspread
 import pandas as pd
 import streamlit as st
@@ -332,146 +330,6 @@ def gerar_tabela_bilhete_dourado(df_exib):
   """
 
 
-
-# --- EXPORTAÇÃO DE RANKINGS EM PNG ---
-def _fig_to_png(fig):
-  buffer = BytesIO()
-  fig.savefig(
-      buffer,
-      format="png",
-      dpi=180,
-      bbox_inches="tight",
-      facecolor="#0b0e14",
-  )
-  plt.close(fig)
-  buffer.seek(0)
-  return buffer.getvalue()
-
-
-def gerar_png_ranking(df_exib, titulo="🏆 Ranking Winning Wars"):
-  """Gera uma imagem PNG pronta para compartilhamento do ranking completo."""
-  dados = df_exib.copy()
-  if dados.empty:
-    return None
-
-  dados["Pontuação Total"] = pd.to_numeric(
-      dados["Pontuação Total"], errors="coerce"
-  ).fillna(0).astype(int)
-
-  n = len(dados)
-  altura = max(4.8, 1.65 + n * 0.48)
-  fig, ax = plt.subplots(figsize=(10, altura))
-  fig.patch.set_facecolor("#0b0e14")
-  ax.set_facecolor("#0f172a")
-  ax.axis("off")
-
-  ax.text(
-      0.5, 0.975, titulo,
-      transform=ax.transAxes, ha="center", va="top",
-      fontsize=22, fontweight="bold", color="#facc15",
-  )
-  ax.text(
-      0.5, 0.925, "Clã Winning Wars • Ranking completo",
-      transform=ax.transAxes, ha="center", va="top",
-      fontsize=10, color="#94a3b8",
-  )
-
-  tabela = ax.table(
-      cellText=dados[["Posição", "Jogador", "Pontuação Total"]].values,
-      colLabels=["POS.", "JOGADOR", "PONTOS"],
-      colWidths=[0.14, 0.56, 0.20],
-      cellLoc="center",
-      colLoc="center",
-      bbox=[0.06, 0.035, 0.88, 0.84],
-  )
-  tabela.auto_set_font_size(False)
-  tabela.set_fontsize(11)
-  tabela.scale(1, 1.5)
-
-  for (linha, coluna), celula in tabela.get_celld().items():
-    celula.set_edgecolor("#334155")
-    if linha == 0:
-      celula.set_facecolor("#1e293b")
-      celula.get_text().set_color("#facc15")
-      celula.get_text().set_weight("bold")
-    else:
-      celula.set_facecolor("#0f172a" if linha % 2 else "#111827")
-      celula.get_text().set_color("#e2e8f0")
-      celula.get_text().set_weight("bold")
-      if coluna == 0:
-        celula.get_text().set_color("#facc15")
-      elif coluna == 2:
-        celula.get_text().set_color("#38bdf8")
-    if coluna == 1 and linha > 0:
-      celula.get_text().set_ha("left")
-
-  return _fig_to_png(fig)
-
-
-def gerar_png_tabela_detalhada(df_exib, colunas):
-  """Gera PNG da tabela detalhada completa, mantendo a identidade visual do app."""
-  if df_exib.empty:
-    return None
-
-  dados = df_exib[colunas].copy()
-  headers = [rotulo_coluna(c) for c in colunas]
-
-  for col in colunas[1:]:
-    dados[col] = pd.to_numeric(dados[col], errors="coerce").fillna(0).astype(int)
-
-  n_linhas = len(dados)
-  n_colunas = len(colunas)
-  largura = max(13, min(34, 2.2 + n_colunas * 0.95))
-  altura = max(5.5, 2.0 + n_linhas * 0.42)
-
-  fig, ax = plt.subplots(figsize=(largura, altura))
-  fig.patch.set_facecolor("#0b0e14")
-  ax.set_facecolor("#0f172a")
-  ax.axis("off")
-
-  ax.text(
-      0.5, 0.975, "📋 Tabela Detalhada de Pontuações",
-      transform=ax.transAxes, ha="center", va="top",
-      fontsize=21, fontweight="bold", color="#facc15",
-  )
-  ax.text(
-      0.5, 0.935, "Clã Winning Wars • Pontuação por atividade",
-      transform=ax.transAxes, ha="center", va="top",
-      fontsize=10, color="#94a3b8",
-  )
-
-  valores = dados.values
-  tabela = ax.table(
-      cellText=valores,
-      colLabels=headers,
-      cellLoc="center",
-      colLoc="center",
-      bbox=[0.015, 0.035, 0.97, 0.84],
-  )
-  tabela.auto_set_font_size(False)
-  tabela.set_fontsize(8 if n_colunas > 12 else 9)
-  tabela.scale(1, 1.45)
-
-  for (linha, coluna), celula in tabela.get_celld().items():
-    celula.set_edgecolor("#334155")
-    if linha == 0:
-      celula.set_facecolor("#1e293b")
-      celula.get_text().set_color("#facc15")
-      celula.get_text().set_weight("bold")
-    else:
-      celula.set_facecolor("#0f172a" if linha % 2 else "#111827")
-      celula.get_text().set_color("#e2e8f0")
-      celula.get_text().set_weight("bold")
-      if coluna == 0:
-        celula.get_text().set_ha("left")
-      if coluna == n_colunas - 1:
-        celula.set_facecolor("#172554")
-        celula.get_text().set_color("#facc15")
-        celula.get_text().set_weight("bold")
-
-  return _fig_to_png(fig)
-
-
 # --- ESTILIZAÇÃO CSS CUSTOMIZADA ---
 st.markdown(
     """
@@ -771,10 +629,7 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
       if not df_layouts.empty:
         layouts_filtrados = df_layouts[
             (df_layouts["Tipo"] == tipo_layout) & (df_layouts["CV"] == cv_nome)
-        ].copy()
-        # O Google Sheets mantém os mais novos no final; exibimos em ordem
-        # reversa para que a publicação mais recente apareça primeiro.
-        layouts_filtrados = layouts_filtrados.iloc[::-1].reset_index(drop=True)
+        ]
       else:
         layouts_filtrados = pd.DataFrame()
 
@@ -1011,28 +866,6 @@ else:
           scrolling=False,
       )
 
-      # Exportação usa o ranking completo, independentemente do filtro de busca.
-      ranking_export = df_rank[["Posição", "Nome", "Total"]].copy()
-      ranking_export["Total"] = ranking_export["Total"].astype(int)
-      ranking_export.rename(
-          columns={"Nome": "Jogador", "Total": "Pontuação Total"},
-          inplace=True,
-      )
-      png_ranking = gerar_png_ranking(ranking_export)
-
-      col_exp1, col_exp2 = st.columns([1, 1])
-      with col_exp1:
-        st.download_button(
-            "📸 Exportar Ranking Completo em PNG",
-            data=png_ranking,
-            file_name=f"winningwars_ranking_{datetime.now().strftime('%Y%m%d')}.png",
-            mime="image/png",
-            use_container_width=True,
-            key="download_png_ranking",
-        )
-      with col_exp2:
-        st.caption("Imagem em alta resolução, pronta para compartilhar em grupos e redes sociais.")
-
   # ABA 2: TABELA DETALHADA GERAL
   with tab_tabela:
     if not df.empty and "Total" in df.columns:
@@ -1179,18 +1012,6 @@ else:
 
       altura = min(900, max(300, 150 + len(df_tabela_mobile) * 38))
       components.html(html_tabela, height=altura, scrolling=False)
-
-      # Exportação sempre considera a tabela detalhada completa, sem o filtro de busca.
-      png_detalhada = gerar_png_tabela_detalhada(df_detalhada, cols_exibicao)
-      st.download_button(
-          "📸 Exportar Tabela Detalhada Completa em PNG",
-          data=png_detalhada,
-          file_name=f"winningwars_tabela_detalhada_{datetime.now().strftime('%Y%m%d')}.png",
-          mime="image/png",
-          use_container_width=True,
-          key="download_png_detalhada",
-      )
-      st.caption("A imagem inclui todos os jogadores e todas as atividades da tabela.")
 
   # ABA 3: ÁREA ADMIN
   with tab_admin:
