@@ -16,13 +16,9 @@ st.set_page_config(
 )
 
 
-# --- FUNÇÕES AUXILIARES ---
+# --- FUNÇÃO AUXILIAR DE SEGURANÇA ---
 def gerar_hash(senha: str) -> str:
   return hashlib.sha256(senha.encode()).hexdigest()
-
-
-# Obter senha inicial padrao via secrets para evitar exposicao no GitHub
-SENHA_ADMIN_INICIAL = st.secrets.get("admin_default_password", "winning123")
 
 
 # --- CONEXÃO COM O GOOGLE SHEETS ---
@@ -39,7 +35,7 @@ def conectar_banco():
   spreadsheet = client.open("WinningWars_DB")
   sheet_dados = spreadsheet.sheet1
 
-  # Aba de Admins
+  # Aba de Admins (Cria apenas a estrutura base se não existir)
   try:
     sheet_admins = spreadsheet.worksheet("Admins")
   except gspread.WorksheetNotFound:
@@ -47,7 +43,6 @@ def conectar_banco():
         title="Admins", rows="100", cols="2"
     )
     sheet_admins.append_row(["Usuario", "SenhaHash"])
-    sheet_admins.append_row(["admin", gerar_hash(SENHA_ADMIN_INICIAL)])
 
   # Aba de Estado e Recados
   try:
@@ -152,13 +147,12 @@ def obter_galeria_cached():
 dados = obter_dados_cached()
 df = pd.DataFrame(dados) if dados else pd.DataFrame()
 
+# Carregar administradores do banco
 try:
   dados_admins = sheet_admins.get_all_records()
   df_admins = pd.DataFrame(dados_admins)
 except Exception:
-  df_admins = pd.DataFrame(
-      [["admin", gerar_hash(SENHA_ADMIN_INICIAL)]], columns=["Usuario", "SenhaHash"]
-  )
+  df_admins = pd.DataFrame(columns=["Usuario", "SenhaHash"])
 
 try:
   dados_estado = dict(sheet_estado.get_all_values())
@@ -647,6 +641,8 @@ with col_admin_top:
               st.rerun()
             else:
               st.error("Usuário ou senha inválidos.")
+          else:
+            st.error("Nenhum usuário administrador cadastrado na planilha.")
 
 st.write("---")
 
@@ -848,7 +844,7 @@ else:
       unsafe_allow_html=True,
   )
 
-  # TÍTULO PRINCIPAL ATUALIZADO
+  # TÍTULO PRINCIPAL
   st.markdown(
       "<h1 class='main-title'>⚔️ Winning Wars APP</h1>",
       unsafe_allow_html=True,
@@ -967,7 +963,7 @@ else:
             .str.contains(busca_player.strip().lower())
         ]
 
-      # CORREÇÃO DE EXIBIÇÃO: CÁLCULO DINÂMICO DE ALTURA PARA EXIBIR TODOS OS JOGADORES SEM CORTAR
+      # CÁLCULO DINÂMICO DE ALTURA PARA EXIBIR TODOS OS JOGADORES SEM CORTAR
       altura_dinamica = max(450, len(df_exibicao) * 48 + 250)
 
       # RENDERIZA A TABELA BILHETE DOURADO COM BOTAO DE DOWNLOAD EM HD
@@ -977,7 +973,7 @@ else:
           scrolling=True,
       )
 
-  # ABA 2: TABELA DETALHADA GERAL (COM BOTÃO DE DOWNLOAD DE IMAGEM HD INCLUÍDO)
+  # ABA 2: TABELA DETALHADA GERAL
   with tab_tabela:
     if not df.empty and "Total" in df.columns:
       st.markdown("### 📋 Tabela Detalhada Geral de Pontuações")
@@ -1274,7 +1270,7 @@ else:
                 )
                 st.rerun()
 
-      # NOVA ABA DE ALTERAÇÃO DE SENHA DO ADMIN LOGADO
+      # ABA DE ALTERAÇÃO DE SENHA DO ADMIN LOGADO
       with sub_tab_pass:
         st.markdown(f"#### 🔑 Alterar Senha de Admin (`{st.session_state['admin_logado']}`)")
         with st.form("form_mudar_senha", clear_on_submit=True):
