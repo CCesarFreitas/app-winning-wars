@@ -185,9 +185,9 @@ def obter_proxima_coluna_sequencial(col_prefixo: str, df_cols) -> str:
   return f"{col_prefixo}_{max_num + 1}"
 
 
-# --- FUNÇÃO PARA GERAR A TABELA COMPLETA EM HTML ---
+# --- FUNÇÃO PARA GERAR A TABELA COMPLETA EM HTML E DOWNLOAD EM HD ---
 def gerar_tabela_bilhete_dourado(df_exib):
-  """Gera o HTML completo do ranking para renderização em iframe com visual padronizado ao app."""
+  """Gera o HTML do ranking em iframe com suporte a download em alta qualidade (HD) usando html2canvas."""
   from html import escape
 
   linhas_html = []
@@ -210,6 +210,7 @@ def gerar_tabela_bilhete_dourado(df_exib):
   <html>
   <head>
     <meta charset="UTF-8">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@600;800&display=swap');
 
@@ -242,7 +243,31 @@ def gerar_tabela_bilhete_dourado(df_exib):
         font-size: 2rem !important;
         letter-spacing: 1px;
         text-shadow: 2px 2px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000;
-        margin: 0 !important;
+        margin: 0 0 10px 0 !important;
+      }}
+
+      .btn-download-img {{
+        background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+        color: #ffffff !important;
+        font-family: 'Luckiest Guy', cursive;
+        font-size: 0.95rem;
+        padding: 8px 16px;
+        border: 2px solid #93c5fd;
+        border-radius: 10px;
+        box-shadow: 0px 4px 0px #1e3a8a;
+        cursor: pointer;
+        transition: all 0.1s ease;
+        text-shadow: 1px 1px 0px #000;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 5px;
+      }}
+
+      .btn-download-img:hover {{
+        transform: translateY(-2px);
+        box-shadow: 0px 6px 0px #1e3a8a;
+        background: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%);
       }}
 
       .tabela-bilhete {{ 
@@ -309,7 +334,13 @@ def gerar_tabela_bilhete_dourado(df_exib):
     </style>
   </head>
   <body>
-    <div class="bilhete-dourado-container">
+    <div style="text-align: center; margin-bottom: 10px;">
+      <button class="btn-download-img" id="btn-download-card" onclick="baixarTabelaHD()">
+        📸 Baixar Imagem do Ranking (HD)
+      </button>
+    </div>
+
+    <div class="bilhete-dourado-container" id="card-bilhete-dourado">
       <div class="bilhete-dourado-header">
         <h2 class="bilhete-dourado-title">🏆 Bilhete Dourado</h2>
       </div>
@@ -324,9 +355,38 @@ def gerar_tabela_bilhete_dourado(df_exib):
         <tbody>{''.join(linhas_html)}</tbody>
       </table>
       <div class="emblema">
-        <img src="https://i.ibb.co/YFbsJ97x/Clash-of-Clans-emblem.png" alt="Emblema Clash of Clans">
+        <img src="https://i.ibb.co/YFbsJ97x/Clash-of-Clans-emblem.png" alt="Emblema Clash of Clans" crossorigin="anonymous">
       </div>
     </div>
+
+    <script>
+      function baixarTabelaHD() {{
+        const element = document.getElementById('card-bilhete-dourado');
+        const btn = document.getElementById('btn-download-card');
+        btn.innerText = "⏳ Gerando imagem em HD...";
+        btn.disabled = true;
+
+        html2canvas(element, {{
+          scale: 3,
+          useCORS: true,
+          backgroundColor: null,
+          logging: false
+        }}).then(canvas => {{
+          const link = document.createElement('a');
+          link.download = 'ranking_bilhete_dourado.png';
+          link.href = canvas.toDataURL('image/png', 1.0);
+          link.click();
+          
+          btn.innerText = "📸 Baixar Imagem do Ranking (HD)";
+          btn.disabled = false;
+        }}).catch(err => {{
+          console.error("Erro ao gerar imagem:", err);
+          alert("Não foi possível gerar a imagem.");
+          btn.innerText = "📸 Baixar Imagem do Ranking (HD)";
+          btn.disabled = false;
+        }});
+      }}
+    </script>
   </body>
   </html>
   """
@@ -636,7 +696,6 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
         layouts_filtrados = pd.DataFrame()
 
       if not layouts_filtrados.empty:
-        # Inverte os resultados para que os mais recentes apareçam no topo
         layouts_filtrados = layouts_filtrados.iloc[::-1]
 
         for item_idx, row in layouts_filtrados.iterrows():
@@ -659,7 +718,6 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
                                     """,
                     unsafe_allow_html=True,
                 )
-                # Botão para baixar a imagem visível APENAS para Admins
                 if eh_admin:
                   st.markdown(
                       f'<div style="text-align: center; margin-bottom: 10px;"><a href="{img_url_limpa}" target="_blank" download style="color: #38bdf8; text-decoration: underline; font-weight: bold; font-size: 0.9rem;">📥 Baixar Imagem (Admin)</a></div>',
@@ -871,10 +929,10 @@ else:
             .str.contains(busca_player.strip().lower())
         ]
 
-      # RENDERIZA A TABELA BILHETE DOURADO
+      # RENDERIZA A TABELA BILHETE DOURADO COM BOTAO DE DOWNLOAD EM HD
       components.html(
           gerar_tabela_bilhete_dourado(df_exibicao),
-          height=min(2200, max(300, 175 + len(df_exibicao) * 39)),
+          height=min(2200, max(350, 220 + len(df_exibicao) * 39)),
           scrolling=False,
       )
 
@@ -1133,7 +1191,6 @@ else:
                 )
                 st.rerun()
 
-      # === SUB TAB 3: GERENCIAR COLUNAS (GUERRA, LIGA, RAIDE) E PONTOS ===
       with sub_tab3:
         st.markdown("#### ➕ Criar Novas Colunas de Guerras, Liga ou Raides")
         st.markdown(
@@ -1144,7 +1201,6 @@ else:
 
         col_btn1, col_btn2, col_btn3 = st.columns(3)
 
-        # BOTAO GUERRA
         with col_btn1:
           proxima_guerra = obter_proxima_coluna_sequencial(
               "Guerra", df.columns if not df.empty else []
@@ -1177,7 +1233,6 @@ else:
               )
               st.rerun()
 
-        # BOTAO LIGA
         with col_btn2:
           proxima_liga = obter_proxima_coluna_sequencial(
               "Liga", df.columns if not df.empty else []
@@ -1210,7 +1265,6 @@ else:
               )
               st.rerun()
 
-        # BOTAO RAIDE
         with col_btn3:
           proxima_raide = obter_proxima_coluna_sequencial(
               "Raide", df.columns if not df.empty else []
@@ -1350,10 +1404,8 @@ else:
         )
 
         if not df_rank.empty and "Total" in df_rank.columns:
-          # Identifica a maior pontuação da tabela
           maior_pontuacao = df_rank["Total"].max()
 
-          # Filtra estritamente os jogadores empatados na pontuação máxima
           df_empatados = df_rank[df_rank["Total"] == maior_pontuacao]
           lista_empatados = df_empatados["Nome"].tolist()
           qtd_empatados = len(lista_empatados)
@@ -1371,7 +1423,6 @@ else:
                 f" empatados no topo com {int(maior_pontuacao)} pontos."
             )
 
-            # Exibição dos Participantes
             st.markdown("### 👥 Jogadores Participantes do Sorteio:")
             cols_participantes = st.columns(min(qtd_empatados, 4))
             for idx, nome_p in enumerate(lista_empatados):
@@ -1389,7 +1440,6 @@ else:
 
             st.divider()
 
-            # Configuração da quantidade de prêmios a sortear
             qtd_vagas = st.number_input(
                 "Número de ganhadores a sortear entre os empatados:",
                 min_value=1,
@@ -1399,12 +1449,11 @@ else:
             )
 
             if st.button("🎰 INICIAR SORTEIO AO VIVO", type="primary"):
-              # Animação de Contagem Regressiva para o Vídeo
               status_text = st.empty()
               bar = st.progress(0)
 
               for i in range(100):
-                time.sleep(0.03)  # Delay dramático para a gravação
+                time.sleep(0.03)
                 bar.progress(i + 1)
                 if i < 30:
                   status_text.markdown(
@@ -1422,13 +1471,10 @@ else:
               status_text.empty()
               bar.empty()
 
-              # Realiza o sorteio
               vencedores = random.sample(lista_empatados, int(qtd_vagas))
 
-              # Efeitos visuais
               st.balloons()
 
-              # Registro de data/hora e Hash de verificação para auditoria
               data_hora_sorteio = datetime.now().strftime("%d/%m/%Y às %H:%M:%S")
               hash_auditoria = hashlib.sha256(
                   f"{vencedores}{data_hora_sorteio}".encode()
@@ -1447,7 +1493,6 @@ else:
                   unsafe_allow_html=True,
               )
 
-              # Registrar ação no Log
               registrar_log(
                   st.session_state["admin_logado"],
                   f"Realizou sorteio de desempate entre {lista_empatados}. Vencedor(es): {vencedores} (Hash: {hash_auditoria.upper()})",
