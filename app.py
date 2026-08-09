@@ -957,7 +957,7 @@ else:
           scrolling=False,
       )
 
-  # ABA 2: TABELA DETALHADA GERAL
+  # ABA 2: TABELA DETALHADA GERAL (COM BOTÃO DE DOWNLOAD DE IMAGEM HD INCLUÍDO)
   with tab_tabela:
     if not df.empty and "Total" in df.columns:
       st.markdown("### 📋 Tabela Detalhada Geral de Pontuações")
@@ -1041,20 +1041,34 @@ else:
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
         <style>
           * {{ box-sizing: border-box; }}
           body {{ margin: 0; background: transparent; font-family: Arial, sans-serif; }}
-          .legenda {{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 8px; color:#cbd5e1; font-size:12px; line-height:1.3; }}
-          .badge {{ padding:6px 10px; border-radius:999px; background:#1e293b; border:1px solid #475569; }}
-          .viewport {{ width:100%; overflow:auto; max-height:68vh; border:1px solid #334155; border-radius:10px; -webkit-overflow-scrolling:touch; }}
-          table {{ border-collapse:separate; border-spacing:0; min-width:760px; width:max-content; }}
+          .legenda {{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 10px; color:#cbd5e1; font-size:12px; line-height:1.3; align-items: center; }}
+          .badge {{ padding:5px 9px; border-radius:999px; background:#1e293b; border:1px solid #475569; }}
+          .btn-download-img {{
+            background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+            color: #ffffff;
+            border: 1px solid #93c5fd;
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0px 2px 4px rgba(0,0,0,0.3);
+            transition: all 0.2s ease;
+          }}
+          .btn-download-img:hover {{ background: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%); }}
+          .viewport {{ width:100%; overflow:auto; max-height:68vh; border:1px solid #334155; border-radius:10px; -webkit-overflow-scrolling:touch; background:#0f172a; }}
+          table {{ border-collapse:separate; border-spacing:0; min-width:760px; width:max-content; background:#0f172a; }}
           th,td {{ padding:9px 11px; border-right:1px solid #334155; border-bottom:1px solid #334155; text-align:center; white-space:nowrap; font-size:13px; color:#e2e8f0; background:#0f172a; }}
           thead th {{ background:#1e293b; font-weight:800; position:sticky; z-index:5; }}
           thead tr:first-child th {{ top:0; color:#facc15; font-size:11px; letter-spacing:.5px; height:28px; }}
           thead tr:nth-child(2) th {{ top:28px; color:#f8fafc; height:30px; }}
           tbody tr:nth-child(even) td {{ background:#111827; }}
           tbody tr:hover td {{ background:#1e293b; }}
-          .sticky-nome {{ position:sticky !important; left:0; z-index:4; min-width:150px; max-width:150px; text-align:left; font-weight:800; box-shadow:5px 0 8px rgba(0,0,0,.25); }}
+          .sticky-nome {{ position:sticky !important; left:0; z-index:4; min-width:150px; max-width:150px; text-align:left; font-weight:800; box-shadow:5px 0 8px rgba(0,0,0,.25); background:#0f172a; }}
           thead .sticky-nome {{ z-index:8; background:#1e293b !important; }}
           .sticky-total {{ position:sticky !important; right:0; z-index:4; min-width:85px; font-weight:900; color:#facc15 !important; background:#172554 !important; box-shadow:-5px 0 8px rgba(0,0,0,.25); }}
           thead .sticky-total {{ z-index:8; background:#172554 !important; }}
@@ -1079,11 +1093,10 @@ else:
           <span class="badge"><b>⚔️ Guerra</b> = Pontos de guerras</span>
           <span class="badge"><b>🏆 Liga</b> = Pontos de ligas</span>
           <span class="badge"><b>⚡ Raide</b> = Pontos de Raides</span>
-          <span class="badge">👈 Deslize horizontalmente</span>
-          <span class="badge">📌 Nome e Total ficam fixos</span>
+          <button class="btn-download-img" onclick="baixarImagemTabela()">🖼️ Baixar Tabela em HD</button>
         </div>
-        <div class="viewport">
-          <table>
+        <div class="viewport" id="area-tabela">
+          <table id="tabela-render">
             <thead>
               <tr>
                 <th class="grupo-canto-esq">JOGADOR</th>
@@ -1097,6 +1110,34 @@ else:
             </tbody>
           </table>
         </div>
+
+        <script>
+          function baixarImagemTabela() {{
+            const btn = document.querySelector('.btn-download-img');
+            btn.innerText = "⏳ Gerando imagem...";
+            btn.disabled = true;
+
+            const elemento = document.getElementById('tabela-render');
+
+            html2canvas(elemento, {{
+              scale: 2,
+              useCORS: true,
+              backgroundColor: '#0f172a'
+            }}).then(canvas => {{
+              const link = document.createElement('a');
+              link.download = 'tabela_detalhada_winningwars.png';
+              link.href = canvas.toDataURL('image/png');
+              link.click();
+
+              btn.innerText = "🖼️ Baixar Tabela em HD";
+              btn.disabled = false;
+            }}).catch(err => {{
+              alert('Erro ao gerar imagem: ' + err);
+              btn.innerText = "🖼️ Baixar Tabela em HD";
+              btn.disabled = false;
+            }});
+          }}
+        </script>
       </body>
       </html>
       """
