@@ -185,390 +185,248 @@ def obter_proxima_coluna_sequencial(col_prefixo: str, df_cols) -> str:
 
 # --- FUNÇÃO PARA GERAR A TABELA COMPLETA EM HTML ---
 def gerar_tabela_bilhete_dourado(df_exib):
-  """Gera o HTML completo do ranking para renderização em iframe.
-
-  A tabela é renderizada por components.html em vez de st.markdown.
-  Isso evita que o parser Markdown do Streamlit trate linhas HTML
-  subsequentes como texto literal.
-  """
+  """Renderiza o ranking com a identidade visual principal do aplicativo."""
   from html import escape
 
-  linhas_html = []
+  linhas = []
+
   for _, row in df_exib.iterrows():
     posicao = escape(str(row.get("Posição", "")))
     jogador = escape(str(row.get("Jogador", "")))
+
     try:
       pontuacao = int(float(row.get("Pontuação Total", 0)))
     except (TypeError, ValueError):
       pontuacao = 0
 
-    linhas_html.append(
-      f"<tr><td class=\"tabela-posicao\">{posicao}</td>"
-      f"<td>{jogador}</td><td>{pontuacao}</td></tr>"
+    classe = ""
+    medalha = ""
+
+    if posicao == "1º":
+      classe = "ranking-primeiro"
+      medalha = "🏆"
+    elif posicao == "2º":
+      classe = "ranking-segundo"
+      medalha = "🥈"
+    elif posicao == "3º":
+      classe = "ranking-terceiro"
+      medalha = "🥉"
+
+    linhas.append(
+      f"""
+      <tr class="{classe}">
+        <td class="ranking-posicao">{medalha} {posicao}</td>
+        <td class="ranking-jogador">{jogador}</td>
+        <td class="ranking-pontos">{pontuacao} <span>pts</span></td>
+      </tr>
+      """
     )
 
-  return f"""
-  <!DOCTYPE html>
-  <html>
-  <head>
-    <meta charset=\"UTF-8\">
-    <style>
-      * {{ box-sizing: border-box; }}
-      body {{ margin: 0; background: transparent; font-family: Nunito, Arial, sans-serif; }}
-      .bilhete-dourado-container {{
-        background-color: #ffffff; border: 6px solid #facc15;
-        outline: 4px solid #6b21a8; border-radius: 14px; padding: 16px;
-        max-width: 500px; margin: 10px auto 25px auto;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+  html = f"""
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@400;600;700;800;900&display=swap');
+
+    :root {{
+      --ww-bg: #0f172a;
+      --ww-card: #172033;
+      --ww-card-2: #1e293b;
+      --ww-border: #334155;
+      --ww-yellow: #facc15;
+      --ww-yellow-dark: #eab308;
+      --ww-text: #f8fafc;
+      --ww-muted: #94a3b8;
+    }}
+
+    * {{ box-sizing: border-box; }}
+
+    body {{
+      margin: 0;
+      background: transparent;
+      color: var(--ww-text);
+      font-family: 'Nunito', sans-serif;
+    }}
+
+    .ranking-wrapper {{
+      width: 100%;
+      border: 1px solid var(--ww-border);
+      border-radius: 16px;
+      overflow: hidden;
+      background: var(--ww-bg);
+      box-shadow: 0 8px 24px rgba(0,0,0,.22);
+    }}
+
+    .ranking-header {{
+      padding: 16px 18px;
+      background: linear-gradient(135deg, #172033 0%, #1e293b 100%);
+      border-bottom: 1px solid var(--ww-border);
+      text-align: center;
+    }}
+
+    .ranking-header-title {{
+      margin: 0;
+      color: var(--ww-yellow);
+      font-family: 'Luckiest Guy', cursive;
+      font-size: 1.55rem;
+      letter-spacing: .5px;
+      text-shadow: 2px 2px 0 rgba(0,0,0,.35);
+    }}
+
+    .ranking-header-subtitle {{
+      margin: 4px 0 0;
+      color: var(--ww-muted);
+      font-size: .82rem;
+      font-weight: 700;
+    }}
+
+    .ranking-scroll {{
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+    }}
+
+    table {{
+      width: 100%;
+      min-width: 420px;
+      border-collapse: collapse;
+      font-family: 'Nunito', sans-serif;
+    }}
+
+    thead th {{
+      padding: 11px 12px;
+      background: #111827;
+      color: var(--ww-yellow);
+      border-bottom: 1px solid var(--ww-border);
+      font-size: .78rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }}
+
+    tbody td {{
+      padding: 11px 12px;
+      border-bottom: 1px solid rgba(51,65,85,.65);
+      background: var(--ww-card);
+      color: var(--ww-text);
+      font-size: .92rem;
+      font-weight: 700;
+    }}
+
+    tbody tr:last-child td {{
+      border-bottom: none;
+    }}
+
+    tbody tr:hover td {{
+      background: #243247;
+    }}
+
+    .ranking-posicao {{
+      width: 92px;
+      text-align: center;
+      color: var(--ww-muted);
+      white-space: nowrap;
+      font-weight: 900;
+    }}
+
+    .ranking-jogador {{
+      text-align: left;
+      white-space: nowrap;
+    }}
+
+    .ranking-pontos {{
+      width: 105px;
+      text-align: center;
+      color: var(--ww-yellow);
+      font-weight: 900;
+      white-space: nowrap;
+    }}
+
+    .ranking-pontos span {{
+      color: var(--ww-muted);
+      font-size: .72rem;
+      font-weight: 800;
+    }}
+
+    .ranking-primeiro td {{
+      background: linear-gradient(90deg, rgba(250,204,21,.16), rgba(250,204,21,.05));
+      border-bottom-color: rgba(250,204,21,.28);
+    }}
+
+    .ranking-primeiro .ranking-posicao,
+    .ranking-primeiro .ranking-jogador {{
+      color: var(--ww-yellow);
+      font-weight: 900;
+    }}
+
+    .ranking-segundo td {{
+      background: rgba(148,163,184,.10);
+    }}
+
+    .ranking-terceiro td {{
+      background: rgba(180,83,9,.10);
+    }}
+
+    .ranking-footer {{
+      padding: 10px 14px;
+      text-align: center;
+      color: var(--ww-muted);
+      background: #111827;
+      border-top: 1px solid var(--ww-border);
+      font-size: .76rem;
+      font-weight: 700;
+    }}
+
+    @media (max-width: 600px) {{
+      .ranking-header-title {{
+        font-size: 1.3rem;
       }}
-      .bilhete-dourado-header {{
-        background: linear-gradient(180deg, #fef08a 0%, #facc15 100%);
-        border: 3px solid #6b21a8; border-radius: 8px; text-align: center;
-        padding: 8px 10px; margin-bottom: 14px;
+
+      thead th,
+      tbody td {{
+        padding: 9px 8px;
       }}
-      .bilhete-dourado-title {{
-        margin: 0; color: #ffffff; font-size: 2.1rem; font-weight: 800;
-        text-shadow: 2px 2px 0 #6b21a8, -2px -2px 0 #6b21a8,
-                     2px -2px 0 #6b21a8, -2px 2px 0 #6b21a8;
+
+      tbody td {{
+        font-size: .86rem;
       }}
-      .tabela-bilhete {{ width: 100%; border-collapse: collapse; text-align: center; }}
-      .tabela-bilhete th {{
-        background-color: #5b21b6; color: #facc15; font-weight: 800;
-        font-size: 1.15rem; padding: 8px; border: 1.5px solid #3b0764;
+
+      .ranking-posicao {{
+        width: 82px;
       }}
-      .tabela-bilhete td {{
-        border: 1.5px solid #4c1d95; padding: 6px 8px; font-size: 1rem;
-        font-weight: 800; color: #000000;
+
+      .ranking-pontos {{
+        width: 90px;
       }}
-      .tabela-bilhete tr:nth-child(even) {{ background-color: #f8fafc; }}
-      .tabela-bilhete tr:hover {{ background-color: #fef08a; }}
-      .tabela-posicao {{ color: #5b21b6 !important; font-weight: 800; }}
-      .emblema {{ text-align: center; margin-top: 15px; }}
-      .emblema img {{ width: 110px; }}
-      @media (max-width: 768px) {{
-        .bilhete-dourado-container {{ padding: 10px; }}
-        .bilhete-dourado-title {{ font-size: 1.6rem; }}
-      }}
-    </style>
-  </head>
-  <body>
-    <div class=\"bilhete-dourado-container\">
-      <div class=\"bilhete-dourado-header\">
-        <h2 class=\"bilhete-dourado-title\">Bilhete dourado</h2>
-      </div>
-      <table class=\"tabela-bilhete\">
-        <thead>
-          <tr><th style=\"width:25%\">Posição</th>
-              <th style=\"width:50%\">Membro</th>
-              <th style=\"width:25%\">Pontos</th></tr>
-        </thead>
-        <tbody>{''.join(linhas_html)}</tbody>
-      </table>
-      <div class=\"emblema\">
-        <img src=\"https://i.ibb.co/YFbsJ97x/Clash-of-Clans-emblem.png\" alt=\"Emblema Clash of Clans\">
-      </div>
+    }}
+  </style>
+
+  <div class="ranking-wrapper">
+    <div class="ranking-header">
+      <div class="ranking-header-title">🏆 RANKING EM TEMPO REAL</div>
+      <div class="ranking-header-subtitle">Acompanhe a pontuação da competição</div>
     </div>
-  </body>
-  </html>
+
+    <div class="ranking-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Posição</th>
+            <th>Jogador</th>
+            <th>Pontos</th>
+          </tr>
+        </thead>
+        <tbody>
+          {''.join(linhas)}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="ranking-footer">
+      ⚔️ Winning Wars • Pontuação atualizada em tempo real
+    </div>
+  </div>
   """
+  return html
 
-
-# --- ESTILIZAÇÃO CSS CUSTOMIZADA ---
-st.markdown(
-    """
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@600;800&display=swap');
-
-    .main { background: radial-gradient(circle, #1e293b 0%, #0b0e14 100%); }
-
-    h1, h2, h3 { 
-        font-family: 'Luckiest Guy', cursive !important; 
-        color: #facc15 !important; 
-        letter-spacing: 1px;
-        text-shadow: 2px 2px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000;
-        word-break: break-word;
-    }
-    
-    .main-title { 
-        text-align: center; 
-        margin-top: 5px; 
-        margin-bottom: 5px; 
-        font-size: 2.2rem; 
-        line-height: 1.2;
-    }
-
-    .main-subtitle { 
-        text-align: center; 
-        color: #94a3b8; 
-        font-family: 'Nunito', sans-serif; 
-        font-weight: 600; 
-        margin-bottom: 20px; 
-        font-size: 1rem;
-        padding: 0 10px;
-    }
-    
-    /* BOTÕES GERAIS */
-    div.stButton > button {
-        background: linear-gradient(180deg, #22c55e 0%, #15803d 100%) !important;
-        color: #ffffff !important;
-        font-family: 'Luckiest Guy', cursive, sans-serif !important;
-        font-size: 0.95rem !important;
-        border: 2px solid #86efac !important;
-        border-radius: 10px !important;
-        box-shadow: 0px 4px 0px #14532d !important;
-        transition: all 0.1s ease;
-        text-shadow: 1px 1px 0px #000;
-        white-space: normal !important;
-        height: auto !important;
-        padding: 8px 12px !important;
-    }
-
-    div.stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0px 6px 0px #14532d !important;
-        background: linear-gradient(180deg, #4ade80 0%, #16a34a 100%) !important;
-    }
-
-    /* ABAS */
-    button[data-baseweb="tab"] {
-        font-size: 1.25rem !important;
-        font-weight: 800 !important;
-        font-family: 'Nunito', sans-serif !important;
-        padding: 12px 22px !important;
-        background-color: #1e293b !important;
-        border: 2px solid #334155 !important;
-        border-radius: 10px 10px 0 0 !important;
-        color: #cbd5e1 !important;
-        margin-right: 6px !important;
-        transition: all 0.2s ease !important;
-    }
-
-    button[data-baseweb="tab"][aria-selected="true"] {
-        background: linear-gradient(180deg, #facc15 0%, #ca8a04 100%) !important;
-        color: #000000 !important;
-        border-color: #fef08a !important;
-        text-shadow: none !important;
-        transform: translateY(-2px);
-        box-shadow: 0px 4px 12px rgba(250, 204, 21, 0.3) !important;
-    }
-
-    button[data-baseweb="tab"]:hover {
-        border-color: #facc15 !important;
-        color: #facc15 !important;
-    }
-
-    /* PODIUM E CARDS */
-    .podium-card { 
-        padding: 16px; 
-        border-radius: 16px; 
-        text-align: center; 
-        margin-bottom: 15px; 
-        color: #ffffff; 
-        box-shadow: 0 8px 25px rgba(0,0,0,0.6); 
-        font-family: 'Nunito', sans-serif; 
-    }
-    .podium-title { font-family: 'Luckiest Guy', cursive; font-size: 1.2rem; margin-top: 6px; margin-bottom: 6px; text-shadow: 1px 1px 0px #000; }
-    .podium-name { font-size: 1.1rem; font-weight: 800; word-break: break-word; }
-    .podium-score { font-size: 1rem; margin-top: 4px; }
-    .gold { background: linear-gradient(135deg, #f59e0b 0%, #78350f 100%); border: 3px solid #facc15; }
-    .silver { background: linear-gradient(135deg, #64748b 0%, #1e293b 100%); border: 3px solid #cbd5e1; }
-    .bronze { background: linear-gradient(135deg, #d97706 0%, #451a03 100%); border: 3px solid #f97316; }
-
-    .btn-layout-copy {
-        display: inline-block; width: 100%; max-width: 100%; text-align: center;
-        background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%); color: white !important;
-        padding: 12px 16px; border-radius: 10px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
-        border: 2px solid #93c5fd; box-shadow: 0px 4px 0px #1e3a8a; font-size: 1.05rem;
-    }
-    .btn-external-link {
-        display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; text-align: center;
-        background: linear-gradient(180deg, #16a34a 0%, #15803d 100%); color: white !important;
-        padding: 8px 10px; border-radius: 8px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
-        border: 2px solid #86efac; box-shadow: 0px 4px 0px #14532d; font-size: 0.88rem;
-    }
-    .btn-scid {
-        display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; text-align: center;
-        background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%); color: white !important;
-        padding: 8px 10px; border-radius: 8px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
-        border: 2px solid #60a5fa; box-shadow: 0px 4px 0px #1e3a8a; font-size: 0.88rem;
-    }
-
-    .mural-banner {
-        background: #1e293b; border-radius: 12px; padding: 12px 15px; margin-bottom: 20px;
-        border: 2px solid #334155; border-left: 6px solid #facc15;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-family: 'Nunito', sans-serif;
-    }
-    .mural-header { font-family: 'Luckiest Guy', cursive; color: #facc15; font-size: 1rem; margin-bottom: 4px; }
-
-    .info-card {
-        background: #0f172a; border: 2px solid #334155; border-radius: 14px; padding: 20px; margin-bottom: 15px;
-        font-family: 'Nunito', sans-serif; color: #e2e8f0; box-shadow: 0 6px 18px rgba(0,0,0,0.4); height: 100%;
-    }
-    .info-card-header { font-family: 'Luckiest Guy', cursive; color: #facc15; font-size: 1.15rem; margin-bottom: 10px; }
-    .info-card-list { padding-left: 18px; margin-bottom: 0px; }
-    .info-card-list li { margin-bottom: 8px; line-height: 1.4; font-size: 0.95rem; }
-
-    .rules-card {
-        background: #0f172a; border: 2px solid #334155; border-radius: 14px; padding: 22px; margin-top: 35px;
-        font-family: 'Nunito', sans-serif; color: #e2e8f0; box-shadow: 0 6px 18px rgba(0,0,0,0.4);
-    }
-    .rules-title { font-family: 'Luckiest Guy', cursive; color: #facc15; font-size: 1.3rem; margin-bottom: 12px; }
-    .rules-card ul { margin-bottom: 0px; padding-left: 20px; }
-    .rules-card li { margin-bottom: 10px; line-height: 1.5; }
-
-    /* ESTILO BILHETE DOURADO */
-    .bilhete-dourado-container {
-        background-color: #ffffff;
-        border: 6px solid #facc15;
-        outline: 4px solid #6b21a8;
-        border-radius: 14px;
-        padding: 16px;
-        max-width: 500px;
-        margin: 10px auto 25px auto;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-    }
-
-    .bilhete-dourado-header {
-        background: linear-gradient(180deg, #fef08a 0%, #facc15 100%);
-        border: 3px solid #6b21a8;
-        border-radius: 8px;
-        text-align: center;
-        padding: 8px 10px;
-        margin-bottom: 14px;
-    }
-
-    .bilhete-dourado-title {
-        font-family: 'Luckiest Guy', cursive !important;
-        color: #ffffff !important;
-        font-size: 2.1rem !important;
-        text-shadow: 2px 2px 0px #6b21a8, -2px -2px 0px #6b21a8, 2px -2px 0px #6b21a8, -2px 2px 0px #6b21a8 !important;
-        margin: 0 !important;
-        letter-spacing: 1px;
-    }
-
-    .tabela-bilhete {
-        width: 100%;
-        border-collapse: collapse;
-        font-family: 'Nunito', sans-serif;
-        text-align: center;
-    }
-
-    .tabela-bilhete th {
-        background-color: #5b21b6;
-        color: #facc15;
-        font-family: 'Nunito', sans-serif;
-        font-weight: 800;
-        font-size: 1.15rem;
-        padding: 8px;
-        border: 1.5px solid #3b0764;
-    }
-
-    .tabela-bilhete td {
-        border: 1.5px solid #4c1d95;
-        padding: 6px 8px;
-        font-size: 1rem;
-        font-weight: 800;
-        color: #000000;
-    }
-
-    .tabela-bilhete tr:nth-child(even) {
-        background-color: #f8fafc;
-    }
-
-    .tabela-bilhete tr:hover {
-        background-color: #fef08a;
-    }
-
-    .tabela-posicao {
-        color: #5b21b6 !important;
-        font-weight: 800;
-    }
-
-    @media (max-width: 768px) {
-        .main-title { font-size: 1.6rem !important; }
-        .main-subtitle { font-size: 0.88rem !important; }
-        .mural-banner { padding: 10px !important; }
-        .podium-card { padding: 12px !important; }
-        button[data-baseweb="tab"] { font-size: 1rem !important; padding: 8px 10px !important; }
-        .bilhete-dourado-container { padding: 10px !important; }
-        .bilhete-dourado-title { font-size: 1.6rem !important; }
-    }
-    </style>
-""",
-    unsafe_allow_html=True,
-)
-
-# --- TOPO DA PÁGINA: MENU DE NAVEGAÇÃO + LOGIN ADMIN ---
-col_nav, col_admin_top = st.columns([5, 1])
-
-with col_nav:
-  b1, b2, b3, b4, b5 = st.columns(5)
-  with b1:
-    if st.button("🛡️ Layouts Guerra", use_container_width=True):
-      st.session_state["pagina_atual"] = "layouts_guerra"
-      st.rerun()
-  with b2:
-    if st.button("🏆 Layouts Rankeada", use_container_width=True):
-      st.session_state["pagina_atual"] = "layouts_rankeada"
-      st.rerun()
-  with b3:
-    if st.button("📜 Regras do Clã", use_container_width=True):
-      st.session_state["pagina_atual"] = "regras_cla"
-      st.rerun()
-  with b4:
-    st.markdown(
-        '<a'
-        ' href="https://link.clashofclans.com/pt?action=OpenClanProfile&tag=2YPL9GU8Y"'
-        ' target="_blank" class="btn-external-link">🏰 Clã Vastaya ↗</a>',
-        unsafe_allow_html=True,
-    )
-  with b5:
-    st.markdown(
-        '<a'
-        ' href="https://link.clashofclans.com/?action=OpenSCID&p=25-1cb8481f-3a79-4681-90f9-8914acef2d63"'
-        ' target="_blank" class="btn-scid"><img'
-        ' src="https://i.ibb.co/fzPGy6fr/bg-hero-scid-landing-0.webp"'
-        ' height="20" style="border-radius: 4px; object-fit:'
-        ' cover;"> Add Godoy ↗</a>',
-        unsafe_allow_html=True,
-    )
-
-with col_admin_top:
-  if "admin_logado" in st.session_state:
-    st.success(f"👤 **{st.session_state['admin_logado']}**")
-    if st.button("🚪 Sair", key="top_logout", use_container_width=True):
-      del st.session_state["admin_logado"]
-      st.rerun()
-  else:
-    with st.popover("🔐 Admin", use_container_width=True):
-      st.markdown("### 🔐 Acesso Restrito Admin")
-      with st.form("form_login_topo"):
-        u_top = st.text_input("Usuário Admin")
-        s_top = st.text_input("Senha", type="password")
-        btn_top_login = st.form_submit_button(
-            "Entrar", use_container_width=True
-        )
-
-        if btn_top_login:
-          if not df_admins.empty:
-            val = df_admins[
-                (df_admins["Usuario"] == u_top)
-                & (df_admins["SenhaHash"] == gerar_hash(s_top))
-            ]
-            if not val.empty:
-              st.session_state["admin_logado"] = u_top
-              registrar_log(u_top, "Logou pelo painel no canto superior direito")
-              st.success("Logado com sucesso!")
-              st.rerun()
-            else:
-              st.error("Usuário ou senha inválidos.")
-
-st.write("---")
-
-
-# ==============================================================================
-# FUNÇÃO PARA RENDERIZAR PÁGINAS DE LAYOUT
-# ==============================================================================
 def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
   if st.button("⬅️ Voltar ao Início"):
     st.session_state["pagina_atual"] = "principal"
