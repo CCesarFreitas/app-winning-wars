@@ -21,6 +21,10 @@ def gerar_hash(senha: str) -> str:
   return hashlib.sha256(senha.encode()).hexdigest()
 
 
+# Obter senha inicial padrao via secrets para evitar exposicao no GitHub
+SENHA_ADMIN_INICIAL = st.secrets.get("admin_default_password", "winning123")
+
+
 # --- CONEXÃO COM O GOOGLE SHEETS ---
 @st.cache_resource
 def conectar_banco():
@@ -43,7 +47,7 @@ def conectar_banco():
         title="Admins", rows="100", cols="2"
     )
     sheet_admins.append_row(["Usuario", "SenhaHash"])
-    sheet_admins.append_row(["admin", gerar_hash("winning123")])
+    sheet_admins.append_row(["admin", gerar_hash(SENHA_ADMIN_INICIAL)])
 
   # Aba de Estado e Recados
   try:
@@ -153,7 +157,7 @@ try:
   df_admins = pd.DataFrame(dados_admins)
 except Exception:
   df_admins = pd.DataFrame(
-      [["admin", gerar_hash("winning123")]], columns=["Usuario", "SenhaHash"]
+      [["admin", gerar_hash(SENHA_ADMIN_INICIAL)]], columns=["Usuario", "SenhaHash"]
   )
 
 try:
@@ -524,6 +528,12 @@ st.markdown(
         padding: 10px 12px; border-radius: 10px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
         border: 2px solid #86efac; box-shadow: 0px 4px 0px #14532d; font-size: 0.95rem;
     }
+    .btn-youtube-link {
+        display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; text-align: center;
+        background: linear-gradient(180deg, #dc2626 0%, #991b1b 100%); color: white !important;
+        padding: 10px 12px; border-radius: 10px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
+        border: 2px solid #fca5a5; box-shadow: 0px 4px 0px #7f1d1d; font-size: 0.95rem;
+    }
     .btn-scid {
         display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; text-align: center;
         background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%); color: white !important;
@@ -570,7 +580,7 @@ st.markdown(
 col_nav, col_admin_top = st.columns([5, 1])
 
 with col_nav:
-  b1, b2, b3, b4, b5 = st.columns(5)
+  b1, b2, b3, b4, b5, b6 = st.columns(6)
   with b1:
     if st.button("🛡️ Layouts Guerra", use_container_width=True):
       st.session_state["pagina_atual"] = "layouts_guerra"
@@ -591,6 +601,13 @@ with col_nav:
         unsafe_allow_html=True,
     )
   with b5:
+    st.markdown(
+        '<a'
+        ' href="https://www.youtube.com/@winningwarscoc?sub_confirmation=1"'
+        ' target="_blank" class="btn-youtube-link">📺 YouTube ↗</a>',
+        unsafe_allow_html=True,
+    )
+  with b6:
     st.markdown(
         '<a'
         ' href="https://link.clashofclans.com/?action=OpenSCID&p=25-1cb8481f-3a79-4681-90f9-8914acef2d63"'
@@ -950,11 +967,14 @@ else:
             .str.contains(busca_player.strip().lower())
         ]
 
+      # CORREÇÃO DE EXIBIÇÃO: CÁLCULO DINÂMICO DE ALTURA PARA EXIBIR TODOS OS JOGADORES SEM CORTAR
+      altura_dinamica = max(450, len(df_exibicao) * 48 + 250)
+
       # RENDERIZA A TABELA BILHETE DOURADO COM BOTAO DE DOWNLOAD EM HD
       components.html(
           gerar_tabela_bilhete_dourado(df_exibicao),
-          height=min(2200, max(350, 220 + len(df_exibicao) * 42)),
-          scrolling=False,
+          height=altura_dinamica,
+          scrolling=True,
       )
 
   # ABA 2: TABELA DETALHADA GERAL (COM BOTÃO DE DOWNLOAD DE IMAGEM HD INCLUÍDO)
@@ -1160,9 +1180,10 @@ else:
           " Liberado)"
       )
 
-      sub_tab1, sub_tab2, sub_tab3, sub_tab4, sub_tab5, sub_tab6, sub_tab7 = st.tabs([
+      sub_tab1, sub_tab2, sub_tab_pass, sub_tab3, sub_tab4, sub_tab5, sub_tab6, sub_tab7 = st.tabs([
           "➕ Players",
           "👤 Novo Admin",
+          "🔑 Alterar Senha",
           "✏️ Gerenciar Pontos e Colunas",
           "📢 Recado / Arquivar Mês",
           "📜 Logs do Sistema",
@@ -1253,6 +1274,40 @@ else:
                 )
                 st.rerun()
 
+      # NOVA ABA DE ALTERAÇÃO DE SENHA DO ADMIN LOGADO
+      with sub_tab_pass:
+        st.markdown(f"#### 🔑 Alterar Senha de Admin (`{st.session_state['admin_logado']}`)")
+        with st.form("form_mudar_senha", clear_on_submit=True):
+          senha_atual = st.text_input("Senha Atual", type="password")
+          nova_senha = st.text_input("Nova Senha", type="password")
+          conf_nova_senha = st.text_input("Confirmar Nova Senha", type="password")
+          btn_trocar_senha = st.form_submit_button("Atualizar Senha")
+
+          if btn_trocar_senha:
+            if not senha_atual or not nova_senha:
+              st.error("⚠️ Preencha todos os campos do formulário.")
+            elif nova_senha != conf_nova_senha:
+              st.error("⚠️ A nova senha e a confirmação não coincidem.")
+            else:
+              admin_atual = st.session_state["admin_logado"]
+              df_admins_atual = pd.DataFrame(sheet_admins.get_all_records())
+              
+              if not df_admins_atual.empty:
+                validacao = df_admins_atual[
+                    (df_admins_atual["Usuario"] == admin_atual)
+                    & (df_admins_atual["SenhaHash"] == gerar_hash(senha_atual))
+                ]
+                if validacao.empty:
+                  st.error("⚠️ Senha atual incorreta!")
+                else:
+                  cell = sheet_admins.find(admin_atual)
+                  if cell:
+                    sheet_admins.update_cell(cell.row, 2, gerar_hash(nova_senha))
+                    registrar_log(admin_atual, "Alterou a própria senha de acesso")
+                    st.cache_data.clear()
+                    st.success("✅ Senha alterada com sucesso!")
+                    st.rerun()
+
       with sub_tab3:
         st.markdown("#### ➕ Criar Novas Colunas de Guerras, Liga ou Raides")
         st.markdown(
@@ -1296,36 +1351,41 @@ else:
               st.rerun()
 
         with col_btn2:
-          proxima_liga = obter_proxima_coluna_sequencial(
-              "Liga", df.columns if not df.empty else []
-          )
-          if st.button(
-              f"🏆 Criar Liga ({proxima_liga})",
-              use_container_width=True,
-          ):
-            headers = sheet_dados.row_values(1)
-            if proxima_liga in headers:
-              st.error(f"⚠️ A coluna {proxima_liga} já existe!")
-            else:
-              proxima_col_num = len(headers) + 1
-              sheet_dados.update_cell(1, proxima_col_num, proxima_liga)
+          # LIMITAÇÃO DE 7 GUERRAS DE LIGA (CWL)
+          colunas_liga_existentes = [c for c in (df.columns if not df.empty else []) if c.startswith("Liga_")]
+          qtd_liga = len(colunas_liga_existentes)
+          
+          if qtd_liga >= 7:
+            st.info("🔒 **Limite de 7 Guerras de Liga atingido.**")
+          else:
+            proxima_liga = f"Liga_{qtd_liga + 1}"
+            if st.button(
+                f"🏆 Criar Liga ({proxima_liga}) [{qtd_liga + 1}/7]",
+                use_container_width=True,
+            ):
+              headers = sheet_dados.row_values(1)
+              if proxima_liga in headers:
+                st.error(f"⚠️ A coluna {proxima_liga} já existe!")
+              else:
+                proxima_col_num = len(headers) + 1
+                sheet_dados.update_cell(1, proxima_col_num, proxima_liga)
 
-              if not df.empty:
-                num_linhas = len(df)
-                sheet_dados.update(
-                    f"{gspread.utils.rowcol_to_a1(2, proxima_col_num)}:{gspread.utils.rowcol_to_a1(num_linhas + 1, proxima_col_num)}",
-                    [[0]] * num_linhas,
+                if not df.empty:
+                  num_linhas = len(df)
+                  sheet_dados.update(
+                      f"{gspread.utils.rowcol_to_a1(2, proxima_col_num)}:{gspread.utils.rowcol_to_a1(num_linhas + 1, proxima_col_num)}",
+                      [[0]] * num_linhas,
+                  )
+
+                registrar_log(
+                    st.session_state["admin_logado"],
+                    f"Criou a coluna de Guerra de Liga '{proxima_liga}'",
                 )
-
-              registrar_log(
-                  st.session_state["admin_logado"],
-                  f"Criou a coluna de Guerra de Liga '{proxima_liga}'",
-              )
-              st.cache_data.clear()
-              st.success(
-                  f"✅ Coluna **{proxima_liga}** adicionada com sucesso!"
-              )
-              st.rerun()
+                st.cache_data.clear()
+                st.success(
+                    f"✅ Coluna **{proxima_liga}** adicionada com sucesso!"
+                )
+                st.rerun()
 
         with col_btn3:
           proxima_raide = obter_proxima_coluna_sequencial(
