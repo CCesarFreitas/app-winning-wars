@@ -184,14 +184,25 @@ def obter_proxima_coluna_sequencial(col_prefixo: str, df_cols) -> str:
 
 # --- FUNÇÃO PARA GERAR A TABELA COMPLETA EM HTML ---
 def gerar_tabela_bilhete_dourado(df_exib):
-  linhas_html = ""
+  """Gera a tabela do ranking como HTML, com conteúdo dos jogadores escapado."""
+  from html import escape
+
+  linhas_html = []
   for _, row in df_exib.iterrows():
-    linhas_html += f"""
+    posicao = escape(str(row.get("Posição", "")))
+    jogador = escape(str(row.get("Jogador", "")))
+    try:
+      pontuacao = int(float(row.get("Pontuação Total", 0)))
+    except (TypeError, ValueError):
+      pontuacao = 0
+
+    linhas_html.append(f"""
         <tr>
-            <td class="tabela-posicao">{row['Posição']}</td>
-            <td>{row['Jogador']}</td>
-            <td>{int(row['Pontuação Total'])}</td>
-        </tr>"""
+            <td class="tabela-posicao">{posicao}</td>
+            <td>{jogador}</td>
+            <td>{pontuacao}</td>
+        </tr>
+    """)
 
   html_completo = f"""
     <div class="bilhete-dourado-container">
@@ -206,15 +217,13 @@ def gerar_tabela_bilhete_dourado(df_exib):
                     <th style="width: 25%;">Pontos</th>
                 </tr>
             </thead>
-            <tbody>
-                {linhas_html}
-            </tbody>
+            <tbody>{"".join(linhas_html)}</tbody>
         </table>
         <div style="text-align: center; margin-top: 15px;">
-            <img src="https://i.ibb.co/YFbsJ97x/Clash-of-Clans-emblem.png" width="110">
+            <img src="https://i.ibb.co/YFbsJ97x/Clash-of-Clans-emblem.png" width="110" alt="Emblema Clash of Clans">
         </div>
     </div>
-    """
+  """
   return html_completo
 
 
@@ -811,10 +820,12 @@ else:
       )
 
       if busca_player.strip():
+        termo_busca = busca_player.strip().lower()
         df_exibicao = df_exibicao[
             df_exibicao["Jogador"]
+            .astype(str)
             .str.lower()
-            .str.contains(busca_player.strip().lower())
+            .str.contains(termo_busca, regex=False, na=False)
         ]
 
       # RENDERIZA A TABELA BILHETE DOURADO
