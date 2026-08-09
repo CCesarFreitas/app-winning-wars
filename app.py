@@ -2,6 +2,8 @@ import hashlib
 import json
 import re
 from datetime import datetime
+from io import BytesIO
+import matplotlib.pyplot as plt
 import gspread
 import pandas as pd
 import streamlit as st
@@ -185,12 +187,7 @@ def obter_proxima_coluna_sequencial(col_prefixo: str, df_cols) -> str:
 
 # --- FUNÇÃO PARA GERAR A TABELA COMPLETA EM HTML ---
 def gerar_tabela_bilhete_dourado(df_exib):
-  """Gera o HTML completo do ranking para renderização em iframe.
-
-  A tabela é renderizada por components.html em vez de st.markdown.
-  Isso evita que o parser Markdown do Streamlit trate linhas HTML
-  subsequentes como texto literal.
-  """
+  """Gera o HTML completo do ranking para renderização em iframe com visual padronizado ao app."""
   from html import escape
 
   linhas_html = []
@@ -204,7 +201,8 @@ def gerar_tabela_bilhete_dourado(df_exib):
 
     linhas_html.append(
       f"<tr><td class=\"tabela-posicao\">{posicao}</td>"
-      f"<td>{jogador}</td><td>{pontuacao}</td></tr>"
+      f"<td class=\"tabela-nome\">{jogador}</td>"
+      f"<td class=\"tabela-pontos\">{pontuacao}</td></tr>"
     )
 
   return f"""
@@ -213,54 +211,115 @@ def gerar_tabela_bilhete_dourado(df_exib):
   <head>
     <meta charset=\"UTF-8\">
     <style>
+      @import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@600;800&display=swap');
+
       * {{ box-sizing: border-box; }}
-      body {{ margin: 0; background: transparent; font-family: Nunito, Arial, sans-serif; }}
+      body {{ 
+        margin: 0; 
+        background: transparent; 
+        font-family: 'Nunito', sans-serif; 
+      }}
+
       .bilhete-dourado-container {{
-        background-color: #ffffff; border: 6px solid #facc15;
-        outline: 4px solid #6b21a8; border-radius: 14px; padding: 16px;
-        max-width: 500px; margin: 10px auto 25px auto;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+        background-color: #0f172a; 
+        border: 2px solid #334155;
+        border-top: 4px solid #facc15;
+        border-radius: 14px; 
+        padding: 20px;
+        max-width: 550px; 
+        margin: 10px auto 25px auto;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.6);
       }}
+
       .bilhete-dourado-header {{
-        background: linear-gradient(180deg, #fef08a 0%, #facc15 100%);
-        border: 3px solid #6b21a8; border-radius: 8px; text-align: center;
-        padding: 8px 10px; margin-bottom: 14px;
+        text-align: center;
+        margin-bottom: 16px;
       }}
+
       .bilhete-dourado-title {{
-        margin: 0; color: #ffffff; font-size: 2.1rem; font-weight: 800;
-        text-shadow: 2px 2px 0 #6b21a8, -2px -2px 0 #6b21a8,
-                     2px -2px 0 #6b21a8, -2px 2px 0 #6b21a8;
+        font-family: 'Luckiest Guy', cursive !important;
+        color: #facc15 !important;
+        font-size: 2rem !important;
+        letter-spacing: 1px;
+        text-shadow: 2px 2px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000;
+        margin: 0 !important;
       }}
-      .tabela-bilhete {{ width: 100%; border-collapse: collapse; text-align: center; }}
+
+      .tabela-bilhete {{ 
+        width: 100%; 
+        border-collapse: collapse; 
+        text-align: center; 
+      }}
+
       .tabela-bilhete th {{
-        background-color: #5b21b6; color: #facc15; font-weight: 800;
-        font-size: 1.15rem; padding: 8px; border: 1.5px solid #3b0764;
+        background-color: #1e293b; 
+        color: #facc15; 
+        font-weight: 800;
+        font-size: 1.1rem; 
+        padding: 10px; 
+        border-bottom: 2px solid #334155;
       }}
+
       .tabela-bilhete td {{
-        border: 1.5px solid #4c1d95; padding: 6px 8px; font-size: 1rem;
-        font-weight: 800; color: #000000;
+        border-bottom: 1px solid #334155; 
+        padding: 10px 8px; 
+        font-size: 1rem;
+        font-weight: 800; 
+        color: #e2e8f0;
       }}
-      .tabela-bilhete tr:nth-child(even) {{ background-color: #f8fafc; }}
-      .tabela-bilhete tr:hover {{ background-color: #fef08a; }}
-      .tabela-posicao {{ color: #5b21b6 !important; font-weight: 800; }}
-      .emblema {{ text-align: center; margin-top: 15px; }}
-      .emblema img {{ width: 110px; }}
+
+      .tabela-bilhete tr:nth-child(even) {{ 
+        background-color: #111827; 
+      }}
+
+      .tabela-bilhete tr:hover {{ 
+        background-color: #1e293b; 
+      }}
+
+      .tabela-posicao {{ 
+        color: #facc15 !important; 
+        font-weight: 800; 
+      }}
+
+      .tabela-nome {{
+        text-align: left;
+        padding-left: 15px !important;
+      }}
+
+      .tabela-pontos {{
+        color: #38bdf8 !important;
+        font-weight: 900;
+      }}
+
+      .emblema {{ 
+        text-align: center; 
+        margin-top: 18px; 
+      }}
+
+      .emblema img {{ 
+        width: 90px; 
+        filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.5));
+      }}
+
       @media (max-width: 768px) {{
-        .bilhete-dourado-container {{ padding: 10px; }}
-        .bilhete-dourado-title {{ font-size: 1.6rem; }}
+        .bilhete-dourado-container {{ padding: 12px; }}
+        .bilhete-dourado-title {{ font-size: 1.6rem !important; }}
+        .tabela-bilhete th, .tabela-bilhete td {{ padding: 8px 6px; font-size: 0.95rem; }}
       }}
     </style>
   </head>
   <body>
     <div class=\"bilhete-dourado-container\">
       <div class=\"bilhete-dourado-header\">
-        <h2 class=\"bilhete-dourado-title\">Bilhete dourado</h2>
+        <h2 class=\"bilhete-dourado-title\">🏆 Bilhete Dourado</h2>
       </div>
       <table class=\"tabela-bilhete\">
         <thead>
-          <tr><th style=\"width:25%\">Posição</th>
-              <th style=\"width:50%\">Membro</th>
-              <th style=\"width:25%\">Pontos</th></tr>
+          <tr>
+            <th style=\"width:20%\">Pos.</th>
+            <th style=\"width:55%; text-align: left; padding-left: 15px;\">Membro</th>
+            <th style=\"width:25%\">Pontos</th>
+          </tr>
         </thead>
         <tbody>{''.join(linhas_html)}</tbody>
       </table>
@@ -271,6 +330,146 @@ def gerar_tabela_bilhete_dourado(df_exib):
   </body>
   </html>
   """
+
+
+
+# --- EXPORTAÇÃO DE RANKINGS EM PNG ---
+def _fig_to_png(fig):
+  buffer = BytesIO()
+  fig.savefig(
+      buffer,
+      format="png",
+      dpi=180,
+      bbox_inches="tight",
+      facecolor="#0b0e14",
+  )
+  plt.close(fig)
+  buffer.seek(0)
+  return buffer.getvalue()
+
+
+def gerar_png_ranking(df_exib, titulo="🏆 Ranking Winning Wars"):
+  """Gera uma imagem PNG pronta para compartilhamento do ranking completo."""
+  dados = df_exib.copy()
+  if dados.empty:
+    return None
+
+  dados["Pontuação Total"] = pd.to_numeric(
+      dados["Pontuação Total"], errors="coerce"
+  ).fillna(0).astype(int)
+
+  n = len(dados)
+  altura = max(4.8, 1.65 + n * 0.48)
+  fig, ax = plt.subplots(figsize=(10, altura))
+  fig.patch.set_facecolor("#0b0e14")
+  ax.set_facecolor("#0f172a")
+  ax.axis("off")
+
+  ax.text(
+      0.5, 0.975, titulo,
+      transform=ax.transAxes, ha="center", va="top",
+      fontsize=22, fontweight="bold", color="#facc15",
+  )
+  ax.text(
+      0.5, 0.925, "Clã Winning Wars • Ranking completo",
+      transform=ax.transAxes, ha="center", va="top",
+      fontsize=10, color="#94a3b8",
+  )
+
+  tabela = ax.table(
+      cellText=dados[["Posição", "Jogador", "Pontuação Total"]].values,
+      colLabels=["POS.", "JOGADOR", "PONTOS"],
+      colWidths=[0.14, 0.56, 0.20],
+      cellLoc="center",
+      colLoc="center",
+      bbox=[0.06, 0.035, 0.88, 0.84],
+  )
+  tabela.auto_set_font_size(False)
+  tabela.set_fontsize(11)
+  tabela.scale(1, 1.5)
+
+  for (linha, coluna), celula in tabela.get_celld().items():
+    celula.set_edgecolor("#334155")
+    if linha == 0:
+      celula.set_facecolor("#1e293b")
+      celula.get_text().set_color("#facc15")
+      celula.get_text().set_weight("bold")
+    else:
+      celula.set_facecolor("#0f172a" if linha % 2 else "#111827")
+      celula.get_text().set_color("#e2e8f0")
+      celula.get_text().set_weight("bold")
+      if coluna == 0:
+        celula.get_text().set_color("#facc15")
+      elif coluna == 2:
+        celula.get_text().set_color("#38bdf8")
+    if coluna == 1 and linha > 0:
+      celula.get_text().set_ha("left")
+
+  return _fig_to_png(fig)
+
+
+def gerar_png_tabela_detalhada(df_exib, colunas):
+  """Gera PNG da tabela detalhada completa, mantendo a identidade visual do app."""
+  if df_exib.empty:
+    return None
+
+  dados = df_exib[colunas].copy()
+  headers = [rotulo_coluna(c) for c in colunas]
+
+  for col in colunas[1:]:
+    dados[col] = pd.to_numeric(dados[col], errors="coerce").fillna(0).astype(int)
+
+  n_linhas = len(dados)
+  n_colunas = len(colunas)
+  largura = max(13, min(34, 2.2 + n_colunas * 0.95))
+  altura = max(5.5, 2.0 + n_linhas * 0.42)
+
+  fig, ax = plt.subplots(figsize=(largura, altura))
+  fig.patch.set_facecolor("#0b0e14")
+  ax.set_facecolor("#0f172a")
+  ax.axis("off")
+
+  ax.text(
+      0.5, 0.975, "📋 Tabela Detalhada de Pontuações",
+      transform=ax.transAxes, ha="center", va="top",
+      fontsize=21, fontweight="bold", color="#facc15",
+  )
+  ax.text(
+      0.5, 0.935, "Clã Winning Wars • Pontuação por atividade",
+      transform=ax.transAxes, ha="center", va="top",
+      fontsize=10, color="#94a3b8",
+  )
+
+  valores = dados.values
+  tabela = ax.table(
+      cellText=valores,
+      colLabels=headers,
+      cellLoc="center",
+      colLoc="center",
+      bbox=[0.015, 0.035, 0.97, 0.84],
+  )
+  tabela.auto_set_font_size(False)
+  tabela.set_fontsize(8 if n_colunas > 12 else 9)
+  tabela.scale(1, 1.45)
+
+  for (linha, coluna), celula in tabela.get_celld().items():
+    celula.set_edgecolor("#334155")
+    if linha == 0:
+      celula.set_facecolor("#1e293b")
+      celula.get_text().set_color("#facc15")
+      celula.get_text().set_weight("bold")
+    else:
+      celula.set_facecolor("#0f172a" if linha % 2 else "#111827")
+      celula.get_text().set_color("#e2e8f0")
+      celula.get_text().set_weight("bold")
+      if coluna == 0:
+        celula.get_text().set_ha("left")
+      if coluna == n_colunas - 1:
+        celula.set_facecolor("#172554")
+        celula.get_text().set_color("#facc15")
+        celula.get_text().set_weight("bold")
+
+  return _fig_to_png(fig)
 
 
 # --- ESTILIZAÇÃO CSS CUSTOMIZADA ---
@@ -416,82 +615,12 @@ st.markdown(
     .rules-card ul { margin-bottom: 0px; padding-left: 20px; }
     .rules-card li { margin-bottom: 10px; line-height: 1.5; }
 
-    /* ESTILO BILHETE DOURADO */
-    .bilhete-dourado-container {
-        background-color: #ffffff;
-        border: 6px solid #facc15;
-        outline: 4px solid #6b21a8;
-        border-radius: 14px;
-        padding: 16px;
-        max-width: 500px;
-        margin: 10px auto 25px auto;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-    }
-
-    .bilhete-dourado-header {
-        background: linear-gradient(180deg, #fef08a 0%, #facc15 100%);
-        border: 3px solid #6b21a8;
-        border-radius: 8px;
-        text-align: center;
-        padding: 8px 10px;
-        margin-bottom: 14px;
-    }
-
-    .bilhete-dourado-title {
-        font-family: 'Luckiest Guy', cursive !important;
-        color: #ffffff !important;
-        font-size: 2.1rem !important;
-        text-shadow: 2px 2px 0px #6b21a8, -2px -2px 0px #6b21a8, 2px -2px 0px #6b21a8, -2px 2px 0px #6b21a8 !important;
-        margin: 0 !important;
-        letter-spacing: 1px;
-    }
-
-    .tabela-bilhete {
-        width: 100%;
-        border-collapse: collapse;
-        font-family: 'Nunito', sans-serif;
-        text-align: center;
-    }
-
-    .tabela-bilhete th {
-        background-color: #5b21b6;
-        color: #facc15;
-        font-family: 'Nunito', sans-serif;
-        font-weight: 800;
-        font-size: 1.15rem;
-        padding: 8px;
-        border: 1.5px solid #3b0764;
-    }
-
-    .tabela-bilhete td {
-        border: 1.5px solid #4c1d95;
-        padding: 6px 8px;
-        font-size: 1rem;
-        font-weight: 800;
-        color: #000000;
-    }
-
-    .tabela-bilhete tr:nth-child(even) {
-        background-color: #f8fafc;
-    }
-
-    .tabela-bilhete tr:hover {
-        background-color: #fef08a;
-    }
-
-    .tabela-posicao {
-        color: #5b21b6 !important;
-        font-weight: 800;
-    }
-
     @media (max-width: 768px) {
         .main-title { font-size: 1.6rem !important; }
         .main-subtitle { font-size: 0.88rem !important; }
         .mural-banner { padding: 10px !important; }
         .podium-card { padding: 12px !important; }
         button[data-baseweb="tab"] { font-size: 1rem !important; padding: 8px 10px !important; }
-        .bilhete-dourado-container { padding: 10px !important; }
-        .bilhete-dourado-title { font-size: 1.6rem !important; }
     }
     </style>
 """,
@@ -642,7 +771,10 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
       if not df_layouts.empty:
         layouts_filtrados = df_layouts[
             (df_layouts["Tipo"] == tipo_layout) & (df_layouts["CV"] == cv_nome)
-        ]
+        ].copy()
+        # O Google Sheets mantém os mais novos no final; exibimos em ordem
+        # reversa para que a publicação mais recente apareça primeiro.
+        layouts_filtrados = layouts_filtrados.iloc[::-1].reset_index(drop=True)
       else:
         layouts_filtrados = pd.DataFrame()
 
@@ -873,14 +1005,33 @@ else:
         ]
 
       # RENDERIZA A TABELA BILHETE DOURADO
-      # Renderiza em componente HTML dedicado.
-      # st.markdown pode interpretar parte de um bloco HTML como Markdown
-      # quando há múltiplas linhas <tr>, fazendo as tags aparecerem como texto.
       components.html(
           gerar_tabela_bilhete_dourado(df_exibicao),
           height=min(2200, max(300, 175 + len(df_exibicao) * 39)),
           scrolling=False,
       )
+
+      # Exportação usa o ranking completo, independentemente do filtro de busca.
+      ranking_export = df_rank[["Posição", "Nome", "Total"]].copy()
+      ranking_export["Total"] = ranking_export["Total"].astype(int)
+      ranking_export.rename(
+          columns={"Nome": "Jogador", "Total": "Pontuação Total"},
+          inplace=True,
+      )
+      png_ranking = gerar_png_ranking(ranking_export)
+
+      col_exp1, col_exp2 = st.columns([1, 1])
+      with col_exp1:
+        st.download_button(
+            "📸 Exportar Ranking Completo em PNG",
+            data=png_ranking,
+            file_name=f"winningwars_ranking_{datetime.now().strftime('%Y%m%d')}.png",
+            mime="image/png",
+            use_container_width=True,
+            key="download_png_ranking",
+        )
+      with col_exp2:
+        st.caption("Imagem em alta resolução, pronta para compartilhar em grupos e redes sociais.")
 
   # ABA 2: TABELA DETALHADA GERAL
   with tab_tabela:
@@ -922,8 +1073,6 @@ else:
       from html import escape
 
       def rotulo_coluna(col):
-        # Rótulos amigáveis para que o jogador identifique imediatamente
-        # a origem de cada pontuação, inclusive no celular.
         if col == "JogosCla":
           return "Jogos"
         if col == "Eventos":
@@ -1030,6 +1179,18 @@ else:
 
       altura = min(900, max(300, 150 + len(df_tabela_mobile) * 38))
       components.html(html_tabela, height=altura, scrolling=False)
+
+      # Exportação sempre considera a tabela detalhada completa, sem o filtro de busca.
+      png_detalhada = gerar_png_tabela_detalhada(df_detalhada, cols_exibicao)
+      st.download_button(
+          "📸 Exportar Tabela Detalhada Completa em PNG",
+          data=png_detalhada,
+          file_name=f"winningwars_tabela_detalhada_{datetime.now().strftime('%Y%m%d')}.png",
+          mime="image/png",
+          use_container_width=True,
+          key="download_png_detalhada",
+      )
+      st.caption("A imagem inclui todos os jogadores e todas as atividades da tabela.")
 
   # ABA 3: ÁREA ADMIN
   with tab_admin:
@@ -1215,7 +1376,7 @@ else:
               )
               st.rerun()
 
-        # BOTAO RAIDE (NOVO)
+        # BOTAO RAIDE
         with col_btn3:
           proxima_raide = obter_proxima_coluna_sequencial(
               "Raide", df.columns if not df.empty else []
