@@ -1,5 +1,6 @@
 import hashlib
 import json
+import re
 from datetime import datetime
 import gspread
 import pandas as pd
@@ -50,7 +51,9 @@ def conectar_banco():
     )
     sheet_estado.append_row(["Chave", "Valor"])
     sheet_estado.append_row(["mes_finalizado", "FALSE"])
-    sheet_estado.append_row(["mural_recado", "Bem-vindos ao aplicativo oficial!"])
+    sheet_estado.append_row(
+        ["mural_recado", "Bem-vindos ao aplicativo oficial!"]
+    )
 
   # Aba de Layouts
   try:
@@ -165,7 +168,57 @@ if "pagina_atual" not in st.session_state:
 df_layouts = pd.DataFrame(obter_layouts_cached())
 df_fama = pd.DataFrame(obter_galeria_cached())
 
-# --- ESTILIZAÇÃO CSS CUSTOMIZADA COM RESPONSIVIDADE MOBILE E ABAS DESTACADAS ---
+
+# --- FUNÇÃO PARA GERAR A TABELA NO ESTILO BILHETE DOURADO ---
+def gerar_tabela_bilhete_dourado(df_exib):
+  html = """
+    <div class="bilhete-dourado-container">
+        <div class="bilhete-dourado-header">
+            <h2 class="bilhete-dourado-title">Bilhete dourado</h2>
+        </div>
+        <table class="tabela-bilhete">
+            <thead>
+                <tr>
+                    <th style="width: 25%;">Posição</th>
+                    <th style="width: 50%;">Membro</th>
+                    <th style="width: 25%;">Pontos</th>
+                </tr>
+            </thead>
+            <tbody>
+    """
+  for _, row in df_exib.iterrows():
+    html += f"""
+                <tr>
+                    <td class="tabela-posicao">{row['Posição']}</td>
+                    <td>{row['Jogador']}</td>
+                    <td>{int(row['Pontuação Total'])}</td>
+                </tr>
+        """
+  html += """
+            </tbody>
+        </table>
+        <div style="text-align: center; margin-top: 15px;">
+            <img src="https://i.ibb.co/YFbsJ97x/Clash-of-Clans-emblem.png" width="110">
+        </div>
+    </div>
+    """
+  return html
+
+
+# --- FUNÇÃO AUXILIAR PARA DETERMINAR A PRÓXIMA COLUNA SEQUENCIAL ---
+def obter_proxima_coluna_sequencial(col_prefixo: str, df_cols) -> str:
+  max_num = 0
+  pattern = re.compile(rf"^{col_prefixo}_(\d+)$", re.IGNORECASE)
+  for col in df_cols:
+    match = pattern.match(str(col).strip())
+    if match:
+      num = int(match.group(1))
+      if num > max_num:
+        max_num = num
+  return f"{col_prefixo}_{max_num + 1}"
+
+
+# --- ESTILIZAÇÃO CSS CUSTOMIZADA COM RESPONSIVIDADE MOBILE E BILHETE DOURADO ---
 st.markdown(
     """
     <style>
@@ -309,12 +362,82 @@ st.markdown(
     .rules-card ul { margin-bottom: 0px; padding-left: 20px; }
     .rules-card li { margin-bottom: 10px; line-height: 1.5; }
 
+    /* ESTILIZAÇÃO COMPLETA DO BILHETE DOURADO */
+    .bilhete-dourado-container {
+        background-color: #ffffff;
+        border: 6px solid #facc15;
+        outline: 4px solid #6b21a8;
+        border-radius: 14px;
+        padding: 16px;
+        max-width: 480px;
+        margin: 10px auto 25px auto;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    }
+
+    .bilhete-dourado-header {
+        background: linear-gradient(180deg, #fef08a 0%, #facc15 100%);
+        border: 3px solid #6b21a8;
+        border-radius: 8px;
+        text-align: center;
+        padding: 8px 10px;
+        margin-bottom: 14px;
+    }
+
+    .bilhete-dourado-title {
+        font-family: 'Luckiest Guy', cursive !important;
+        color: #ffffff !important;
+        font-size: 2.1rem !important;
+        text-shadow: 2px 2px 0px #6b21a8, -2px -2px 0px #6b21a8, 2px -2px 0px #6b21a8, -2px 2px 0px #6b21a8 !important;
+        margin: 0 !important;
+        letter-spacing: 1px;
+    }
+
+    .tabela-bilhete {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: 'Nunito', sans-serif;
+        text-align: center;
+    }
+
+    .tabela-bilhete th {
+        background-color: #5b21b6;
+        color: #facc15;
+        font-family: 'Nunito', sans-serif;
+        font-weight: 800;
+        font-size: 1.15rem;
+        padding: 8px;
+        border: 1.5px solid #3b0764;
+    }
+
+    .tabela-bilhete td {
+        border: 1.5px solid #4c1d95;
+        padding: 6px 8px;
+        font-size: 1rem;
+        font-weight: 800;
+        color: #000000;
+    }
+
+    .tabela-bilhete tr:nth-child(even) {
+        background-color: #f8fafc;
+    }
+
+    .tabela-bilhete tr:hover {
+        background-color: #fef08a;
+    }
+
+    .tabela-posicao {
+        color: #5b21b6 !important;
+        font-weight: 800;
+    }
+
     @media (max-width: 768px) {
         .main-title { font-size: 1.6rem !important; }
         .main-subtitle { font-size: 0.88rem !important; }
         .mural-banner { padding: 10px !important; }
         .podium-card { padding: 12px !important; }
         button[data-baseweb="tab"] { font-size: 1rem !important; padding: 8px 10px !important; }
+        .bilhete-dourado-container { padding: 10px !important; }
+        .bilhete-dourado-title { font-size: 1.6rem !important; }
     }
     </style>
 """,
@@ -390,7 +513,7 @@ st.write("---")
 
 
 # ==============================================================================
-# FUNÇÃO PARA RENDERIZAR PÁGINAS DE LAYOUT (SOMENTE LINK E LINK DA FOTO)
+# FUNÇÃO PARA RENDERIZAR PÁGINAS DE LAYOUT
 # ==============================================================================
 def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
   if st.button("⬅️ Voltar ao Início"):
@@ -419,7 +542,6 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
     with tabs_cv[idx]:
       th_img_url = cv_map[cv_nome]
 
-      # CABEÇALHO DO CV CENTRALIZADO E COM IMAGEM MAIOR (80px)
       st.markdown(
           f"""
             <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-top: 15px; margin-bottom: 20px;">
@@ -434,7 +556,6 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
         with st.expander(
             f"➕ [ADMIN] Adicionar Novo Layout de {tipo_layout} ({cv_nome})"
         ):
-          # clear_on_submit=True limpa automaticamente os inputs ao enviar
           with st.form(
               key=f"form_{tipo_layout}_{cv_nome}", clear_on_submit=True
           ):
@@ -450,9 +571,9 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
                     cv_nome,
                     st.session_state["admin_logado"],
                     link_layout.strip(),
-                    "",  # Sem descrição
+                    "",
                     img_url.strip(),
-                    "",  # Sem tag de estilo
+                    "",
                 ])
                 registrar_log(
                     st.session_state["admin_logado"],
@@ -473,7 +594,6 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
 
       if not layouts_filtrados.empty:
         for item_idx, row in layouts_filtrados.iterrows():
-          # CONTAINER CENTRALIZADO PARA EXIBIR CADA LAYOUT
           _, col_cent, _ = st.columns([1, 2, 1])
           with col_cent:
             st.markdown(
@@ -502,7 +622,6 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
                 unsafe_allow_html=True,
             )
 
-            # EXCLUSÃO PERMITIDA APENAS PARA ADMINS LOGADOS
             if eh_admin:
               st.write("")
               if st.button(
@@ -605,6 +724,7 @@ else:
     )
 
   if not df.empty:
+    # MAPEAMENTO DINÂMICO DAS COLUNAS DE PONTUAÇÃO
     colunas_raides = [c for c in df.columns if c.startswith("Raide_")]
     colunas_guerras = [c for c in df.columns if c.startswith("Guerra_")]
     colunas_liga = [c for c in df.columns if c.startswith("Liga_")]
@@ -623,14 +743,7 @@ else:
 
     posicoes = []
     for i in df_rank.index:
-      if i == 1:
-        posicoes.append("🥇 1º")
-      elif i == 2:
-        posicoes.append("🥈 2º")
-      elif i == 3:
-        posicoes.append("🥉 3º")
-      else:
-        posicoes.append(f"  {i}º")
+      posicoes.append(f"{i}º")
     df_rank["Posição"] = posicoes
   else:
     colunas_raides, colunas_guerras, colunas_liga = [], [], []
@@ -686,12 +799,13 @@ else:
             )
 
       # BARRA DE BUSCA DE JOGADORES
-      busca_player = st.text_input(
-          "🔍 Buscar Jogador no Ranking:",
-          placeholder="Digite o nome do membro...",
-      )
+      _, col_busca, _ = st.columns([1, 2, 1])
+      with col_busca:
+        busca_player = st.text_input(
+            "🔍 Buscar Jogador no Ranking:",
+            placeholder="Digite o nome do membro...",
+        )
 
-      st.subheader("📊 Classificação em Tempo Real")
       df_exibicao = df_rank[["Posição", "Nome", "Total"]].copy()
       df_exibicao["Total"] = df_exibicao["Total"].astype(int)
       df_exibicao.rename(
@@ -705,33 +819,20 @@ else:
             .str.contains(busca_player.strip().lower())
         ]
 
-      def destacar_podio(row):
-        pos = str(row["Posição"])
-        if "🥇" in pos:
-          return [
-              "background-color: #78350f; color: #facc15; font-weight: bold;"
-          ] * 3
-        elif "🥈" in pos:
-          return [
-              "background-color: #334155; color: #cbd5e1; font-weight: bold;"
-          ] * 3
-        elif "🥉" in pos:
-          return [
-              "background-color: #451a03; color: #f97316; font-weight: bold;"
-          ] * 3
-        return [""] * 3
-
-      st.dataframe(
-          df_exibicao.style.apply(destacar_podio, axis=1).format(
-              {"Pontuação Total": "{} pts"}
-          ),
-          use_container_width=True,
-          hide_index=True,
+      # RENDERIZA A TABELA ESTILIZADA DO BILHETE DOURADO
+      st.markdown(
+          gerar_tabela_bilhete_dourado(df_exibicao), unsafe_allow_html=True
       )
 
-  # ABA 2: TABELA DETALHADA
+  # ABA 2: TABELA DETALHADA GERAL (EXIBE TODAS AS COLUNAS DINÂMICAS)
   with tab_tabela:
     if not df.empty and "Total" in df.columns:
+      st.markdown("### 📋 Tabela Detalhada Geral de Pontuações")
+      st.markdown(
+          "Acompanhe o detalhamento individual dos pontos em cada evento,"
+          " guerra e liga:"
+      )
+
       cols_exibicao = (
           ["Nome"]
           + [c for c in ["JogosCla", "Eventos"] if c in df.columns]
@@ -740,13 +841,17 @@ else:
           + colunas_raides
           + ["Total"]
       )
+      df_detalhada = df[cols_exibicao].sort_values(
+          by="Total", ascending=False
+      )
+
       st.dataframe(
-          df[cols_exibicao].sort_values(by="Total", ascending=False),
+          df_detalhada,
           use_container_width=True,
           hide_index=True,
       )
 
-  # ABA 3: ÁREA ADMIN
+  # ABA 3: ÁREA ADMIN (SOMENTE PARA ADMINISTRADORES LOGADOS)
   with tab_admin:
     st.subheader("🔐 Painel de Controle e Administração")
 
@@ -764,7 +869,7 @@ else:
       sub_tab1, sub_tab2, sub_tab3, sub_tab4, sub_tab5, sub_tab6 = st.tabs([
           "➕ Players",
           "👤 Novo Admin",
-          "✏️ Editar Pontos",
+          "✏️ Gerenciar Pontos e Colunas",
           "📢 Recado / Arquivar Mês",
           "📜 Logs do Sistema",
           "💾 Backup de Dados",
@@ -857,7 +962,93 @@ else:
                 )
                 st.rerun()
 
+      # SUB TAB 3: GERENCIAR COLUNAS (GUERRAS / LIGA) E EDITAR PONTOS (EXCLUSIVO ADMIN)
       with sub_tab3:
+        st.markdown("#### ➕ Criar Novas Colunas de Guerras ou Liga")
+        st.markdown(
+            "Clique nos botões abaixo para criar automaticamente as próximas"
+            " colunas na sequência. Elas serão salvas no banco de dados e"
+            " somadas ao total geral automaticamente!"
+        )
+
+        col_btn1, col_btn2 = st.columns(2)
+
+        with col_btn1:
+          proxima_guerra = obter_proxima_coluna_sequencial(
+              "Guerra", df.columns if not df.empty else []
+          )
+          if st.button(
+              f"⚔️ Criar Próxima Guerra Normal ({proxima_guerra})",
+              use_container_width=True,
+          ):
+            headers = sheet_dados.row_values(1)
+            if proxima_guerra in headers:
+              st.error(f"⚠️ A coluna {proxima_guerra} já existe!")
+            else:
+              proxima_col_num = len(headers) + 1
+              sheet_dados.update_cell(1, proxima_col_num, proxima_guerra)
+
+              # Inicializa os pontos dos jogadores existentes com 0
+              if not df.empty:
+                num_linhas = len(df)
+                sheet_dados.update(
+                    f"{gspread.utils.rowcol_to_a1(2, proxima_col_num)}:{gspread.utils.rowcol_to_a1(num_linhas + 1, proxima_col_num)}",
+                    [[0]] * num_linhas,
+                )
+
+              registrar_log(
+                  st.session_state["admin_logado"],
+                  f"Criou a coluna de Guerra Normal '{proxima_guerra}'",
+              )
+              st.cache_data.clear()
+              st.success(
+                  f"✅ Coluna **{proxima_guerra}** adicionada com sucesso ao"
+                  " banco de dados e à tabela!"
+              )
+              st.rerun()
+
+        with col_btn2:
+          proxima_liga = obter_proxima_coluna_sequencial(
+              "Liga", df.columns if not df.empty else []
+          )
+          if st.button(
+              f"🏆 Criar Próxima Guerra de Liga ({proxima_liga})",
+              use_container_width=True,
+          ):
+            headers = sheet_dados.row_values(1)
+            if proxima_liga in headers:
+              st.error(f"⚠️ A coluna {proxima_liga} já existe!")
+            else:
+              proxima_col_num = len(headers) + 1
+              sheet_dados.update_cell(1, proxima_col_num, proxima_liga)
+
+              # Inicializa os pontos dos jogadores existentes com 0
+              if not df.empty:
+                num_linhas = len(df)
+                sheet_dados.update(
+                    f"{gspread.utils.rowcol_to_a1(2, proxima_col_num)}:{gspread.utils.rowcol_to_a1(num_linhas + 1, proxima_col_num)}",
+                    [[0]] * num_linhas,
+                )
+
+              registrar_log(
+                  st.session_state["admin_logado"],
+                  f"Criou a coluna de Guerra de Liga '{proxima_liga}'",
+              )
+              st.cache_data.clear()
+              st.success(
+                  f"✅ Coluna **{proxima_liga}** adicionada com sucesso ao"
+                  " banco de dados e à tabela!"
+              )
+              st.rerun()
+
+        st.divider()
+
+        st.markdown("#### ✏️ Edição de Pontos dos Jogadores")
+        st.markdown(
+            "Altere a pontuação dos membros diretamente na tabela abaixo e"
+            " clique em **Salvar Alterações** para atualizar o banco de dados."
+        )
+
         if not df.empty:
           df_editavel = df.drop(
               columns=["Total", "WarTotal"], errors="ignore"
@@ -876,7 +1067,7 @@ else:
                 "Atualizou a planilha de pontos em lote",
             )
             st.cache_data.clear()
-            st.success("Salvo com sucesso!")
+            st.success("Pontuações salvas e atualizadas com sucesso!")
             st.rerun()
 
       with sub_tab4:
