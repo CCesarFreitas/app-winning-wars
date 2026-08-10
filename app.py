@@ -191,11 +191,12 @@ def obter_proxima_coluna_sequencial(col_prefixo: str, df_cols) -> str:
 
 # --- FUNÇÃO PARA GERAR A TABELA COMPLETA EM HTML E DOWNLOAD EM HD ---
 def gerar_tabela_bilhete_dourado(df_exib):
-  """Gera o HTML do ranking em iframe com suporte a download em alta qualidade (HD) usando html2canvas."""
+  """Gera o HTML do ranking em iframe com destaque nos 3 primeiros e suporte a empates."""
   from html import escape
 
   linhas_html = []
   for _, row in df_exib.iterrows():
+    pos_num = row.get("PosNum", 999)
     posicao = escape(str(row.get("Posição", "")))
     jogador = escape(str(row.get("Jogador", "")))
     try:
@@ -203,10 +204,25 @@ def gerar_tabela_bilhete_dourado(df_exib):
     except (TypeError, ValueError):
       pontuacao = 0
 
+    # Estilos e ícones para Destaque dos Campeões (com suporte a empates)
+    tr_class = ""
+    icon_pos = ""
+    if pos_num == 1:
+      tr_class = "row-gold"
+      icon_pos = "🥇 "
+    elif pos_num == 2:
+      tr_class = "row-silver"
+      icon_pos = "🥈 "
+    elif pos_num == 3:
+      tr_class = "row-bronze"
+      icon_pos = "🥉 "
+
     linhas_html.append(
-        f'<tr><td class="tabela-posicao">{posicao}</td>'
+        f'<tr class="{tr_class}">'
+        f'<td class="tabela-posicao">{icon_pos}{posicao}</td>'
         f'<td class="tabela-nome">{jogador}</td>'
-        f'<td class="tabela-pontos">{pontuacao}</td></tr>'
+        f'<td class="tabela-pontos">{pontuacao}</td>'
+        '</tr>'
     )
 
   return f"""
@@ -216,7 +232,7 @@ def gerar_tabela_bilhete_dourado(df_exib):
     <meta charset="UTF-8">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@600;800&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@600;800;900&display=swap');
 
       * {{ box-sizing: border-box; }}
       body {{ 
@@ -320,6 +336,46 @@ def gerar_tabela_bilhete_dourado(df_exib):
         font-weight: 900;
       }}
 
+      /* ESTILOS DE DESTAQUE DO TOP 3 */
+      .row-gold {{
+        background: linear-gradient(90deg, rgba(250, 204, 21, 0.25) 0%, rgba(120, 53, 15, 0.2) 100%) !important;
+      }}
+      .row-gold .tabela-nome {{
+        color: #fef08a !important;
+        font-weight: 900 !important;
+        text-shadow: 1px 1px 2px #000;
+      }}
+      .row-gold .tabela-posicao {{
+        color: #facc15 !important;
+        font-weight: 900 !important;
+      }}
+
+      .row-silver {{
+        background: linear-gradient(90deg, rgba(203, 213, 225, 0.22) 0%, rgba(30, 41, 59, 0.2) 100%) !important;
+      }}
+      .row-silver .tabela-nome {{
+        color: #f1f5f9 !important;
+        font-weight: 900 !important;
+        text-shadow: 1px 1px 2px #000;
+      }}
+      .row-silver .tabela-posicao {{
+        color: #cbd5e1 !important;
+        font-weight: 900 !important;
+      }}
+
+      .row-bronze {{
+        background: linear-gradient(90deg, rgba(249, 115, 22, 0.22) 0%, rgba(69, 26, 3, 0.2) 100%) !important;
+      }}
+      .row-bronze .tabela-nome {{
+        color: #ffedd5 !important;
+        font-weight: 900 !important;
+        text-shadow: 1px 1px 2px #000;
+      }}
+      .row-bronze .tabela-posicao {{
+        color: #f97316 !important;
+        font-weight: 900 !important;
+      }}
+
       .emblema {{ 
         text-align: center; 
         margin-top: 18px; 
@@ -351,8 +407,8 @@ def gerar_tabela_bilhete_dourado(df_exib):
       <table class="tabela-bilhete">
         <thead>
           <tr>
-            <th style="width:20%">Pos.</th>
-            <th style="width:55%; text-align: left; padding-left: 15px;">Membro</th>
+            <th style="width:25%">Pos.</th>
+            <th style="width:50%; text-align: left; padding-left: 15px;">Membro</th>
             <th style="width:25%">Pontos</th>
           </tr>
         </thead>
@@ -886,12 +942,11 @@ else:
     cols_somar = [c for c in colunas_pontos if c in df.columns]
     df["Total"] = df[cols_somar].sum(axis=1) if cols_somar else 0
     df_rank = df.sort_values(by="Total", ascending=False).reset_index(drop=True)
-    df_rank.index = df_rank.index + 1
 
-    posicoes = []
-    for i in df_rank.index:
-      posicoes.append(f"{i}º")
-    df_rank["Posição"] = posicoes
+    # LÓGICA DE RANKING COM TRATAMENTO DE EMPATES (DENSE RANK)
+    # Jogadores empatados em 1º ficam ambos como 1º
+    df_rank["PosNum"] = df_rank["Total"].rank(method="min", ascending=False).astype(int)
+    df_rank["Posição"] = df_rank["PosNum"].apply(lambda x: f"{x}º")
   else:
     colunas_raides, colunas_guerras, colunas_liga = [], [], []
     df_rank = pd.DataFrame()
@@ -954,7 +1009,7 @@ else:
             placeholder="Digite o nome do membro...",
         )
 
-      df_exibicao = df_rank[["Posição", "Nome", "Total"]].copy()
+      df_exibicao = df_rank[["PosNum", "Posição", "Nome", "Total"]].copy()
       df_exibicao["Total"] = df_exibicao["Total"].astype(int)
       df_exibicao.rename(
           columns={"Nome": "Jogador", "Total": "Pontuação Total"}, inplace=True
@@ -967,17 +1022,17 @@ else:
             .str.contains(busca_player.strip().lower())
         ]
 
-      # CORREÇÃO DE EXIBIÇÃO: CÁLCULO DINÂMICO DE ALTURA PARA EXIBIR TODOS OS JOGADORES SEM CORTAR
+      # CÁLCULO DINÂMICO DE ALTURA
       altura_dinamica = max(450, len(df_exibicao) * 48 + 250)
 
-      # RENDERIZA A TABELA BILHETE DOURADO COM BOTAO DE DOWNLOAD EM HD
+      # RENDERIZA A TABELA BILHETE DOURADO COM BOTAO DE DOWNLOAD EM HD E DESTAQUES DE TOP 3
       components.html(
           gerar_tabela_bilhete_dourado(df_exibicao),
           height=altura_dinamica,
           scrolling=True,
       )
 
-  # ABA 2: TABELA DETALHADA GERAL (COM BOTÃO DE DOWNLOAD DE IMAGEM HD INCLUÍDO)
+  # ABA 2: TABELA DETALHADA GERAL
   with tab_tabela:
     if not df.empty and "Total" in df.columns:
       st.markdown("### 📋 Tabela Detalhada Geral de Pontuações")
@@ -1424,7 +1479,7 @@ else:
         st.markdown("#### ✏️ Edição de Pontos dos Jogadores")
         if not df.empty:
           df_editavel = df.drop(
-              columns=["Total", "WarTotal"], errors="ignore"
+              columns=["Total", "WarTotal", "PosNum", "Posição"], errors="ignore"
           ).copy()
           df_editado = st.data_editor(
               df_editavel, use_container_width=True, hide_index=True
