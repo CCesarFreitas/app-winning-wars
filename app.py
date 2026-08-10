@@ -621,6 +621,13 @@ st.markdown(
     }
     .news-title { font-family: 'Luckiest Guy', cursive; color: #facc15; font-size: 1.5rem; margin-bottom: 6px; }
     .news-meta { color: #94a3b8; font-size: 0.85rem; margin-bottom: 12px; }
+    .news-card-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .news-content { color: #e2e8f0; font-size: 1.05rem; line-height: 1.6; }
+    .news-image-wrap { position: relative; margin: 12px 0 16px 0; text-align: center; }
+    .news-image { display: block; width: 100%; max-width: 100%; max-height: 520px; object-fit: contain; margin: 0 auto; border-radius: 12px; border: 2px solid #334155; box-shadow: 0 6px 16px rgba(0,0,0,.45); background: #111827; }
+    .news-image-fallback { display: none; color: #94a3b8; background: #111827; border: 2px dashed #334155; border-radius: 12px; padding: 22px; font-weight: 800; }
+    .news-image-error .news-image { display: none; }
+    .news-image-error .news-image-fallback { display: block; }
 
     .info-card {
         background: #0f172a; border: 2px solid #334155; border-radius: 14px; padding: 22px; margin-bottom: 15px;
@@ -654,7 +661,7 @@ st.markdown(
 col_nav, col_admin_top = st.columns([6, 1])
 
 with col_nav:
-  b1, b2, b3, b4, b5, b6, b7 = st.columns(7)
+  b1, b2, b3 = st.columns(3)
   with b1:
     if st.button("🛡️ Layouts Guerra", use_container_width=True):
       st.session_state["pagina_atual"] = "layouts_guerra"
@@ -664,35 +671,10 @@ with col_nav:
       st.session_state["pagina_atual"] = "layouts_rankeada"
       st.rerun()
   with b3:
-    if st.button("📰 Novidades", use_container_width=True):
-      st.session_state["pagina_atual"] = "novidades"
-      st.rerun()
-  with b4:
-    if st.button("📜 Regras do Clã", use_container_width=True):
-      st.session_state["pagina_atual"] = "regras_cla"
-      st.rerun()
-  with b5:
     st.markdown(
         '<a'
         ' href="https://link.clashofclans.com/pt?action=OpenClanProfile&tag=2YPL9GU8Y"'
         ' target="_blank" class="btn-external-link">🏰 Clã Vastaya ↗</a>',
-        unsafe_allow_html=True,
-    )
-  with b6:
-    st.markdown(
-        '<a'
-        ' href="https://www.youtube.com/@winningwarscoc?sub_confirmation=1"'
-        ' target="_blank" class="btn-youtube-link">📺 YouTube ↗</a>',
-        unsafe_allow_html=True,
-    )
-  with b7:
-    st.markdown(
-        '<a'
-        ' href="https://link.clashofclans.com/?action=OpenSCID&p=25-1cb8481f-3a79-4681-90f9-8914acef2d63"'
-        ' target="_blank" class="btn-scid"><img'
-        ' src="https://i.ibb.co/fzPGy6fr/bg-hero-scid-landing-0.webp"'
-        ' height="20" style="border-radius: 4px; object-fit:'
-        ' cover;"> Add Godoy ↗</a>',
         unsafe_allow_html=True,
     )
 
@@ -870,6 +852,77 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
 
 
 # ==============================================================================
+# COMPONENTE REUTILIZÁVEL: FEED DE NOVIDADES
+# ==============================================================================
+def renderizar_feed_novidades(limite=None, titulo="📰 Últimas Novidades"):
+  """Renderiza o feed de notícias mantendo texto e imagem no mesmo card."""
+  from html import escape
+
+  st.markdown(
+      f"<h2 style='text-align: center;'>{titulo}</h2>",
+      unsafe_allow_html=True,
+  )
+  st.markdown(
+      "<p style='text-align: center; color: #cbd5e1;'>"
+      "Atualizações, eventos e comunicados do clã em um só lugar.</p>",
+      unsafe_allow_html=True,
+  )
+
+  if df_novidades.empty:
+    st.info("Nenhuma novidade ou notícia publicada no momento.")
+    return
+
+  novidades_feed = df_novidades.iloc[::-1]
+  if limite is not None:
+    novidades_feed = novidades_feed.head(limite)
+
+  for item_idx, item in novidades_feed.iterrows():
+    tag_nome = str(item.get("Tag", "Aviso")).strip()
+    titulo_item = str(item.get("Titulo", "")).strip()
+    conteudo = str(item.get("Conteudo", "")).strip()
+    img_url = str(item.get("ImagemUrl", "")).strip()
+    data_hora = str(item.get("DataHora", "")).strip()
+    autor = str(item.get("Autor", "Liderança")).strip()
+
+    tag_safe = escape(tag_nome)
+    titulo_safe = escape(titulo_item)
+    conteudo_safe = escape(conteudo).replace("\n", "<br>")
+    data_safe = escape(data_hora)
+    autor_safe = escape(autor)
+    img_safe = escape(img_url, quote=True)
+
+    # A imagem fica dentro do próprio card. O fallback evita ícone de imagem
+    # quebrada caso a URL cadastrada esteja indisponível.
+    imagem_html = ""
+    if img_url:
+      imagem_html = f"""
+        <div class="news-image-wrap">
+          <img src="{img_safe}"
+               alt="Imagem da novidade"
+               class="news-image"
+               loading="lazy"
+               onerror="this.style.display='none'; this.parentElement.classList.add('news-image-error');">
+          <div class="news-image-fallback">🖼️ Imagem indisponível</div>
+        </div>
+      """
+
+    st.markdown(
+        f"""
+        <article class="news-card">
+          <div class="news-card-top">
+            <span class="news-tag">{tag_safe}</span>
+            <div class="news-meta">🕒 Publicado em {data_safe} por <b>{autor_safe}</b></div>
+          </div>
+          <div class="news-title">{titulo_safe}</div>
+          {imagem_html}
+          <div class="news-content">{conteudo_safe}</div>
+        </article>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+# ==============================================================================
 # PÁGINA EXCLUSIVA: NOVIDADES E PAINEL DE NOTÍCIAS
 # ==============================================================================
 def renderizar_pagina_novidades():
@@ -943,30 +996,33 @@ def renderizar_pagina_novidades():
 
       from html import escape
 
+      imagem_html_admin = ""
+      if img_url:
+        imagem_html_admin = f"""
+          <div class="news-image-wrap">
+            <img src="{escape(img_url, quote=True)}"
+                 alt="Imagem da novidade"
+                 class="news-image"
+                 loading="lazy"
+                 onerror="this.style.display='none'; this.parentElement.classList.add('news-image-error');">
+            <div class="news-image-fallback">🖼️ Imagem indisponível</div>
+          </div>
+        """
+
       st.markdown(
           f"""
-            <div class="news-card">
-                <span class="news-tag">{escape(tag_nome)}</span>
+            <article class="news-card">
+                <div class="news-card-top">
+                    <span class="news-tag">{escape(tag_nome)}</span>
+                    <div class="news-meta">🕒 Publicado em {escape(data_hora)} por <b>{escape(autor)}</b></div>
+                </div>
                 <div class="news-title">{escape(titulo)}</div>
-                <div class="news-meta">🕒 Publicado em {escape(data_hora)} por <b>{escape(autor)}</b></div>
-                <div style="color: #e2e8f0; font-size: 1.05rem; line-height: 1.6; white-space: pre-wrap;">{escape(conteudo)}</div>
-            </div>
+                {imagem_html_admin}
+                <div class="news-content">{escape(conteudo).replace(chr(10), "<br>")}</div>
+            </article>
             """,
           unsafe_allow_html=True,
       )
-
-      # st.image(URL) podia derrubar a página quando a URL cadastrada não era
-      # uma imagem válida/acessível. HTML <img> com onerror evita esse crash.
-      if img_url:
-        st.markdown(
-            f"""<div style="text-align:center; margin:8px 0 16px 0;">
-            <img src="{escape(img_url, quote=True)}"
-                 alt="Imagem da novidade"
-                 style="max-width:100%; height:auto; border-radius:12px; border:2px solid #334155; box-shadow:0 6px 16px rgba(0,0,0,.45);"
-                 onerror="this.style.display='none';">
-            </div>""",
-            unsafe_allow_html=True,
-        )
 
       # EDIÇÃO/EXCLUSÃO DIRETAMENTE NO CARD PARA ADMINS
       if eh_admin:
@@ -2004,6 +2060,12 @@ else:
         else:
           st.info("Nenhum dado de ranking encontrado para realizar o sorteio.")
 
+  # FEED DE NOVIDADES NA PÁGINA PRINCIPAL
+  # Fica abaixo do ranking/tabela e concentra os comunicados sem exigir
+  # navegação para outra página.
+  st.write("---")
+  renderizar_feed_novidades()
+
   # SEÇÃO EXPLICATIVA (RODAPÉ)
   st.write("---")
   st.markdown(
@@ -2067,16 +2129,6 @@ else:
         unsafe_allow_html=True,
     )
 
-  st.write("")
-  c_btn_regras = st.columns([1, 2, 1])
-  with c_btn_regras[1]:
-    if st.button(
-        "📖 CLIQUE AQUI PARA VER AS REGRAS OFICIAIS COMPLETAS DO CLÃ",
-        use_container_width=True,
-    ):
-      st.session_state["pagina_atual"] = "regras_cla"
-      st.rerun()
-
   # GALERIA DA FAMA FORMATADA COM DESTAQUE
   st.write("---")
   st.markdown(
@@ -2110,3 +2162,32 @@ else:
     st.dataframe(df_fama_exib, use_container_width=True, hide_index=True)
   else:
     st.info("Nenhum histórico de meses anteriores registrado ainda.")
+
+  # LINKS EXTERNOS / ATALHOS — MANTIDOS NO FINAL DA PÁGINA
+  st.write("---")
+  st.markdown(
+      "<h3 style='text-align: center;'>🔗 Links Rápidos</h3>",
+      unsafe_allow_html=True,
+  )
+  c_link1, c_link2, c_link3 = st.columns(3)
+
+  with c_link1:
+    st.markdown(
+        '<a href="https://www.youtube.com/@winningwarscoc?sub_confirmation=1" '
+        'target="_blank" class="btn-youtube-link">📺 YouTube ↗</a>',
+        unsafe_allow_html=True,
+    )
+
+  with c_link2:
+    if st.button("📜 Regras do Clã", use_container_width=True, key="bottom_regras_cla"):
+      st.session_state["pagina_atual"] = "regras_cla"
+      st.rerun()
+
+  with c_link3:
+    st.markdown(
+        '<a href="https://link.clashofclans.com/?action=OpenSCID&p=25-1cb8481f-3a79-4681-90f9-8914acef2d63" '
+        'target="_blank" class="btn-scid"><img '
+        'src="https://i.ibb.co/fzPGy6fr/bg-hero-scid-landing-0.webp" '
+        'height="20" style="border-radius: 4px; object-fit: cover;"> Add Godoy ↗</a>',
+        unsafe_allow_html=True,
+    )
