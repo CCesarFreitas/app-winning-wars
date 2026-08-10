@@ -225,7 +225,6 @@ def gerar_tabela_bilhete_dourado(df_exib):
     except (TypeError, ValueError):
       pontuacao = 0
 
-    # Aplicação de estilo e medalhas para o Top 3
     classe_top = ""
     prefixo_medalha = ""
     if idx == 1:
@@ -337,7 +336,6 @@ def gerar_tabela_bilhete_dourado(df_exib):
         background-color: #111827; 
       }}
 
-      /* ESTILOS ESPECIAIS PARA O TOP 3 */
       .top1-row {{
         background: linear-gradient(90deg, rgba(250, 204, 21, 0.28) 0%, rgba(202, 138, 4, 0.15) 100%) !important;
         border-left: 4px solid #facc15;
@@ -458,13 +456,12 @@ def gerar_tabela_bilhete_dourado(df_exib):
   """
 
 
-# --- ESTILIZAÇÃO CSS CUSTOMIZADA COM ANIMAÇÃO E FONTES MAIORES ---
+# --- ESTILIZAÇÃO CSS CUSTOMIZADA ---
 st.markdown(
     """
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@600;800;900&display=swap');
 
-    /* ANIMAÇÃO DE TRANSIÇÃO SUAVE ENTRE PÁGINAS */
     @keyframes fadeInPage {
         from {
             opacity: 0;
@@ -511,7 +508,6 @@ st.markdown(
         padding: 0 10px;
     }
     
-    /* BOTÕES GERAIS */
     div.stButton > button {
         background: linear-gradient(180deg, #22c55e 0%, #15803d 100%) !important;
         color: #ffffff !important;
@@ -533,7 +529,6 @@ st.markdown(
         background: linear-gradient(180deg, #4ade80 0%, #16a34a 100%) !important;
     }
 
-    /* ABAS */
     button[data-baseweb="tab"] {
         font-size: 1.35rem !important;
         font-weight: 800 !important;
@@ -561,7 +556,6 @@ st.markdown(
         color: #facc15 !important;
     }
 
-    /* PODIUM E CARDS */
     .podium-card { 
         padding: 18px; 
         border-radius: 16px; 
@@ -650,11 +644,11 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- TOPO DA PÁGINA: MENU DE NAVEGAÇÃO + LOGIN ADMIN ---
+# --- TOPO DA PÁGINA: MENU SIMPLIFICADO ---
 col_nav, col_admin_top = st.columns([6, 1])
 
 with col_nav:
-  b1, b2, b3, b4, b5, b6, b7 = st.columns(7)
+  b1, b2, b3 = st.columns([1, 1, 1])
   with b1:
     if st.button("🛡️ Layouts Guerra", use_container_width=True):
       st.session_state["pagina_atual"] = "layouts_guerra"
@@ -664,35 +658,8 @@ with col_nav:
       st.session_state["pagina_atual"] = "layouts_rankeada"
       st.rerun()
   with b3:
-    if st.button("📰 Novidades", use_container_width=True):
-      st.session_state["pagina_atual"] = "novidades"
-      st.rerun()
-  with b4:
-    if st.button("📜 Regras do Clã", use_container_width=True):
-      st.session_state["pagina_atual"] = "regras_cla"
-      st.rerun()
-  with b5:
     st.markdown(
-        '<a'
-        ' href="https://link.clashofclans.com/pt?action=OpenClanProfile&tag=2YPL9GU8Y"'
-        ' target="_blank" class="btn-external-link">🏰 Clã Vastaya ↗</a>',
-        unsafe_allow_html=True,
-    )
-  with b6:
-    st.markdown(
-        '<a'
-        ' href="https://www.youtube.com/@winningwarscoc?sub_confirmation=1"'
-        ' target="_blank" class="btn-youtube-link">📺 YouTube ↗</a>',
-        unsafe_allow_html=True,
-    )
-  with b7:
-    st.markdown(
-        '<a'
-        ' href="https://link.clashofclans.com/?action=OpenSCID&p=25-1cb8481f-3a79-4681-90f9-8914acef2d63"'
-        ' target="_blank" class="btn-scid"><img'
-        ' src="https://i.ibb.co/fzPGy6fr/bg-hero-scid-landing-0.webp"'
-        ' height="20" style="border-radius: 4px; object-fit:'
-        ' cover;"> Add Godoy ↗</a>',
+        '<a href="https://link.clashofclans.com/pt?action=OpenClanProfile&tag=2YPL9GU8Y" target="_blank" class="btn-external-link">🏰 Clã Vastaya ↗</a>',
         unsafe_allow_html=True,
     )
 
@@ -816,8 +783,7 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
           _, col_cent, _ = st.columns([1, 2, 1])
           with col_cent:
             st.markdown(
-                f"<div style='text-align: center; margin-bottom: 8px;'><b>👑"
-                f" Enviado por:</b> {row['Autor']}</div>",
+                f"<div style='text-align: center; margin-bottom: 8px;'><b>👑 Enviado por:</b> {row['Autor']}</div>",
                 unsafe_allow_html=True,
             )
 
@@ -826,43 +792,50 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
               try:
                 st.markdown(
                     f"""
-                                    <div style="text-align: center; margin-bottom: 12px;">
-                                        <img src="{img_url_limpa}" style="max-width: 100%; border-radius: 12px; border: 2px solid #334155; box-shadow: 0 6px 16px rgba(0,0,0,0.5);">
-                                    </div>
-                                    """,
+                    <div style="text-align: center; margin-bottom: 12px;">
+                        <img src="{img_url_limpa}" style="max-width: 100%; border-radius: 12px; border: 2px solid #334155; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+                    </div>
+                    """,
                     unsafe_allow_html=True,
                 )
-                if eh_admin:
-                  st.markdown(
-                      f'<div style="text-align: center; margin-bottom: 10px;"><a href="{img_url_limpa}" target="_blank" download style="color: #38bdf8; text-decoration: underline; font-weight: bold; font-size: 0.95rem;">📥 Baixar Imagem (Admin)</a></div>',
-                      unsafe_allow_html=True,
-                  )
               except Exception:
                 pass
 
             st.markdown(
-                f'<a href="{row["Link"]}" target="_blank"'
-                ' class="btn-layout-copy">📲 COPIAR LAYOUT NO CLASH</a>',
+                f"""
+                <a href="{row['Link']}" target="_blank" class="btn-layout-copy">
+                    📋 COPIAR ESTE LAYOUT PARA O JOGO ↗
+                </a>
+                <br><br>
+                """,
                 unsafe_allow_html=True,
             )
 
             if eh_admin:
-              st.write("")
               if st.button(
-                  "❌ Excluir Layout (Admin)",
+                  f"🗑️ Excluir Layout #{item_idx}",
                   key=f"del_{tipo_layout}_{cv_nome}_{item_idx}",
-                  use_container_width=True,
               ):
-                cell = sheet_layouts.find(row["Link"])
-                if cell:
-                  sheet_layouts.delete_rows(cell.row)
-                  registrar_log(
-                      st.session_state["admin_logado"],
-                      f"Excluiu layout de {cv_nome}",
-                  )
-                  st.cache_data.clear()
-                  st.success("Removido!")
-                  st.rerun()
+                df_atualizado = df_layouts.drop(item_idx)
+                sheet_layouts.clear()
+                sheet_layouts.append_row([
+                    "Tipo",
+                    "CV",
+                    "Autor",
+                    "Link",
+                    "Descricao",
+                    "ImagemUrl",
+                    "Tag",
+                ])
+                if not df_atualizado.empty:
+                  sheet_layouts.append_rows(df_atualizado.values.tolist())
+                registrar_log(
+                    st.session_state["admin_logado"],
+                    f"Excluiu layout de {cv_nome}",
+                )
+                st.cache_data.clear()
+                st.success("Removido!")
+                st.rerun()
 
             st.divider()
       else:
@@ -870,41 +843,45 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
 
 
 # ==============================================================================
-# PÁGINA EXCLUSIVA: NOVIDADES E PAINEL DE NOTÍCIAS
+# COMPONENTE DE NOVIDADES / FEED DE NOTÍCIAS
 # ==============================================================================
-def renderizar_pagina_novidades():
-  if st.button("⬅️ Voltar ao Início"):
-    st.session_state["pagina_atual"] = "principal"
-    st.rerun()
-
+def renderizar_feed_novidades():
+  st.write("---")
   st.markdown(
-      "<h1 style='text-align: center;'>📰 Novidades, Torneios & Eventos</h1>",
+      "<h2 style='text-align: center;'>📰 Novidades, Torneios & Eventos</h2>",
       unsafe_allow_html=True,
   )
   st.markdown(
-      "<p style='text-align: center; color: #cbd5e1;'>Fique por dentro das"
-      " atualizações do Clash of Clans, eventos internos e comunicados da"
-      " liderança do clã!</p><br>",
+      "<p style='text-align: center; color: #cbd5e1;'>Fique por dentro das atualizações do Clash of Clans, eventos internos e comunicados da liderança do clã!</p><br>",
       unsafe_allow_html=True,
   )
 
   eh_admin = "admin_logado" in st.session_state
 
-  # PAINEL ADMINISTRATIVO DIRETO NA ABA NOVIDADES
+  # PAINEL ADMINISTRATIVO DIRETO NO FEED
   if eh_admin:
     with st.expander("🔐 [ADMIN] Publicar Nova Novidade", expanded=False):
       with st.form("form_nova_novidade_pagina", clear_on_submit=True):
         noticia_titulo = st.text_input("Título da Notícia")
         noticia_tag = st.selectbox(
             "Categoria / Tag",
-            ["🎉 Evento", "⚔️ Torneio", "🚀 Atualização Game", "📢 Aviso Clã", "🏆 Premiação Extra"],
+            [
+                "🎉 Evento",
+                "⚔️ Torneio",
+                "🚀 Atualização Game",
+                "📢 Aviso Clã",
+                "🏆 Premiação Extra",
+            ],
         )
         noticia_conteudo = st.text_area("Conteúdo do Comunicado", height=140)
         noticia_img = st.text_input(
             "Link Direto da Imagem / Banner (Opcional)",
             placeholder="https://exemplo.com/imagem.jpg",
         )
-        btn_pub = st.form_submit_button("📢 Publicar Notícia", use_container_width=True)
+
+        btn_pub = st.form_submit_button(
+            "📢 Publicar Notícia", use_container_width=True
+        )
 
         if btn_pub:
           if noticia_titulo.strip() and noticia_conteudo.strip():
@@ -919,69 +896,60 @@ def renderizar_pagina_novidades():
             ])
             registrar_log(
                 st.session_state["admin_logado"],
-                f"Publicou notícia '{noticia_titulo.strip()}' pela página Novidades",
+                f"Publicou notícia: {noticia_titulo.strip()}",
             )
             st.cache_data.clear()
-            st.success("✅ Notícia publicada com sucesso!")
+            st.success("Notícia publicada com sucesso!")
             st.rerun()
           else:
-            st.error("⚠️ Preencha o título e o conteúdo antes de publicar.")
+            st.error("⚠️ Título e conteúdo são obrigatórios.")
 
-    st.caption("Como administrador, você pode editar ou excluir cada publicação diretamente abaixo.")
-
-  # LISTAGEM DAS NOVIDADES
   if not df_novidades.empty:
-    novidades_inv = df_novidades.iloc[::-1]
+    novidades_exib = df_novidades.iloc[::-1]
 
-    for item_idx, item in novidades_inv.iterrows():
-      tag_nome = str(item.get("Tag", "Aviso")).strip()
-      titulo = str(item.get("Titulo", "")).strip()
-      conteudo = str(item.get("Conteudo", "")).strip()
-      img_url = str(item.get("ImagemUrl", "")).strip()
-      data_hora = str(item.get("DataHora", "")).strip()
-      autor = str(item.get("Autor", "Liderança")).strip()
+    for item_idx, row in novidades_exib.iterrows():
+      titulo = str(row.get("Titulo", "")).strip()
+      conteudo = str(row.get("Conteudo", "")).strip()
+      img_url = str(row.get("ImagemUrl", "")).strip()
+      tag = str(row.get("Tag", "📢 Aviso Clã")).strip()
+      data_hora = str(row.get("DataHora", "")).strip()
+      autor = str(row.get("Autor", "Liderança")).strip()
 
-      from html import escape
+      img_html = ""
+      if img_url:
+        img_html = f'<div style="margin-top: 15px; text-align: center;"><img src="{img_url}" style="max-width: 100%; border-radius: 10px; border: 1px solid #334155;"></div>'
 
       st.markdown(
           f"""
-            <div class="news-card">
-                <span class="news-tag">{escape(tag_nome)}</span>
-                <div class="news-title">{escape(titulo)}</div>
-                <div class="news-meta">🕒 Publicado em {escape(data_hora)} por <b>{escape(autor)}</b></div>
-                <div style="color: #e2e8f0; font-size: 1.05rem; line-height: 1.6; white-space: pre-wrap;">{escape(conteudo)}</div>
-            </div>
-            """,
+          <div class="news-card">
+              <span class="news-tag">{tag}</span>
+              <div class="news-title">{titulo}</div>
+              <div class="news-meta">📅 {data_hora} | ✍️ {autor}</div>
+              <div style="color: #e2e8f0; font-size: 1.05rem; white-space: pre-line;">{conteudo}</div>
+              {img_html}
+          </div>
+          """,
           unsafe_allow_html=True,
       )
 
-      # st.image(URL) podia derrubar a página quando a URL cadastrada não era
-      # uma imagem válida/acessível. HTML <img> com onerror evita esse crash.
-      if img_url:
-        st.markdown(
-            f"""<div style="text-align:center; margin:8px 0 16px 0;">
-            <img src="{escape(img_url, quote=True)}"
-                 alt="Imagem da novidade"
-                 style="max-width:100%; height:auto; border-radius:12px; border:2px solid #334155; box-shadow:0 6px 16px rgba(0,0,0,.45);"
-                 onerror="this.style.display='none';">
-            </div>""",
-            unsafe_allow_html=True,
-        )
-
-      # EDIÇÃO/EXCLUSÃO DIRETAMENTE NO CARD PARA ADMINS
       if eh_admin:
-        with st.expander(f"⚙️ [ADMIN] Gerenciar: {titulo or 'Sem título'}", expanded=False):
-          with st.form(f"form_editar_novidade_{item_idx}", clear_on_submit=False):
+        with st.expander(
+            f"🛠️ [ADMIN] Gerenciar Postagem #{item_idx} - {titulo[:20]}..."
+        ):
+          with st.form(key=f"form_edit_post_{item_idx}"):
             edit_titulo = st.text_input(
-                "Título", value=titulo, key=f"edit_titulo_{item_idx}"
+                "Título", value=titulo, key=f"edit_tit_{item_idx}"
             )
-
             tags_disponiveis = [
-                "🎉 Evento", "⚔️ Torneio", "🚀 Atualização Game",
-                "📢 Aviso Clã", "🏆 Premiação Extra"
+                "🎉 Evento",
+                "⚔️ Torneio",
+                "🚀 Atualização Game",
+                "📢 Aviso Clã",
+                "🏆 Premiação Extra",
             ]
-            tag_index = tags_disponiveis.index(tag_nome) if tag_nome in tags_disponiveis else 0
-
+            tag_index = (
+                tags_disponiveis.index(tag) if tag in tags_disponiveis else 0
+            )
             edit_tag = st.selectbox(
                 "Categoria / Tag",
                 tags_disponiveis,
@@ -989,11 +957,14 @@ def renderizar_pagina_novidades():
                 key=f"edit_tag_{item_idx}",
             )
             edit_conteudo = st.text_area(
-                "Conteúdo", value=conteudo, height=140,
+                "Conteúdo",
+                value=conteudo,
+                height=140,
                 key=f"edit_conteudo_{item_idx}",
             )
             edit_img = st.text_input(
-                "Link da Imagem / Banner", value=img_url,
+                "Link da Imagem / Banner",
+                value=img_url,
                 key=f"edit_img_{item_idx}",
             )
 
@@ -1004,1109 +975,837 @@ def renderizar_pagina_novidades():
               )
             with c_del:
               btn_excluir = st.form_submit_button(
-                  "🗑️ Excluir Publicação", use_container_width=True
+                  "🗑️ Excluir Postagem", use_container_width=True
               )
 
             if btn_editar:
-              if not edit_titulo.strip() or not edit_conteudo.strip():
-                st.error("⚠️ O título e o conteúdo são obrigatórios.")
-              else:
-                # O índice do DataFrame corresponde à linha da planilha - 1,
-                # pois a primeira linha da planilha é o cabeçalho.
-                linha_planilha = int(item_idx) + 2
-                sheet_novidades.update(
-                    f"A{linha_planilha}:F{linha_planilha}",
-                    [[
-                        data_hora,
-                        edit_titulo.strip(),
-                        edit_conteudo.strip(),
-                        edit_img.strip(),
-                        edit_tag,
-                        st.session_state["admin_logado"],
-                    ]],
-                )
-                registrar_log(
-                    st.session_state["admin_logado"],
-                    f"Editou notícia '{titulo}' pela página Novidades",
-                )
-                st.cache_data.clear()
-                st.success("✅ Publicação atualizada!")
-                st.rerun()
-
-            if btn_excluir:
-              linha_planilha = int(item_idx) + 2
-              sheet_novidades.delete_rows(linha_planilha)
+              df_novidades.loc[
+                  item_idx,
+                  ["Titulo", "Tag", "Conteudo", "ImagemUrl"],
+              ] = [
+                  edit_titulo.strip(),
+                  edit_tag,
+                  edit_conteudo.strip(),
+                  edit_img.strip(),
+              ]
+              sheet_novidades.clear()
+              sheet_novidades.append_row([
+                  "DataHora",
+                  "Titulo",
+                  "Conteudo",
+                  "ImagemUrl",
+                  "Tag",
+                  "Autor",
+              ])
+              sheet_novidades.append_rows(df_novidades.values.tolist())
               registrar_log(
                   st.session_state["admin_logado"],
-                  f"Excluiu notícia '{titulo}' pela página Novidades",
+                  f"Editou notícia: {edit_titulo.strip()}",
               )
               st.cache_data.clear()
-              st.success("🗑️ Publicação excluída!")
+              st.success("Alterações salvas!")
               st.rerun()
 
-      st.divider()
+            if btn_excluir:
+              df_atualizado = df_novidades.drop(item_idx)
+              sheet_novidades.clear()
+              sheet_novidades.append_row([
+                  "DataHora",
+                  "Titulo",
+                  "Conteudo",
+                  "ImagemUrl",
+                  "Tag",
+                  "Autor",
+              ])
+              if not df_atualizado.empty:
+                sheet_novidades.append_rows(df_atualizado.values.tolist())
+              registrar_log(
+                  st.session_state["admin_logado"],
+                  f"Excluiu notícia: {titulo}",
+              )
+              st.cache_data.clear()
+              st.success("Postagem excluída!")
+              st.rerun()
   else:
-    st.info("Nenhuma novidade ou notícia publicada no momento.")
+    st.info("Nenhuma novidade publicada no momento. Volte em breve!")
 
 
+# ==============================================================================
 # PÁGINA EXCLUSIVA: REGRAS DO CLÃ
 # ==============================================================================
-def renderizar_regras_cla():
+def renderizar_pagina_regras():
   if st.button("⬅️ Voltar ao Início"):
     st.session_state["pagina_atual"] = "principal"
     st.rerun()
 
   st.markdown(
-      "<h1 style='text-align: center;'>📜 Regras Oficiais do Clã Winning"
-      " Wars</h1>",
+      "<h1 style='text-align: center;'>📜 Regras Oficiais do Clã Vastaya</h1>",
       unsafe_allow_html=True,
   )
   st.markdown(
+      "<p style='text-align: center; color: #cbd5e1;'>Guia de convivência e"
+      " diretrizes para garantir a ordem, respeito e excelência no clã!</p>",
+      unsafe_allow_html=True,
+  )
+
+  st.markdown(
       """
-    <div class="rules-card">
-        <div class="rules-title">🛡️ Regras Oficiais do Clã</div>
-        <ul>
-            <li>1 - Novatos serão testados antes de ir para as guerras.</li>
-            <li>2 - Guerras: Ataque o CV do mesmo nível que o seu. (<b>NÃO</b> é espelho).</li>
-            <li>3 - Inatividade por 3 dias sem aviso prévio = kick.</li>
-            <li>4 - Jogos dos Clãs: Mínimo de 2.000 pontos. O descumprimento = kick.</li>
-            <li>5 - Cargos e promoções serão por mérito.</li>
-            <li>6 - WhatsApp obrigatório para participar da Liga / para disputar a premiação dos passes.</li>
-            <li>7 - Contas rushadas com heróis em nível baixo não serão aceitas.</li>
-            <li>8 - Se tem dúvida, pergunte / peça ajuda! Estamos aqui para nos ajudar.</li>
-        </ul>
-    </div>
-    """,
+      <div class="rules-card">
+          <div class="rules-title">📌 Diretrizes do Clã</div>
+          <ul>
+              <li><b>1. Respeito Acima de Tudo:</b> É estritamente proibido insultar, ofender ou desrespeitar qualquer membro do clã, independente da situação.</li>
+              <li><b>2. Participação nas Guerras:</b> Se marcou o escudo como VERDE, o uso dos 2 ataques é OBRIGATÓRIO. Caso prefira não participar, mantenha o escudo VERMELHO.</li>
+              <li><b>3. Ataques Estratégicos:</b> Respeite a ordem e estratégia definidas pela Liderança/Co-líderes nas Guerras e CWL. Ataques por vila/espelho devem seguir os alvos definidos.</li>
+              <li><b>4. Doações Conscientes:</b> Apenas doe tropas no nível ou especificação pedida. Respeite as requisições de Castelo do Clã.</li>
+              <li><b>5. Jogos do Clã:</b> A meta individual mínima é de 1.000 pontos em todas as edições dos Jogos do Clã para ajudar no baú máximo.</li>
+              <li><b>6. Inatividade sem Aviso:</b> Ausências não justificadas à liderança por mais de 5 dias podem resultar em rebaixamento ou remoção do clã.</li>
+          </ul>
+      </div>
+      """,
       unsafe_allow_html=True,
   )
 
 
-# ==============================================================================
-# SELEÇÃO DE PÁGINAS
-# ==============================================================================
+# --- ROTEAMENTO DE PÁGINAS ---
 if st.session_state["pagina_atual"] == "layouts_guerra":
-  renderizar_pagina_layouts("Guerra", "🛡️ Layouts Oficiais de Guerra")
+  renderizar_pagina_layouts("Guerra", "🛡️ Layouts de Guerra")
+  st.stop()
 elif st.session_state["pagina_atual"] == "layouts_rankeada":
-  renderizar_pagina_layouts("Rankeada", "🏆 Layouts Oficiais de Rankeada")
-elif st.session_state["pagina_atual"] == "novidades":
-  renderizar_pagina_novidades()
+  renderizar_pagina_layouts("Rankeada", "🏆 Layouts Rankeada")
+  st.stop()
 elif st.session_state["pagina_atual"] == "regras_cla":
-  renderizar_regras_cla()
+  renderizar_pagina_regras()
+  st.stop()
 
 # ==============================================================================
 # PÁGINA PRINCIPAL
 # ==============================================================================
-else:
-  # LOGO COM TAMANHO AUMENTADO (180px)
-  st.markdown(
-      """
-    <div style="text-align: center; margin-top: 10px; margin-bottom: 12px;">
-        <img src="https://i.ibb.co/yBShz18b/winning.png" width="180" style="filter: drop-shadow(0px 8px 16px rgba(0,0,0,0.7)); transition: transform 0.3s ease;">
-    </div>
-    """,
-      unsafe_allow_html=True,
-  )
+st.markdown(
+    "<h1 class='main-title'>🏆 Winning Wars APP</h1>", unsafe_allow_html=True
+)
+st.markdown(
+    "<p class='main-subtitle'>Acompanhe a pontuação dos guerreiros no Passe"
+    " Dourado de Clash of Clans!</p>",
+    unsafe_allow_html=True,
+)
 
-  # TÍTULO PRINCIPAL
-  st.markdown(
-      "<h1 class='main-title'>⚔️ Winning Wars APP</h1>",
-      unsafe_allow_html=True,
-  )
-  st.markdown(
-      "<p class='main-subtitle'>Acompanhe o ranking em tempo real. Ao final do"
-      " mês, os Top 3 garantem o Passe Dourado!</p>",
-      unsafe_allow_html=True,
-  )
+eh_admin = "admin_logado" in st.session_state
 
-  # MURAL DE RECADOS
-  if mural_recado.strip():
-    st.markdown(
-        f"""
+# --- MURAL DE RECADOS DA LIDERANÇA ---
+if mural_recado:
+  st.markdown(
+      f"""
         <div class="mural-banner">
-            <div class="mural-header">📢 MURAL DA LIDERANÇA</div>
+            <div class="mural-header">📢 Mural da Liderança:</div>
             <div style="color: #e2e8f0; font-size: 1.05rem;">{mural_recado}</div>
         </div>
         """,
-        unsafe_allow_html=True,
-    )
-
-  if not df.empty:
-    colunas_raides = [c for c in df.columns if c.startswith("Raide_")]
-    colunas_guerras = [c for c in df.columns if c.startswith("Guerra_")]
-    colunas_liga = [c for c in df.columns if c.startswith("Liga_")]
-    colunas_pontos = (
-        ["JogosCla", "Eventos"] + colunas_raides + colunas_guerras + colunas_liga
-    )
-
-    for col in colunas_pontos:
-      if col in df.columns:
-        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
-
-    cols_somar = [c for c in colunas_pontos if c in df.columns]
-    df["Total"] = df[cols_somar].sum(axis=1) if cols_somar else 0
-    df_rank = df.sort_values(by="Total", ascending=False).reset_index(drop=True)
-    df_rank.index = df_rank.index + 1
-
-    posicoes = []
-    for i in df_rank.index:
-      if i == 1:
-        posicoes.append("🥇 1º")
-      elif i == 2:
-        posicoes.append("🥈 2º")
-      elif i == 3:
-        posicoes.append("🥉 3º")
-      else:
-        posicoes.append(f"{i}º")
-    df_rank["Posição"] = posicoes
-  else:
-    colunas_raides, colunas_guerras, colunas_liga = [], [], []
-    df_rank = pd.DataFrame()
-
-  # ABAS DESTACADAS DA PÁGINA PRINCIPAL
-  tab_ranking, tab_tabela, tab_admin = st.tabs(
-      ["🏆 Ranking ao Vivo", "📋 Tabela Detalhada", "🔐 Painel Admin"]
+      unsafe_allow_html=True,
   )
 
-  # ABA 1: RANKING AO VIVO
-  with tab_ranking:
-    if not df.empty and "Total" in df.columns:
-      if mes_finalizado:
-        st.success(
-            "🔒 **O MÊS FOI FINALIZADO PELO ADMIN! CONFIRA OS CAMPEÕES:**"
+# --- PAINEL DE CONTROLE ADMINISTRATIVO NO TOPO ---
+if eh_admin:
+  with st.expander("🛠️ Painel de Controle Administrativo (Aba Principal)"):
+    st.markdown("### 📢 Atualizar Mural de Recados")
+    with st.form("form_mural"):
+      novo_mural = st.text_area("Mensagem para o clã", value=mural_recado)
+      if st.form_submit_button("Salvar Mural"):
+        try:
+          cell = sheet_estado.find("mural_recado")
+          sheet_estado.update_cell(cell.row, cell.col + 1, novo_mural.strip())
+        except Exception:
+          sheet_estado.append_row(["mural_recado", novo_mural.strip()])
+        registrar_log(
+            st.session_state["admin_logado"], "Atualizou o mural de recados"
         )
-        col1, col2, col3 = st.columns(3)
-        if len(df_rank) >= 1:
-          with col1:
-            st.markdown(
-                f'<div class="podium-card gold"><img'
-                ' src="https://i.ibb.co/mkC43vT/goldenpass.png" width="55"><div'
-                ' class="podium-title">🥇 1º LUGAR</div><div'
-                f' class="podium-name">{df_rank.iloc[0]["Nome"]}</div><div'
-                ' class="podium-score">'
-                f'{int(df_rank.iloc[0]["Total"])} pts</div><small>Garantidor do'
-                " Passe Dourado 🎟️</small></div>",
-                unsafe_allow_html=True,
+        st.cache_data.clear()
+        st.success("Mural atualizado!")
+        st.rerun()
+
+    st.write("---")
+    st.markdown("### 👥 Gerenciar Jogadores")
+    col_cad1, col_cad2 = st.columns(2)
+    with col_cad1:
+      with st.form("form_add_jogador"):
+        novo_nome = st.text_input("Nome do Novo Jogador")
+        if st.form_submit_button("➕ Adicionar Jogador"):
+          if novo_nome.strip():
+            nova_linha = [novo_nome.strip()] + [0] * (
+                len(df.columns) - 1 if not df.empty else 0
             )
-        if len(df_rank) >= 2:
-          with col2:
-            st.markdown(
-                f'<div class="podium-card silver"><img'
-                ' src="https://i.ibb.co/mkC43vT/goldenpass.png" width="55"><div'
-                ' class="podium-title">🥈 2º LUGAR</div><div'
-                f' class="podium-name">{df_rank.iloc[1]["Nome"]}</div><div'
-                ' class="podium-score">'
-                f'{int(df_rank.iloc[1]["Total"])} pts</div><small>Garantidor do'
-                " Passe Dourado 🎟️</small></div>",
-                unsafe_allow_html=True,
-            )
-        if len(df_rank) >= 3:
-          with col3:
-            st.markdown(
-                f'<div class="podium-card bronze"><img'
-                ' src="https://i.ibb.co/mkC43vT/goldenpass.png" width="55"><div'
-                ' class="podium-title">🥉 3º LUGAR</div><div'
-                f' class="podium-name">{df_rank.iloc[2]["Nome"]}</div><div'
-                ' class="podium-score">'
-                f'{int(df_rank.iloc[2]["Total"])} pts</div><small>Garantidor do'
-                " Passe Dourado 🎟️</small></div>",
-                unsafe_allow_html=True,
-            )
-
-      # BARRA DE BUSCA
-      _, col_busca, _ = st.columns([1, 2, 1])
-      with col_busca:
-        busca_player = st.text_input(
-            "🔍 Buscar Jogador no Ranking:",
-            placeholder="Digite o nome do membro...",
-        )
-
-      df_exibicao = df_rank[["Posição", "Nome", "Total"]].copy()
-      df_exibicao["Total"] = df_exibicao["Total"].astype(int)
-      df_exibicao.rename(
-          columns={"Nome": "Jogador", "Total": "Pontuação Total"}, inplace=True
-      )
-
-      if busca_player.strip():
-        df_exibicao = df_exibicao[
-            df_exibicao["Jogador"]
-            .str.lower()
-            .str.contains(busca_player.strip().lower())
-        ]
-
-      altura_dinamica = max(450, len(df_exibicao) * 48 + 250)
-
-      # RENDERIZA A TABELA COM BOTÃO DE DOWNLOAD HD E DESTAQUE NO TOP 3
-      components.html(
-          gerar_tabela_bilhete_dourado(df_exibicao),
-          height=altura_dinamica,
-          scrolling=True,
-      )
-
-  # ABA 2: TABELA DETALHADA GERAL
-  with tab_tabela:
-    if not df.empty and "Total" in df.columns:
-      st.markdown("### 📋 Tabela Detalhada Geral de Pontuações")
-      st.markdown(
-          "Acompanhe os pontos por atividade. No celular, **Nome** e **Total** "
-          "permanecem fixos enquanto você desliza para visualizar as atividades."
-      )
-
-      cols_exibicao = (
-          ["Nome"]
-          + [c for c in ["JogosCla", "Eventos"] if c in df.columns]
-          + colunas_guerras
-          + colunas_liga
-          + colunas_raides
-          + ["Total"]
-      )
-      df_detalhada = df[cols_exibicao].sort_values(
-          by="Total", ascending=False
-      ).reset_index(drop=True)
-
-      _, col_busca, _ = st.columns([1, 2, 1])
-      with col_busca:
-        busca_detalhada = st.text_input(
-            "🔎 Localizar jogador",
-            placeholder="Digite parte do nome para localizar...",
-            key="busca_tabela_detalhada",
-        ).strip().lower()
-
-      if busca_detalhada:
-        mascara = df_detalhada["Nome"].astype(str).str.lower().str.contains(
-            busca_detalhada, regex=False, na=False
-        )
-        df_tabela_mobile = df_detalhada[mascara].copy()
-      else:
-        df_tabela_mobile = df_detalhada.copy()
-
-      from html import escape
-
-      def rotulo_coluna(col):
-        if col == "JogosCla":
-          return "Jogos"
-        if col == "Eventos":
-          return "Eventos"
-        if col == "Total":
-          return "TOTAL"
-        prefixos = {
-            "Guerra_": "Guerra ",
-            "Liga_": "Liga ",
-            "Raide_": "Raide ",
-        }
-        for prefixo, rotulo in prefixos.items():
-          if col.startswith(prefixo):
-            identificador = col[len(prefixo):].replace("_", " ")
-            return f"{rotulo}{identificador}".strip()
-        return col
-
-      headers = [rotulo_coluna(c) for c in cols_exibicao]
-      header_html = "".join(
-          f'<th class="{"sticky-nome" if i == 0 else "sticky-total" if i == len(cols_exibicao)-1 else ""}">{escape(str(h))}</th>'
-          for i, h in enumerate(headers)
-      )
-
-      linhas = []
-      for idx_m, row in df_tabela_mobile.iterrows():
-        nome = str(row["Nome"])
-        destaque = " jogador-destaque" if busca_detalhada and busca_detalhada in nome.lower() else ""
-
-        # Destaque para o Top 3 na Tabela Detalhada
-        top_class = ""
-        prefixo_m = ""
-        if idx_m == 0:
-          top_class = " top1-detalhada"
-          prefixo_m = "🥇 "
-        elif idx_m == 1:
-          top_class = " top2-detalhada"
-          prefixo_m = "🥈 "
-        elif idx_m == 2:
-          top_class = " top3-detalhada"
-          prefixo_m = "🥉 "
-
-        cells = []
-        for i, col in enumerate(cols_exibicao):
-          valor = row[col]
-          try:
-            valor = int(float(valor))
-          except (TypeError, ValueError):
-            valor = str(valor)
-
-          if i == 0:
-            str_display = f"{prefixo_m}{escape(str(valor))}"
-          else:
-            str_display = escape(str(valor))
-
-          classe = "sticky-nome" if i == 0 else "sticky-total" if i == len(cols_exibicao) - 1 else ""
-          cells.append(f'<td class="{classe}">{str_display}</td>')
-        linhas.append(f'<tr class="{destaque}{top_class}">' + "".join(cells) + "</tr>")
-
-      html_tabela = f"""
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-        <style>
-          * {{ box-sizing: border-box; }}
-          body {{ margin: 0; background: transparent; font-family: Arial, sans-serif; }}
-          .legenda {{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 10px; color:#cbd5e1; font-size:12px; line-height:1.3; align-items: center; }}
-          .badge {{ padding:5px 9px; border-radius:999px; background:#1e293b; border:1px solid #475569; }}
-          .btn-download-img {{
-            background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
-            color: #ffffff;
-            border: 1px solid #93c5fd;
-            border-radius: 8px;
-            padding: 6px 12px;
-            font-size: 11px;
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0px 2px 4px rgba(0,0,0,0.3);
-            transition: all 0.2s ease;
-          }}
-          .btn-download-img:hover {{ background: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%); }}
-          .viewport {{ width:100%; overflow:auto; max-height:68vh; border:1px solid #334155; border-radius:10px; -webkit-overflow-scrolling:touch; background:#0f172a; }}
-          table {{ border-collapse:separate; border-spacing:0; min-width:760px; width:max-content; background:#0f172a; }}
-          th,td {{ padding:9px 11px; border-right:1px solid #334155; border-bottom:1px solid #334155; text-align:center; white-space:nowrap; font-size:13px; color:#e2e8f0; background:#0f172a; }}
-          thead th {{ background:#1e293b; font-weight:800; position:sticky; z-index:5; }}
-          thead tr:first-child th {{ top:0; color:#facc15; font-size:11px; letter-spacing:.5px; height:28px; }}
-          thead tr:nth-child(2) th {{ top:28px; color:#f8fafc; height:30px; }}
-          tbody tr:nth-child(even) td {{ background:#111827; }}
-          tbody tr:hover td {{ background:#1e293b; }}
-          .sticky-nome {{ position:sticky !important; left:0; z-index:4; min-width:150px; max-width:150px; text-align:left; font-weight:800; box-shadow:5px 0 8px rgba(0,0,0,.25); background:#0f172a; }}
-          thead .sticky-nome {{ z-index:8; background:#1e293b !important; }}
-          .sticky-total {{ position:sticky !important; right:0; z-index:4; min-width:85px; font-weight:900; color:#facc15 !important; background:#172554 !important; box-shadow:-5px 0 8px rgba(0,0,0,.25); }}
-          thead .sticky-total {{ z-index:8; background:#172554 !important; }}
-          .grupo {{ text-align:center; background:#334155 !important; color:#facc15 !important; }}
-          .grupo-canto-esq {{ min-width:150px; background:#334155 !important; position:sticky; left:0; z-index:9; }}
-          .grupo-canto-dir {{ min-width:85px; background:#334155 !important; position:sticky; right:0; z-index:9; }}
-          .jogador-destaque td {{ background:rgba(250,204,21,.18) !important; color:#fff !important; font-weight:900; }}
-          .jogador-destaque .sticky-nome,.jogador-destaque .sticky-total {{ background:#713f12 !important; color:#fff !important; }}
-          
-          /* CORES TOP 3 DETALHADA */
-          .top1-detalhada td {{ background: rgba(250, 204, 21, 0.15) !important; font-weight: 800; }}
-          .top1-detalhada .sticky-nome {{ color: #fef08a !important; background: #3a2e05 !important; }}
-          .top2-detalhada td {{ background: rgba(203, 213, 225, 0.12) !important; font-weight: 800; }}
-          .top2-detalhada .sticky-nome {{ color: #f1f5f9 !important; background: #27303f !important; }}
-          .top3-detalhada td {{ background: rgba(249, 115, 22, 0.12) !important; font-weight: 800; }}
-          .top3-detalhada .sticky-nome {{ color: #ffedd5 !important; background: #431d05 !important; }}
-
-          .vazio {{ padding:28px; text-align:center; color:#94a3b8; background:#0f172a; }}
-          @media (max-width:600px) {{
-            table {{ min-width:680px; }}
-            th,td {{ padding:8px 9px; font-size:12px; }}
-            .sticky-nome {{ min-width:130px; max-width:130px; }}
-            .sticky-total {{ min-width:75px; }}
-          }}
-        </style>
-      </head>
-      <body>
-        <div class="legenda">
-          <span class="badge"><b>🎮 Jogos</b> = Jogos do Clã</span>
-          <span class="badge"><b>🎉 Eventos</b> = Eventos especiais</span>
-          <span class="badge"><b>⚔️ Guerra</b> = Pontos de guerras</span>
-          <span class="badge"><b>🏆 Liga</b> = Pontos de ligas</span>
-          <span class="badge"><b>⚡ Raide</b> = Pontos de Raides</span>
-          <button class="btn-download-img" onclick="baixarImagemTabela()">🖼️ Baixar Tabela em HD</button>
-        </div>
-        <div class="viewport" id="area-tabela">
-          <table id="tabela-render">
-            <thead>
-              <tr>
-                <th class="grupo-canto-esq">JOGADOR</th>
-                <th colspan="{len(cols_exibicao)-2}" class="grupo">PONTUAÇÃO POR ATIVIDADE</th>
-                <th class="grupo-canto-dir">TOTAL</th>
-              </tr>
-              <tr>{header_html}</tr>
-            </thead>
-            <tbody>
-              {''.join(linhas) if linhas else f'<tr><td colspan="{len(cols_exibicao)}" class="vazio">Nenhum jogador encontrado.</td></tr>'}
-            </tbody>
-          </table>
-        </div>
-
-        <script>
-          function baixarImagemTabela() {{
-            const btn = document.querySelector('.btn-download-img');
-            btn.innerText = "⏳ Gerando imagem...";
-            btn.disabled = true;
-
-            const elemento = document.getElementById('tabela-render');
-
-            html2canvas(elemento, {{
-              scale: 2,
-              useCORS: true,
-              backgroundColor: '#0f172a'
-            }}).then(canvas => {{
-              const link = document.createElement('a');
-              link.download = 'tabela_detalhada_winningwars.png';
-              link.href = canvas.toDataURL('image/png');
-              link.click();
-
-              btn.innerText = "🖼️ Baixar Tabela em HD";
-              btn.disabled = false;
-            }}).catch(err => {{
-              alert('Erro ao gerar imagem: ' + err);
-              btn.innerText = "🖼️ Baixar Tabela em HD";
-              btn.disabled = false;
-            }});
-          }}
-        </script>
-      </body>
-      </html>
-      """
-
-      altura = min(900, max(300, 150 + len(df_tabela_mobile) * 40))
-      components.html(html_tabela, height=altura, scrolling=False)
-
-  # ABA 3: ÁREA ADMIN
-  with tab_admin:
-    st.subheader("🔐 Painel de Controle e Administração")
-
-    if "admin_logado" not in st.session_state:
-      st.info(
-          "👉 Faça o login clicando no botão **'🔐 Admin'** no canto superior"
-          " direito da página para acessar os controles de gestão."
-      )
-    else:
-      st.success(
-          f"Sessão Ativa: **{st.session_state['admin_logado']}** (Gerenciamento"
-          " Liberado)"
-      )
-
-      sub_tab1, sub_tab2, sub_tab_pass, sub_tab3, sub_tab4, sub_tab_news, sub_tab5, sub_tab6, sub_tab7 = st.tabs([
-          "➕ Players",
-          "👤 Novo Admin",
-          "🔑 Alterar Senha",
-          "✏️ Gerenciar Pontos e Colunas",
-          "📢 Recado e Galeria",
-          "📰 Gerenciar Novidades",
-          "📜 Logs do Sistema",
-          "💾 Backup de Dados",
-          "🎲 Sorteio de Desempate",
-      ])
-
-      with sub_tab1:
-        c1, c2 = st.columns(2)
-        with c1:
-          novo_nome = st.text_input("Nome do Player")
-          if st.button("Cadastrar Player"):
-            if novo_nome.strip() != "":
-              novo_id = len(dados) + 1
-              cols_atuais = len(sheet_dados.row_values(1))
-              sheet_dados.append_row(
-                  [novo_id, novo_nome.strip()] + [0] * (cols_atuais - 2)
-              )
-              registrar_log(
-                  st.session_state["admin_logado"],
-                  f"Cadastrou player {novo_nome}",
-              )
-              st.cache_data.clear()
-              st.success("Adicionado!")
-              st.rerun()
-        with c2:
-          if not df.empty and "Nome" in df.columns:
-            player_rem = st.selectbox("Remover Player", df["Nome"].tolist())
-            confirmar_rem = st.checkbox(
-                "⚠️ Confirmar exclusão permanente deste jogador"
-            )
-            if st.button("Remover Player", type="primary"):
-              if confirmar_rem:
-                cell = sheet_dados.find(player_rem)
-                sheet_dados.delete_rows(cell.row)
-                registrar_log(
-                    st.session_state["admin_logado"],
-                    f"Removeu player {player_rem}",
-                )
-                st.cache_data.clear()
-                st.success("Removido com sucesso!")
-                st.rerun()
-              else:
-                st.warning(
-                    "Marque a caixa de confirmação para poder remover."
-                )
-
-      with sub_tab2:
-        st.markdown("#### 👤 Cadastrar Novo Administrador")
-        with st.form("form_novo_admin", clear_on_submit=True):
-          c_adm1, c_adm2 = st.columns(2)
-          with c_adm1:
-            novo_admin_usr = st.text_input("Nome do Usuário Admin")
-            novo_admin_pwd = st.text_input("Senha", type="password")
-          with c_adm2:
-            novo_admin_pwd_conf = st.text_input(
-                "Confirmar Senha", type="password"
-            )
-
-          btn_cadastrar_admin = st.form_submit_button("Criar Usuário Admin")
-
-          if btn_cadastrar_admin:
-            usr_limpo = novo_admin_usr.strip()
-            pwd_limpo = novo_admin_pwd.strip()
-
-            if not usr_limpo or not pwd_limpo:
-              st.error("⚠️ Preencha o nome de usuário e a senha.")
-            elif pwd_limpo != novo_admin_pwd_conf.strip():
-              st.error("⚠️ As senhas informadas não coincidem.")
-            else:
-              df_admins_atual = pd.DataFrame(sheet_admins.get_all_records())
-              if (
-                  not df_admins_atual.empty
-                  and usr_limpo.lower()
-                  in df_admins_atual["Usuario"].str.lower().values
-              ):
-                st.error("⚠️ Já existe um administrador com esse usuário!")
-              else:
-                hash_senha = gerar_hash(pwd_limpo)
-                sheet_admins.append_row([usr_limpo, hash_senha])
-                registrar_log(
-                    st.session_state["admin_logado"],
-                    f"Cadastrou o novo admin '{usr_limpo}'",
-                )
-                st.cache_data.clear()
-                st.success(
-                    f"✅ Administrador **{usr_limpo}** cadastrado com sucesso!"
-                )
-                st.rerun()
-
-      with sub_tab_pass:
-        st.markdown(f"#### 🔑 Alterar Senha de Admin (`{st.session_state['admin_logado']}`)")
-        with st.form("form_mudar_senha", clear_on_submit=True):
-          senha_atual = st.text_input("Senha Atual", type="password")
-          nova_senha = st.text_input("Nova Senha", type="password")
-          conf_nova_senha = st.text_input("Confirmar Nova Senha", type="password")
-          btn_trocar_senha = st.form_submit_button("Atualizar Senha")
-
-          if btn_trocar_senha:
-            if not senha_atual or not nova_senha:
-              st.error("⚠️ Preencha todos os campos do formulário.")
-            elif nova_senha != conf_nova_senha:
-              st.error("⚠️ A nova senha e a confirmação não coincidem.")
-            else:
-              admin_atual = st.session_state["admin_logado"]
-              df_admins_atual = pd.DataFrame(sheet_admins.get_all_records())
-              
-              if not df_admins_atual.empty:
-                validacao = df_admins_atual[
-                    (df_admins_atual["Usuario"] == admin_atual)
-                    & (df_admins_atual["SenhaHash"] == gerar_hash(senha_atual))
-                ]
-                if validacao.empty:
-                  st.error("⚠️ Senha atual incorreta!")
-                else:
-                  cell = sheet_admins.find(admin_atual)
-                  if cell:
-                    sheet_admins.update_cell(cell.row, 2, gerar_hash(nova_senha))
-                    registrar_log(admin_atual, "Alterou a própria senha de acesso")
-                    st.cache_data.clear()
-                    st.success("✅ Senha alterada com sucesso!")
-                    st.rerun()
-
-      sub_tab3_col1, sub_tab3_col2 = sub_tab3.columns([1, 1])
-      with sub_tab3:
-        st.markdown("#### ➕ Criar Novas Colunas de Guerras, Liga ou Raides")
-        st.markdown(
-            "Clique nos botões abaixo para criar automaticamente as próximas"
-            " colunas na sequência."
-        )
-
-        col_btn1, col_btn2, col_btn3 = st.columns(3)
-
-        with col_btn1:
-          proxima_guerra = obter_proxima_coluna_sequencial(
-              "Guerra", df.columns if not df.empty else []
-          )
-          if st.button(
-              f"⚔️ Criar Guerra ({proxima_guerra})",
-              use_container_width=True,
-          ):
-            headers = sheet_dados.row_values(1)
-            if proxima_guerra in headers:
-              st.error(f"⚠️ A coluna {proxima_guerra} já existe!")
-            else:
-              proxima_col_num = len(headers) + 1
-              sheet_dados.update_cell(1, proxima_col_num, proxima_guerra)
-
-              if not df.empty:
-                num_linhas = len(df)
-                sheet_dados.update(
-                    f"{gspread.utils.rowcol_to_a1(2, proxima_col_num)}:{gspread.utils.rowcol_to_a1(num_linhas + 1, proxima_col_num)}",
-                    [[0]] * num_linhas,
-                )
-
-              registrar_log(
-                  st.session_state["admin_logado"],
-                  f"Criou a coluna de Guerra Normal '{proxima_guerra}'",
-              )
-              st.cache_data.clear()
-              st.success(
-                  f"✅ Coluna **{proxima_guerra}** adicionada com sucesso!"
-              )
-              st.rerun()
-
-        with col_btn2:
-          colunas_liga_existentes = [c for c in (df.columns if not df.empty else []) if c.startswith("Liga_")]
-          qtd_liga = len(colunas_liga_existentes)
-          
-          if qtd_liga >= 7:
-            st.info("🔒 **Limite de 7 Guerras de Liga atingido.**")
-          else:
-            proxima_liga = f"Liga_{qtd_liga + 1}"
-            if st.button(
-                f"🏆 Criar Liga ({proxima_liga}) [{qtd_liga + 1}/7]",
-                use_container_width=True,
-            ):
-              headers = sheet_dados.row_values(1)
-              if proxima_liga in headers:
-                st.error(f"⚠️ A coluna {proxima_liga} já existe!")
-              else:
-                proxima_col_num = len(headers) + 1
-                sheet_dados.update_cell(1, proxima_col_num, proxima_liga)
-
-                if not df.empty:
-                  num_linhas = len(df)
-                  sheet_dados.update(
-                      f"{gspread.utils.rowcol_to_a1(2, proxima_col_num)}:{gspread.utils.rowcol_to_a1(num_linhas + 1, proxima_col_num)}",
-                      [[0]] * num_linhas,
-                  )
-
-                registrar_log(
-                    st.session_state["admin_logado"],
-                    f"Criou a coluna de Guerra de Liga '{proxima_liga}'",
-                )
-                st.cache_data.clear()
-                st.success(
-                    f"✅ Coluna **{proxima_liga}** adicionada com sucesso!"
-                )
-                st.rerun()
-
-        with col_btn3:
-          proxima_raide = obter_proxima_coluna_sequencial(
-              "Raide", df.columns if not df.empty else []
-          )
-          if st.button(
-              f"🏰 Criar Raide ({proxima_raide})",
-              use_container_width=True,
-          ):
-            headers = sheet_dados.row_values(1)
-            if proxima_raide in headers:
-              st.error(f"⚠️ A coluna {proxima_raide} já existe!")
-            else:
-              proxima_col_num = len(headers) + 1
-              sheet_dados.update_cell(1, proxima_col_num, proxima_raide)
-
-              if not df.empty:
-                num_linhas = len(df)
-                sheet_dados.update(
-                    f"{gspread.utils.rowcol_to_a1(2, proxima_col_num)}:{gspread.utils.rowcol_to_a1(num_linhas + 1, proxima_col_num)}",
-                    [[0]] * num_linhas,
-                )
-
-              registrar_log(
-                  st.session_state["admin_logado"],
-                  f"Criou a coluna de Raide '{proxima_raide}'",
-              )
-              st.cache_data.clear()
-              st.success(
-                  f"✅ Coluna **{proxima_raide}** adicionada com sucesso!"
-              )
-              st.rerun()
-
-        st.divider()
-
-        st.markdown("#### ✏️ Edição de Pontos dos Jogadores")
-        if not df.empty:
-          df_editavel = df.drop(
-              columns=["Total", "WarTotal"], errors="ignore"
-          ).copy()
-          df_editado = st.data_editor(
-              df_editavel, use_container_width=True, hide_index=True
-          )
-          if st.button("💾 Salvar Alterações em Lote", type="primary"):
-            novos_dados = [
-                df_editado.columns.values.tolist()
-            ] + df_editado.fillna(0).values.tolist()
-            sheet_dados.clear()
-            sheet_dados.update(novos_dados)
+            sheet_dados.append_row(nova_linha)
             registrar_log(
                 st.session_state["admin_logado"],
-                "Atualizou a planilha de pontos em lote",
+                f"Adicionou o jogador {novo_nome.strip()}",
             )
             st.cache_data.clear()
-            st.success("Pontuações salvas e atualizadas com sucesso!")
+            st.success("Jogador adicionado!")
             st.rerun()
 
-      with sub_tab4:
-        st.markdown("#### 📢 Atualizar / Excluir Mural de Recados")
-        novo_recado = st.text_area("Recado para o topo da tela:", mural_recado)
-        col_rec1, col_rec2 = st.columns(2)
-        with col_rec1:
-          if st.button("Publicar Recado"):
-            cell_recado = sheet_estado.find("mural_recado")
-            if cell_recado:
-              sheet_estado.update_cell(cell_recado.row, 2, novo_recado.strip())
-            else:
-              sheet_estado.append_row(["mural_recado", novo_recado.strip()])
-            registrar_log(
-                st.session_state["admin_logado"], "Atualizou mural de recados"
-            )
-            st.cache_data.clear()
-            st.success("Recado publicado!")
-            st.rerun()
-        with col_rec2:
-          if st.button("🗑️ Excluir Recado Atual"):
-            cell_recado = sheet_estado.find("mural_recado")
-            if cell_recado:
-              sheet_estado.update_cell(cell_recado.row, 2, "")
-            registrar_log(
-                st.session_state["admin_logado"], "Excluiu mural de recados"
-            )
-            st.cache_data.clear()
-            st.success("Recado removido do mural!")
-            st.rerun()
-
-        st.divider()
-
-        st.markdown("#### 🌟 Adicionar / Arquivar na Galeria da Fama")
-        st.markdown("Você pode **arquivar os campeões do mês atual** ou **incluir manualmente pessoas/premiações extras**!")
-
-        # OPÇÃO A: ARQUIVAR MÊS ATUAL
-        with st.expander("🏆 Arquivar Campeões do Mês Atual (Ranking Automático)"):
-          mes_ano_ref = st.text_input("Mês/Ano de Referência (Ex: Março/2026)")
-          if st.button("🏆 Arquivar Mês Atual na Galeria"):
-            if len(df_rank) >= 3 and mes_ano_ref.strip():
-              sheet_fama.append_row([
-                  mes_ano_ref.strip(),
-                  df_rank.iloc[0]["Nome"],
-                  df_rank.iloc[1]["Nome"],
-                  df_rank.iloc[2]["Nome"],
-              ])
+    with col_cad2:
+      if not df.empty and "Jogador" in df.columns:
+        with st.form("form_rem_jogador"):
+          jogador_remover = st.selectbox(
+              "Remover Jogador", df["Jogador"].tolist()
+          )
+          if st.form_submit_button("🗑️ Remover Jogador"):
+            try:
+              cell = sheet_dados.find(jogador_remover)
+              sheet_dados.delete_rows(cell.row)
               registrar_log(
                   st.session_state["admin_logado"],
-                  f"Arquivou campeões do mês {mes_ano_ref}",
+                  f"Removeu o jogador {jogador_remover}",
               )
               st.cache_data.clear()
-              st.success("Registrado na Galeria da Fama com sucesso!")
+              st.success("Jogador removido!")
               st.rerun()
+            except Exception:
+              st.error("Erro ao remover.")
 
-        # OPÇÃO B: INCLUIR MANUALMENTE
-        with st.expander("➕ Adicionar Vencedores / Premiação Extra Manualmente"):
-          with st.form("form_fama_manual", clear_on_submit=True):
-            fama_titulo = st.text_input("Título/Mês (Ex: Torneio Extra - Fev/2026)")
-            fama_p1 = st.text_input("🥇 1º Lugar (Ganhador Principal)")
-            fama_p2 = st.text_input("🥈 2º Lugar (Opcional)")
-            fama_p3 = st.text_input("🥉 3º Lugar (Opcional)")
+    st.write("---")
+    st.markdown("### ⚔️ Adicionar Novas Colunas de Evento")
+    col_btn1, col_btn2, col_btn3 = st.columns(3)
 
-            btn_fama_manual = st.form_submit_button("Salvar na Galeria da Fama")
+    with col_btn1:
+      colunas_guerra_existentes = [
+          c
+          for c in (df.columns if not df.empty else [])
+          if c.startswith("Guerra_")
+      ]
+      proxima_guerra = obter_proxima_coluna_sequencial(
+          "Guerra", colunas_guerra_existentes
+      )
+      if st.button(f"➕ Criar {proxima_guerra}", use_container_width=True):
+        headers = sheet_dados.row_values(1)
+        if proxima_guerra in headers:
+          st.error(f"A coluna {proxima_guerra} já existe!")
+        else:
+          proxima_col_num = len(headers) + 1
+          sheet_dados.update_cell(1, proxima_col_num, proxima_guerra)
+          if not df.empty:
+            num_linhas = len(df)
+            sheet_dados.update(
+                f"{gspread.utils.rowcol_to_a1(2, proxima_col_num)}:{gspread.utils.rowcol_to_a1(num_linhas + 1, proxima_col_num)}",
+                [[0]] * num_linhas,
+            )
+          registrar_log(
+              st.session_state["admin_logado"],
+              f"Criou a coluna de Guerra Normal '{proxima_guerra}'",
+          )
+          st.cache_data.clear()
+          st.success(f"✅ Coluna **{proxima_guerra}** adicionada com sucesso!")
+          st.rerun()
 
-            if btn_fama_manual:
-              if fama_titulo.strip() and fama_p1.strip():
-                sheet_fama.append_row([
-                    fama_titulo.strip(),
-                    fama_p1.strip(),
-                    fama_p2.strip() if fama_p2.strip() else "-",
-                    fama_p3.strip() if fama_p3.strip() else "-",
-                ])
+    with col_btn2:
+      colunas_liga_existentes = [
+          c for c in (df.columns if not df.empty else []) if c.startswith("Liga_")
+      ]
+      qtd_liga = len(colunas_liga_existentes)
+      if qtd_liga >= 7:
+        st.warning("⚠️ Limite de 7 rodadas de Liga atingido!")
+      else:
+        proxima_liga = obter_proxima_coluna_sequencial(
+            "Liga", colunas_liga_existentes
+        )
+        if st.button(f"➕ Criar {proxima_liga}", use_container_width=True):
+          headers = sheet_dados.row_values(1)
+          if proxima_liga in headers:
+            st.error(f"A coluna {proxima_liga} já existe!")
+          else:
+            proxima_col_num = len(headers) + 1
+            sheet_dados.update_cell(1, proxima_col_num, proxima_liga)
+            if not df.empty:
+              num_linhas = len(df)
+              sheet_dados.update(
+                  f"{gspread.utils.rowcol_to_a1(2, proxima_col_num)}:{gspread.utils.rowcol_to_a1(num_linhas + 1, proxima_col_num)}",
+                  [[0]] * num_linhas,
+              )
+            registrar_log(
+                st.session_state["admin_logado"],
+                f"Criou a coluna de Liga '{proxima_liga}'",
+            )
+            st.cache_data.clear()
+            st.success(f"✅ Coluna **{proxima_liga}** adicionada com sucesso!")
+            st.rerun()
+
+    with col_btn3:
+      colunas_extra_existentes = [
+          c
+          for c in (df.columns if not df.empty else [])
+          if c.startswith("Extra_")
+      ]
+      proxima_extra = obter_proxima_coluna_sequencial(
+          "Extra", colunas_extra_existentes
+      )
+      if st.button(f"➕ Criar {proxima_extra}", use_container_width=True):
+        headers = sheet_dados.row_values(1)
+        if proxima_extra in headers:
+          st.error(f"A coluna {proxima_extra} já existe!")
+        else:
+          proxima_col_num = len(headers) + 1
+          sheet_dados.update_cell(1, proxima_col_num, proxima_extra)
+          if not df.empty:
+            num_linhas = len(df)
+            sheet_dados.update(
+                f"{gspread.utils.rowcol_to_a1(2, proxima_col_num)}:{gspread.utils.rowcol_to_a1(num_linhas + 1, proxima_col_num)}",
+                [[0]] * num_linhas,
+            )
+          registrar_log(
+              st.session_state["admin_logado"],
+              f"Criou a coluna Extra '{proxima_extra}'",
+          )
+          st.cache_data.clear()
+          st.success(f"✅ Coluna **{proxima_extra}** adicionada com sucesso!")
+          st.rerun()
+
+    st.write("---")
+    st.markdown("### 🗑️ Excluir Colunas de Evento")
+    if not df.empty:
+      colunas_excluiveis = [
+          c
+          for c in df.columns
+          if c.startswith(("Guerra_", "Liga_", "Extra_")) or c == "Doacoes"
+      ]
+      if colunas_excluiveis:
+        with st.form("form_deletar_coluna"):
+          col_para_deletar = st.selectbox(
+              "Selecione a coluna para remover", colunas_excluiveis
+          )
+          btn_del_col = st.form_submit_button("🗑️ Confirmar Exclusão de Coluna")
+          if btn_del_col:
+            try:
+              headers = sheet_dados.row_values(1)
+              if col_para_deletar in headers:
+                col_idx = headers.index(col_para_deletar) + 1
+                sheet_dados.delete_columns(col_idx)
                 registrar_log(
                     st.session_state["admin_logado"],
-                    f"Adicionou manual na Galeria da Fama: {fama_titulo}",
+                    f"Excluiu a coluna '{col_para_deletar}'",
                 )
                 st.cache_data.clear()
-                st.success("Adicionado à Galeria da Fama!")
+                st.success(
+                    f"✅ Coluna **{col_para_deletar}** excluída com sucesso!"
+                )
                 st.rerun()
               else:
-                st.error("⚠️ Preencha pelo menos o Título e o 1º Lugar.")
+                st.error("Coluna não encontrada no banco.")
+            except Exception as err:
+              st.error(f"Erro ao excluir coluna: {err}")
+      else:
+        st.info("Nenhuma coluna customizada disponível para exclusão.")
 
-      # ABA DE GERENCIAMENTO DE NOTÍCIAS / NOVIDADES
-      with sub_tab_news:
-        st.markdown("#### 📰 Publicar Nova Notícia ou Evento")
-        with st.form("form_nova_noticia", clear_on_submit=True):
-          noticia_titulo = st.text_input("Título da Notícia")
-          noticia_tag = st.selectbox(
-              "Categoria / Tag",
-              ["🎉 Evento", "⚔️ Torneio", "🚀 Atualização Game", "📢 Aviso Clã", "🏆 Premiação Extra"]
-          )
-          noticia_conteudo = st.text_area("Conteúdo do Comunicado", height=120)
-          noticia_img = st.text_input("Link Direto da Imagem / Banner (Opcional)")
-
-          btn_pub_noticia = st.form_submit_button("Publicar Notícia")
-
-          if btn_pub_noticia:
-            if noticia_titulo.strip() and noticia_conteudo.strip():
-              d_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
-              sheet_novidades.append_row([
-                  d_hora,
-                  noticia_titulo.strip(),
-                  noticia_conteudo.strip(),
-                  noticia_img.strip(),
-                  noticia_tag,
-                  st.session_state["admin_logado"],
-              ])
-              registrar_log(
-                  st.session_state["admin_logado"],
-                  f"Publicou notícia '{noticia_titulo}'",
-              )
-              st.cache_data.clear()
-              st.success("✅ Notícia publicada no painel de Novidades!")
-              st.rerun()
-            else:
-              st.error("⚠️ Insira o título e o conteúdo antes de publicar.")
-
-        st.divider()
-        st.markdown("#### 🗑️ Gerenciar / Excluir Notícias")
-        if not df_novidades.empty:
-          for idx_n, row_n in df_novidades.iterrows():
-            st.write(f"📌 **{row_n.get('Titulo')}** ({row_n.get('DataHora')})")
-            if st.button(
-                f"❌ Excluir Notícia #{idx_n + 1}",
-                key=f"del_news_{idx_n}",
-            ):
-              cell_n = sheet_novidades.find(row_n["Titulo"])
-              if cell_n:
-                sheet_novidades.delete_rows(cell_n.row)
-                registrar_log(
-                    st.session_state["admin_logado"],
-                    f"Excluiu notícia '{row_n['Titulo']}'",
-                )
-                st.cache_data.clear()
-                st.success("Notícia removida!")
-                st.rerun()
-        else:
-          st.info("Nenhuma notícia cadastrada para exclusão.")
-
-      with sub_tab5:
-        st.markdown("#### 🛡️ Registro de Atividades dos Admins")
+    st.write("---")
+    st.markdown("### 🔒 Finalização do Mês")
+    if mes_finalizado:
+      st.warning(
+          "⚠️ **O mês atual está FINALIZADO.** Apenas leitura ativada para"
+          " membros."
+      )
+      if st.button("🔓 Reabrir Mês Atual"):
         try:
-          df_logs_exib = pd.DataFrame(sheet_logs.get_all_records())
-          st.dataframe(
-              df_logs_exib.tail(20), use_container_width=True, hide_index=True
-          )
+          cell = sheet_estado.find("mes_finalizado")
+          sheet_estado.update_cell(cell.row, cell.col + 1, "FALSE")
         except Exception:
-          st.info("Nenhum log registrado ainda.")
+          sheet_estado.append_row(["mes_finalizado", "FALSE"])
+        registrar_log(st.session_state["admin_logado"], "Reabriu o mês atual")
+        st.cache_data.clear()
+        st.rerun()
+    else:
+      if st.button("🔒 Finalizar Mês Atual (Travar Edição)"):
+        try:
+          cell = sheet_estado.find("mes_finalizado")
+          sheet_estado.update_cell(cell.row, cell.col + 1, "TRUE")
+        except Exception:
+          sheet_estado.append_row(["mes_finalizado", "TRUE"])
 
-      with sub_tab6:
-        st.markdown("#### 💾 Exportar Backup do Banco de Dados")
-        if not df.empty:
-          csv_backup = df.to_csv(index=False).encode("utf-8")
-          st.download_button(
-              label="📥 Baixar Backup Atual em CSV",
-              data=csv_backup,
-              file_name=(
-                  f"winningwars_backup_{datetime.now().strftime('%Y%m%d')}.csv"
-              ),
-              mime="text/csv",
+        if not df.empty and "Pontuação Total" in df.columns:
+          df_rank = df.sort_values(by="Pontuação Total", ascending=False)
+          nomes = df_rank["Jogador"].tolist()
+          p1 = nomes[0] if len(nomes) > 0 else "-"
+          p2 = nomes[1] if len(nomes) > 1 else "-"
+          p3 = nomes[2] if len(nomes) > 2 else "-"
+          mes_ano = datetime.now().strftime("%m/%Y")
+          sheet_fama.append_row([mes_ano, p1, p2, p3])
+
+        registrar_log(
+            st.session_state["admin_logado"],
+            "Finalizou o mês atual e salvou no histórico",
+        )
+        st.cache_data.clear()
+        st.success("Mês finalizado e gravado na Galeria da Fama!")
+        st.rerun()
+
+# --- PROCESSAMENTO DOS DADOS DO RANKING ---
+if not df.empty and "Jogador" in df.columns:
+  colunas_guerra = [c for c in df.columns if c.startswith("Guerra_")]
+  colunas_liga = [c for c in df.columns if c.startswith("Liga_")]
+  colunas_extra = [c for c in df.columns if c.startswith("Extra_")]
+
+  has_doacoes = "Doacoes" in df.columns
+  has_doacoes_flag = "Doacoes_flag" in df.columns
+
+  for col in colunas_guerra + colunas_liga + colunas_extra:
+    df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+
+  if has_doacoes:
+    df["Doacoes"] = pd.to_numeric(df["Doacoes"], errors="coerce").fillna(0)
+
+  df["Pontos_Guerra"] = (
+      df[colunas_guerra].sum(axis=1) if colunas_guerra else 0
+  )
+  df["Pontos_Liga"] = df[colunas_liga].sum(axis=1) if colunas_liga else 0
+  df["Pontos_Extra"] = df[colunas_extra].sum(axis=1) if colunas_extra else 0
+  df["Pontos_Doacoes"] = df["Doacoes"] if has_doacoes else 0
+
+  df["Pontuação Total"] = (
+      df["Pontos_Guerra"]
+      + df["Pontos_Liga"]
+      + df["Pontos_Extra"]
+      + df["Pontos_Doacoes"]
+  )
+
+  df_sorted = df.sort_values(
+      by=["Pontuação Total", "Jogador"], ascending=[False, True]
+  ).reset_index(drop=True)
+  df_sorted["Posição"] = [f"{i+1}º" for i in range(len(df_sorted))]
+
+  # TABELA RESUMIDA
+  cols_resumida = ["Posição", "Jogador", "Pontuação Total"]
+  df_resumida = df_sorted[cols_resumida].copy()
+
+  # TABELA DETALHADA
+  cols_detalhada = (
+      ["Posição", "Jogador"]
+      + colunas_guerra
+      + colunas_liga
+      + (["Doacoes"] if has_doacoes else [])
+      + colunas_extra
+      + ["Pontuação Total"]
+  )
+  df_detalhada = df_sorted[cols_detalhada].copy()
+
+  # MODO DE EDIÇÃO PARA ADMIN
+  if eh_admin and not mes_finalizado:
+    st.markdown("### ✏️ Edição Rápida de Pontuação (Modo Admin)")
+    cols_editaveis = (
+        colunas_guerra
+        + colunas_liga
+        + (["Doacoes"] if has_doacoes else [])
+        + colunas_extra
+    )
+
+    if cols_editaveis:
+      edited_df = st.data_editor(
+          df_sorted[["Jogador"] + cols_editaveis],
+          use_container_width=True,
+          hide_index=True,
+      )
+
+      if st.button("💾 Salvar Alterações na Planilha", type="primary"):
+        try:
+          all_records = sheet_dados.get_all_records()
+          df_banco = pd.DataFrame(all_records)
+
+          for _, row_edited in edited_df.iterrows():
+            nome = row_edited["Jogador"]
+            idx_banco = df_banco[df_banco["Jogador"] == nome].index
+            if not idx_banco.empty:
+              r_idx = idx_banco[0] + 2
+              for col_name in cols_editaveis:
+                c_idx = df_banco.columns.get_loc(col_name) + 1
+                val = row_edited[col_name]
+                sheet_dados.update_cell(r_idx, c_idx, int(val))
+
+          registrar_log(
+              st.session_state["admin_logado"],
+              "Editou pontuações diretamente na tabela",
           )
-        else:
-          st.info("Nenhum dado disponível para backup.")
+          st.cache_data.clear()
+          st.success("Salvo com sucesso!")
+          st.rerun()
+        except Exception as e:
+          st.error(f"Erro ao salvar: {e}")
 
-      with sub_tab7:
-        st.markdown("#### 🎲 Sorteio de Desempate Transparente (Gravação de Tela)")
-        st.info(
-            "🎥 **Dica para Gravação:** Inicie a gravação da sua tela antes de"
-            " clicar no botão de sorteio para enviar o vídeo ao grupo do WhatsApp"
-            " do clã."
+  # --- EXIBIÇÃO DA TABELA DO RANKING ---
+  st.write("---")
+  st.markdown(
+      "<h2 style='text-align: center;'>📊 Tabela Completa do Ranking</h2>",
+      unsafe_allow_html=True,
+  )
+
+  from html import escape
+
+  def montar_tabela_detalhada_html(df_det):
+    linhas = []
+    cols_exibicao = [c for c in df_det.columns if c != "Posição"]
+
+    for idx, row in df_det.iterrows():
+      pos = idx + 1
+      top_class = ""
+      prefixo_m = ""
+
+      if pos == 1:
+        top_class = " top1-detalhada"
+        prefixo_m = "🥇 "
+      elif pos == 2:
+        top_class = " top2-detalhada"
+        prefixo_m = "🥈 "
+      elif pos == 3:
+        top_class = " top3-detalhada"
+        prefixo_m = "🥉 "
+
+      destaque = "linha-par" if pos % 2 == 0 else "linha-impar"
+      cells = []
+
+      for i, col in enumerate(cols_exibicao):
+        valor = row[col]
+        try:
+          valor = int(float(valor))
+        except (TypeError, ValueError):
+          valor = str(valor)
+
+        if i == 0:
+          str_display = f"{prefixo_m}{escape(str(valor))}"
+        else:
+          str_display = escape(str(valor))
+
+        classe = (
+            "sticky-nome"
+            if i == 0
+            else "sticky-total"
+            if i == len(cols_exibicao) - 1
+            else ""
+        )
+        cells.append(f'<td class="{classe}">{str_display}</td>')
+
+      linhas.append(
+          f'<tr class="{destaque}{top_class}">' + "".join(cells) + "</tr>"
+      )
+
+    html_tabela = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+      <style>
+        * {{ box-sizing: border-box; }}
+        body {{ margin: 0; background: transparent; font-family: Arial, sans-serif; }}
+        .legenda {{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 10px; color:#cbd5e1; font-size:12px; line-height:1.3; align-items: center; }}
+        .badge {{ padding:5px 9px; border-radius:999px; background:#1e293b; border:1px solid #475569; }}
+        .btn-download-img {{
+          background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+          color: #ffffff;
+          border: 1px solid #93c5fd;
+          border-radius: 8px;
+          padding: 6px 12px;
+          font-size: 11px;
+          font-weight: bold;
+          cursor: pointer;
+          margin-left: auto;
+        }}
+        .table-container {{
+          width: 100%;
+          max-height: 580px;
+          overflow: auto;
+          border-radius: 12px;
+          border: 1px solid #334155;
+          box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+          background: #0f172a;
+        }}
+        table {{
+          width: 100%;
+          border-collapse: separate;
+          border-spacing: 0;
+          min-width: 720px;
+          font-size: 13px;
+        }}
+        th, td {{
+          padding: 10px 11px;
+          text-align: center;
+          border-bottom: 1px solid #1e293b;
+          border-right: 1px solid #1e293b;
+          white-space: nowrap;
+        }}
+        th {{
+          background: #1e293b;
+          color: #facc15;
+          font-weight: 800;
+          position: sticky;
+          top: 0;
+          z-index: 3;
+        }}
+        .sticky-nome {{
+          position: sticky;
+          left: 0;
+          z-index: 2;
+          text-align: left;
+          font-weight: 700;
+          min-width: 150px;
+          max-width: 150px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }}
+        th.sticky-nome {{ z-index: 5; background: #1e293b; color: #facc15; }}
+        .sticky-total {{
+          position: sticky;
+          right: 0;
+          z-index: 2;
+          font-weight: 900;
+          color: #facc15 !important;
+          background: #0f172a;
+          min-width: 85px;
+        }}
+        th.sticky-total {{ z-index: 5; background: #1e293b; color: #facc15; }}
+        .linha-impar td {{ background: #0f172a; color: #e2e8f0; }}
+        .linha-par td {{ background: #162032; color: #e2e8f0; }}
+        .linha-impar .sticky-nome {{ background: #0f172a; color: #ffffff; }}
+        .linha-par .sticky-nome {{ background: #162032; color: #ffffff; }}
+        .top1-detalhada td {{ background: rgba(250, 204, 21, 0.15) !important; font-weight: 800; }}
+        .top1-detalhada .sticky-nome {{ color: #fef08a !important; background: #3a2e05 !important; }}
+        .top2-detalhada td {{ background: rgba(203, 213, 225, 0.12) !important; font-weight: 800; }}
+        .top2-detalhada .sticky-nome {{ color: #f1f5f9 !important; background: #27303f !important; }}
+        .top3-detalhada td {{ background: rgba(249, 115, 22, 0.12) !important; font-weight: 800; }}
+        .top3-detalhada .sticky-nome {{ color: #ffedd5 !important; background: #431d05 !important; }}
+        .vazio {{ padding:28px; text-align:center; color:#94a3b8; background:#0f172a; }}
+        @media (max-width:600px) {{
+          table {{ min-width:680px; }}
+          th,td {{ padding:8px 9px; font-size:12px; }}
+          .sticky-nome {{ min-width:130px; max-width:130px; }}
+          .sticky-total {{ min-width:75px; }}
+        }}
+      </style>
+    </head>
+    <body>
+      <div class="legenda">
+        <span class="badge">🛡️ Guerra: <b>+3 pts</b> / ataque</span>
+        <span class="badge">⚔️ Liga: <b>+3 pts</b> / estrela</span>
+        <span class="badge">📦 Doações: <b>+10 pts</b> (1º lugar)</span>
+        <button class="btn-download-img" id="btn-download-detalhada" onclick="baixarDetalhadaHD()">
+          📸 Baixar Tabela Completa (HD)
+        </button>
+      </div>
+      <div class="table-container" id="card-tabela-detalhada">
+        <table>
+          <thead>
+            <tr>
+              {"".join([f'<th class="{"sticky-nome" if i==0 else "sticky-total" if i==len(cols_exibicao)-1 else ""}">{escape(str(c))}</th>' for i, c in enumerate(cols_exibicao)])}
+            </tr>
+          </thead>
+          <tbody>{"".join(linhas)}</tbody>
+        </table>
+      </div>
+
+      <script>
+        function baixarDetalhadaHD() {{
+          const element = document.getElementById('card-tabela-detalhada');
+          const btn = document.getElementById('btn-download-detalhada');
+          btn.innerText = "⏳ Gerando imagem...";
+          btn.disabled = true;
+
+          html2canvas(element, {{
+            scale: 2.5,
+            useCORS: true,
+            backgroundColor: "#0f172a",
+            logging: false
+          }}).then(canvas => {{
+            const link = document.createElement('a');
+            link.download = 'tabela_completa_ranking.png';
+            link.href = canvas.toDataURL('image/png', 1.0);
+            link.click();
+            btn.innerText = "📸 Baixar Tabela Completa (HD)";
+            btn.disabled = false;
+          }}).catch(err => {{
+            console.error("Erro ao gerar imagem:", err);
+            alert("Não foi possível gerar a imagem da tabela completa.");
+            btn.innerText = "📸 Baixar Tabela Completa (HD)";
+            btn.disabled = false;
+          }});
+        }}
+      </script>
+    </body>
+    </html>
+    """
+    return html_tabela
+
+  tab_res, tab_det = st.tabs(
+      ["🏆 Visualização Bilhete Dourado", "📋 Tabela Detalhada Geral"]
+  )
+
+  with tab_res:
+    html_resumido = gerar_tabela_bilhete_dourado(df_resumida)
+    components.html(html_resumido, height=680, scrolling=True)
+
+  with tab_det:
+    html_detalhado = montar_tabela_detalhada_html(df_detalhada)
+    components.html(html_detalhado, height=620, scrolling=False)
+
+  # AUDITORIA E DESEMPATE
+  if eh_admin:
+    st.write("---")
+    st.markdown("### 🎲 Ferramenta de Sorteio de Desempate (Admin)")
+    contagem_pontos = df_sorted["Pontuação Total"].value_counts()
+    pontos_empatados = contagem_pontos[contagem_pontos > 1].index.tolist()
+
+    if pontos_empatados:
+      opcoes_empate = {}
+      for p in pontos_empatados:
+        jogadores_emp = df_sorted[df_sorted["Pontuação Total"] == p][
+            "Jogador"
+        ].tolist()
+        opcoes_empate[f"{p} Pontos ({', '.join(jogadores_emp)})"] = (
+            p,
+            jogadores_emp,
         )
 
-        if not df_rank.empty and "Total" in df_rank.columns:
-          maior_pontuacao = df_rank["Total"].max()
+      escolha = st.selectbox(
+          "Selecione o grupo empatado:", list(opcoes_empate.keys())
+      )
 
-          df_empatados = df_rank[df_rank["Total"] == maior_pontuacao]
-          lista_empatados = df_empatados["Nome"].tolist()
-          qtd_empatados = len(lista_empatados)
+      if escolha:
+        p_val, lista_empatados = opcoes_empate[escolha]
+        qtd_vencedores = st.number_input(
+            "Quantidade de Vencedores no Sorteio",
+            min_value=1,
+            max_value=len(lista_empatados),
+            value=1,
+        )
 
-          st.markdown(f"**Pontuação do Topo:** `{int(maior_pontuacao)} pts`")
+        if st.button("🎲 Realizar Sorteio Auditado"):
+          vencedores = random.sample(lista_empatados, int(qtd_vencedores))
+          data_hora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+          semente = f"{data_hora}-{p_val}-{'-'.join(lista_empatados)}"
+          hash_auditoria = hashlib.sha256(semente.encode()).hexdigest()[:12]
 
-          if qtd_empatados <= 1:
-            st.success(
-                "✅ **Não há empate no 1º lugar!** O líder isolado é:"
-                f" **{df_rank.iloc[0]['Nome']}**."
-            )
-          else:
-            st.warning(
-                f"⚠️ **Empate Detectado!** Existem **{qtd_empatados} jogadores**"
-                f" empatados no topo com {int(maior_pontuacao)} pontos."
-            )
+          st.balloons()
+          st.success(
+              f"🎉 **Vencedor(es) do Sorteio:** {', '.join(vencedores)}"
+          )
+          st.markdown(
+              f"""
+              <div style="background:#1e293b; padding:12px; border-radius:8px; border:1px solid #334155; margin-top:8px;">
+                  <small style="color:#cbd5e1;"><b>Comprovante de Auditoria:</b><br>
+                  <b>Data/Hora:</b> {data_hora}<br>
+                  <b>Participantes:</b> {', '.join(lista_empatados)}<br>
+                  <b>Código de Verificação:</b> {hash_auditoria.upper()}</small>
+              </div>
+              """,
+              unsafe_allow_html=True,
+          )
+          registrar_log(
+              st.session_state["admin_logado"],
+              f"Realizou sorteio de desempate entre {lista_empatados}."
+              f" Vencedor(es): {vencedores} (Hash: {hash_auditoria.upper()})",
+          )
+    else:
+      st.info("Nenhum empate detectado no momento.")
 
-            st.markdown("### 👥 Jogadores Participantes do Sorteio:")
-            cols_participantes = st.columns(min(qtd_empatados, 4))
-            for idx, nome_p in enumerate(lista_empatados):
-              with cols_participantes[idx % 4]:
-                st.markdown(
-                    f"""
-                    <div style="background-color: #1e293b; border: 2px solid #facc15; border-radius: 10px; padding: 12px; text-align: center; margin-bottom: 10px;">
-                        <span style="font-size: 1.5rem;">⚔️</span><br>
-                        <strong style="color: #facc15; font-size: 1.1rem;">{nome_p}</strong><br>
-                        <small style="color: #94a3b8;">{int(maior_pontuacao)} pts</small>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+# --- FEED DE NOVIDADES INTEGRADO LOGO ABAIXO DO RANKING ---
+renderizar_feed_novidades()
 
-            st.divider()
+# SEÇÃO EXPLICATIVA (RODAPÉ)
+st.write("---")
+st.markdown(
+    "<h2 style='text-align: center;'>📜 Regulamento & Sistema de Premiação</h2>",
+    unsafe_allow_html=True,
+)
+st.markdown(
+    "<p style='text-align: center; color: #cbd5e1;'>A ideia é simples: valorizar quem joga bem, participa ativamente e ajuda o clã a crescer!</p><br>",
+    unsafe_allow_html=True,
+)
 
-            qtd_vagas = st.number_input(
-                "Número de ganhadores a sortear entre os empatados:",
-                min_value=1,
-                max_value=qtd_empatados,
-                value=1,
-                step=1,
-            )
+col_info1, col_info2, col_info3 = st.columns(3)
 
-            if st.button("🎰 INICIAR SORTEIO AO VIVO", type="primary"):
-              status_text = st.empty()
-              bar = st.progress(0)
-
-              for i in range(100):
-                time.sleep(0.03)
-                bar.progress(i + 1)
-                if i < 30:
-                  status_text.markdown(
-                      "### 🎲 Embaralhando nomes dos guerreiros..."
-                  )
-                elif i < 70:
-                  status_text.markdown(
-                      "### ⚡ Auditando pontuações e validando..."
-                  )
-                else:
-                  status_text.markdown(
-                      "### 🏆 Selecionando o(s) vencedor(es)..."
-                  )
-
-              status_text.empty()
-              bar.empty()
-
-              vencedores = random.sample(lista_empatados, int(qtd_vagas))
-
-              st.balloons()
-
-              data_hora_sorteio = datetime.now().strftime("%d/%m/%Y às %H:%M:%S")
-              hash_auditoria = hashlib.sha256(
-                  f"{vencedores}{data_hora_sorteio}".encode()
-              ).hexdigest()[:12]
-
-              st.markdown(
-                  f"""
-                  <div style="background: linear-gradient(135deg, #15803d 0%, #166534 100%); border: 3px solid #86efac; border-radius: 15px; padding: 25px; text-align: center; margin-top: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
-                      <h2 style="color: #facc15; font-family: 'Luckiest Guy', cursive; margin-bottom: 5px;">🎉 GANHADOR(ES) DO SORTEIO 🎉</h2>
-                      <h1 style="color: #ffffff; font-size: 2.5rem; margin: 10px 0;">{", ".join(vencedores)}</h1>
-                      <p style="color: #dcfce7; font-size: 1.1rem;">Parabéns! Vencedor(es) do desempate pelo Passe Dourado 🎟️</p>
-                      <hr style="border-color: #22c55e; margin: 15px 0;">
-                      <small style="color: #93c5fd;">🕒 <b>Data/Hora do Sorteio:</b> {data_hora_sorteio}<br>🔑 <b>Código de Verificação:</b> {hash_auditoria.upper()}</small>
-                  </div>
-                  """,
-                  unsafe_allow_html=True,
-              )
-
-              registrar_log(
-                  st.session_state["admin_logado"],
-                  f"Realizou sorteio de desempate entre {lista_empatados}. Vencedor(es): {vencedores} (Hash: {hash_auditoria.upper()})",
-              )
-        else:
-          st.info("Nenhum dado de ranking encontrado para realizar o sorteio.")
-
-  # SEÇÃO EXPLICATIVA (RODAPÉ)
-  st.write("---")
+with col_info1:
   st.markdown(
-      "<h2 style='text-align: center;'>📜 Regulamento & Sistema de"
-      " Premiação</h2>",
-      unsafe_allow_html=True,
-  )
-  st.markdown(
-      "<p style='text-align: center; color: #cbd5e1;'>A ideia é simples:"
-      " valorizar quem joga bem, participa ativamente e ajuda o clã a"
-      " crescer!</p><br>",
+      """
+      <div class="info-card">
+          <div class="info-card-header">⚔️ Como Pontuar?</div>
+          <ul class="info-card-list">
+              <li><b>Guerras Normais:</b> Ganhe <b>+3 pontos</b> por cada ataque realizado.</li>
+              <li><b>Liga de Guerras (CWL):</b> Ganhe <b>+3 pontos</b> por cada estrela conquistada.</li>
+              <li><b>Doações do Clã:</b> O maior doador do mês garante <b>+10 pontos</b> extras.</li>
+          </ul>
+      </div>
+      """,
       unsafe_allow_html=True,
   )
 
-  info_col1, info_col2, info_col3 = st.columns(3)
-
-  with info_col1:
-    st.markdown(
-        """
-        <div class="info-card" style="text-align: center;">
-            <img src="https://i.ibb.co/mkC43vT/goldenpass.png" width="60" style="margin-bottom: 8px;">
-            <div class="info-card-header">🏆 Premiação Mensal</div>
-            <ul class="info-card-list" style="text-align: left;">
-                <li><b>Top 3 Destaques:</b> Garantem <b>1 Passe Dourado 🎟️</b> cada um no final do mês.</li>
-                <li><b>Em caso de Empate:</b> Sorteio de desempate.</li>
-            </ul>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-  with info_col2:
-    st.markdown(
-        """
-        <div class="info-card" style="text-align: center;">
-            <img src="https://i.ibb.co/3PPkJD8/War-League-Main-Banner.webp" width="75" style="margin-bottom: 8px;">
-            <div class="info-card-header">📊 Sistema de Pontuação</div>
-            <ul class="info-card-list" style="text-align: left;">
-                <li><b>⚔️ Guerras & Liga (CWL):</b> 1 Ponto por ⭐ conquistada.</li>
-                <li><b>🎯 Jogos do Clã:</b> Meta = <b>5 pts</b> | Bateu limite total = <b>10 pts</b>.</li>
-                <li><b>🛡️ Raides (FDS):</b> Concluiu os 6 ataques = <b>10 pts</b>.</li>
-            </ul>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-  with info_col3:
-    st.markdown(
-        """
-        <div class="info-card" style="text-align: center;">
-            <img src="https://i.ibb.co/YFbsJ97x/Clash-of-Clans-emblem.png" width="60" style="margin-bottom: 8px;">
-            <div class="info-card-header">📜 Diretrizes Básicas</div>
-            <ul class="info-card-list" style="text-align: left;">
-                <li><b>Conta Principal:</b> Válido estritamente para a conta principal.</li>
-                <li><b>Zero Trapaça 🚫:</b> Qualquer ato antidesportivo anula a pontuação.</li>
-                <li><b>WhatsApp Obrigatório 📱:</b> Indispensável estar no grupo do clã.</li>
-            </ul>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-  st.write("")
-  c_btn_regras = st.columns([1, 2, 1])
-  with c_btn_regras[1]:
-    if st.button(
-        "📖 CLIQUE AQUI PARA VER AS REGRAS OFICIAIS COMPLETAS DO CLÃ",
-        use_container_width=True,
-    ):
-      st.session_state["pagina_atual"] = "regras_cla"
-      st.rerun()
-
-  # GALERIA DA FAMA FORMATADA COM DESTAQUE
-  st.write("---")
+with col_info2:
   st.markdown(
-      "<h2 style='text-align: center;'>🌟 Galeria da Fama</h2>",
-      unsafe_allow_html=True,
-  )
-  st.markdown(
-      "<p style='text-align: center; color: #cbd5e1;'>Histórico dos grandes"
-      " guerreiros do clã que conquistaram o Passe Dourado!</p><br>",
+      """
+      <div class="info-card">
+          <div class="info-card-header">🎁 Qual é o Prêmio?</div>
+          <ul class="info-card-list">
+              <li><b>1º Lugar no Ranking:</b> Recebe o <b>Passe Dourado</b> do mês seguinte!</li>
+              <li><b>Regra de Transparência:</b> O prêmio é entregue via doação oficial de gift card ou ativação na conta do jogador.</li>
+          </ul>
+      </div>
+      """,
       unsafe_allow_html=True,
   )
 
-  if not df_fama.empty:
-    df_fama_exib = df_fama.copy()
-    if "Primeiro" in df_fama_exib.columns:
-      df_fama_exib["Primeiro"] = "🥇 " + df_fama_exib["Primeiro"].astype(str)
-    if "Segundo" in df_fama_exib.columns:
-      df_fama_exib["Segundo"] = "🥈 " + df_fama_exib["Segundo"].astype(str)
-    if "Terceiro" in df_fama_exib.columns:
-      df_fama_exib["Terceiro"] = "🥉 " + df_fama_exib["Terceiro"].astype(str)
+with col_info3:
+  st.markdown(
+      """
+      <div class="info-card">
+          <div class="info-card-header">🤝 Empates & Regras</div>
+          <ul class="info-card-list">
+              <li>Em caso de empate na liderança, será feito um <b>sorteio ao vivo/auditado</b> via algoritmo público no app.</li>
+              <li>Pontuações são atualizadas continuamente durante a temporada.</li>
+          </ul>
+      </div>
+      """,
+      unsafe_allow_html=True,
+  )
 
-    df_fama_exib.rename(
-        columns={
-            "MesAno": "Mês / Edição",
-            "Primeiro": "1º Lugar (Campeão)",
-            "Segundo": "2º Lugar",
-            "Terceiro": "3º Lugar",
-        },
-        inplace=True,
-    )
-    st.dataframe(df_fama_exib, use_container_width=True, hide_index=True)
-  else:
-    st.info("Nenhum histórico de meses anteriores registrado ainda.")
+# GALERIA DA FAMA FORMATADA COM DESTAQUE
+st.write("---")
+st.markdown(
+    "<h2 style='text-align: center;'>🌟 Galeria da Fama</h2>",
+    unsafe_allow_html=True,
+)
+st.markdown(
+    "<p style='text-align: center; color: #cbd5e1;'>Histórico dos grandes guerreiros do clã que conquistaram o Passe Dourado!</p><br>",
+    unsafe_allow_html=True,
+)
+
+if not df_fama.empty:
+  df_fama_exib = df_fama.copy()
+  if "Primeiro" in df_fama_exib.columns:
+    df_fama_exib["Primeiro"] = "🥇 " + df_fama_exib["Primeiro"].astype(str)
+  if "Segundo" in df_fama_exib.columns:
+    df_fama_exib["Segundo"] = "🥈 " + df_fama_exib["Segundo"].astype(str)
+  if "Terceiro" in df_fama_exib.columns:
+    df_fama_exib["Terceiro"] = "🥉 " + df_fama_exib["Terceiro"].astype(str)
+
+  st.dataframe(df_fama_exib, use_container_width=True, hide_index=True)
+else:
+  st.info(
+      "A Galeria da Fama será inaugurada na finalização da primeira temporada!"
+  )
+
+# --- BOTÕES DE NAVEGAÇÃO E LINKS ÚTEIS NO FINAL DA PÁGINA ---
+st.write("---")
+f_col1, f_col2, f_col3 = st.columns(3)
+
+with f_col1:
+  if st.button(
+      "📖 CLIQUE AQUI PARA VER AS REGRAS OFICIAIS COMPLETAS DO CLÃ",
+      use_container_width=True,
+  ):
+    st.session_state["pagina_atual"] = "regras_cla"
+    st.rerun()
+
+with f_col2:
+  st.markdown(
+      '<a href="https://www.youtube.com/@winningwarscoc?sub_confirmation=1" target="_blank" class="btn-youtube-link">📺 Canal Oficial no YouTube ↗</a>',
+      unsafe_allow_html=True,
+  )
+
+with f_col3:
+  st.markdown(
+      '<a href="https://link.clashofclans.com/?action=OpenSCID&p=25-1cb8481f-3a79-4681-90f9-8914acef2d63" target="_blank" class="btn-scid"><img src="https://i.ibb.co/fzPGy6fr/bg-hero-scid-landing-0.webp" height="20" style="border-radius: 4px; object-fit: cover;"> Add Godoy no Supercell ID ↗</a>',
+      unsafe_allow_html=True,
+  )
