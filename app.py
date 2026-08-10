@@ -888,9 +888,52 @@ def renderizar_pagina_novidades():
       unsafe_allow_html=True,
   )
 
+  eh_admin = "admin_logado" in st.session_state
+
+  # PAINEL ADMINISTRATIVO DIRETO NA ABA NOVIDADES
+  if eh_admin:
+    with st.expander("🔐 [ADMIN] Publicar Nova Novidade", expanded=False):
+      with st.form("form_nova_novidade_pagina", clear_on_submit=True):
+        noticia_titulo = st.text_input("Título da Notícia")
+        noticia_tag = st.selectbox(
+            "Categoria / Tag",
+            ["🎉 Evento", "⚔️ Torneio", "🚀 Atualização Game", "📢 Aviso Clã", "🏆 Premiação Extra"],
+        )
+        noticia_conteudo = st.text_area("Conteúdo do Comunicado", height=140)
+        noticia_img = st.text_input(
+            "Link Direto da Imagem / Banner (Opcional)",
+            placeholder="https://exemplo.com/imagem.jpg",
+        )
+        btn_pub = st.form_submit_button("📢 Publicar Notícia", use_container_width=True)
+
+        if btn_pub:
+          if noticia_titulo.strip() and noticia_conteudo.strip():
+            d_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
+            sheet_novidades.append_row([
+                d_hora,
+                noticia_titulo.strip(),
+                noticia_conteudo.strip(),
+                noticia_img.strip(),
+                noticia_tag,
+                st.session_state["admin_logado"],
+            ])
+            registrar_log(
+                st.session_state["admin_logado"],
+                f"Publicou notícia '{noticia_titulo.strip()}' pela página Novidades",
+            )
+            st.cache_data.clear()
+            st.success("✅ Notícia publicada com sucesso!")
+            st.rerun()
+          else:
+            st.error("⚠️ Preencha o título e o conteúdo antes de publicar.")
+
+    st.caption("Como administrador, você pode editar ou excluir cada publicação diretamente abaixo.")
+
+  # LISTAGEM DAS NOVIDADES
   if not df_novidades.empty:
     novidades_inv = df_novidades.iloc[::-1]
-    for _, item in novidades_inv.iterrows():
+
+    for item_idx, item in novidades_inv.iterrows():
       tag_nome = str(item.get("Tag", "Aviso")).strip()
       titulo = str(item.get("Titulo", "")).strip()
       conteudo = str(item.get("Conteudo", "")).strip()
@@ -898,27 +941,114 @@ def renderizar_pagina_novidades():
       data_hora = str(item.get("DataHora", "")).strip()
       autor = str(item.get("Autor", "Liderança")).strip()
 
+      from html import escape
+
       st.markdown(
           f"""
             <div class="news-card">
-                <span class="news-tag">{tag_nome}</span>
-                <div class="news-title">{titulo}</div>
-                <div class="news-meta">🕒 Publicado em {data_hora} por <b>{autor}</b></div>
-                <div style="color: #e2e8f0; font-size: 1.05rem; line-height: 1.6; white-space: pre-wrap;">{conteudo}</div>
+                <span class="news-tag">{escape(tag_nome)}</span>
+                <div class="news-title">{escape(titulo)}</div>
+                <div class="news-meta">🕒 Publicado em {escape(data_hora)} por <b>{escape(autor)}</b></div>
+                <div style="color: #e2e8f0; font-size: 1.05rem; line-height: 1.6; white-space: pre-wrap;">{escape(conteudo)}</div>
             </div>
             """,
           unsafe_allow_html=True,
       )
 
+      # st.image(URL) podia derrubar a página quando a URL cadastrada não era
+      # uma imagem válida/acessível. HTML <img> com onerror evita esse crash.
       if img_url:
-        st.image(img_url, use_column_width=True)
+        st.markdown(
+            f"""<div style="text-align:center; margin:8px 0 16px 0;">
+            <img src="{escape(img_url, quote=True)}"
+                 alt="Imagem da novidade"
+                 style="max-width:100%; height:auto; border-radius:12px; border:2px solid #334155; box-shadow:0 6px 16px rgba(0,0,0,.45);"
+                 onerror="this.style.display='none';">
+            </div>""",
+            unsafe_allow_html=True,
+        )
+
+      # EDIÇÃO/EXCLUSÃO DIRETAMENTE NO CARD PARA ADMINS
+      if eh_admin:
+        with st.expander(f"⚙️ [ADMIN] Gerenciar: {titulo or 'Sem título'}", expanded=False):
+          with st.form(f"form_editar_novidade_{item_idx}", clear_on_submit=False):
+            edit_titulo = st.text_input(
+                "Título", value=titulo, key=f"edit_titulo_{item_idx}"
+            )
+
+            tags_disponiveis = [
+                "🎉 Evento", "⚔️ Torneio", "🚀 Atualização Game",
+                "📢 Aviso Clã", "🏆 Premiação Extra"
+            ]
+            tag_index = tags_disponiveis.index(tag_nome) if tag_nome in tags_disponiveis else 0
+
+            edit_tag = st.selectbox(
+                "Categoria / Tag",
+                tags_disponiveis,
+                index=tag_index,
+                key=f"edit_tag_{item_idx}",
+            )
+            edit_conteudo = st.text_area(
+                "Conteúdo", value=conteudo, height=140,
+                key=f"edit_conteudo_{item_idx}",
+            )
+            edit_img = st.text_input(
+                "Link da Imagem / Banner", value=img_url,
+                key=f"edit_img_{item_idx}",
+            )
+
+            c_edit, c_del = st.columns(2)
+            with c_edit:
+              btn_editar = st.form_submit_button(
+                  "💾 Salvar Alterações", use_container_width=True
+              )
+            with c_del:
+              btn_excluir = st.form_submit_button(
+                  "🗑️ Excluir Publicação", use_container_width=True
+              )
+
+            if btn_editar:
+              if not edit_titulo.strip() or not edit_conteudo.strip():
+                st.error("⚠️ O título e o conteúdo são obrigatórios.")
+              else:
+                # O índice do DataFrame corresponde à linha da planilha - 1,
+                # pois a primeira linha da planilha é o cabeçalho.
+                linha_planilha = int(item_idx) + 2
+                sheet_novidades.update(
+                    f"A{linha_planilha}:F{linha_planilha}",
+                    [[
+                        data_hora,
+                        edit_titulo.strip(),
+                        edit_conteudo.strip(),
+                        edit_img.strip(),
+                        edit_tag,
+                        st.session_state["admin_logado"],
+                    ]],
+                )
+                registrar_log(
+                    st.session_state["admin_logado"],
+                    f"Editou notícia '{titulo}' pela página Novidades",
+                )
+                st.cache_data.clear()
+                st.success("✅ Publicação atualizada!")
+                st.rerun()
+
+            if btn_excluir:
+              linha_planilha = int(item_idx) + 2
+              sheet_novidades.delete_rows(linha_planilha)
+              registrar_log(
+                  st.session_state["admin_logado"],
+                  f"Excluiu notícia '{titulo}' pela página Novidades",
+              )
+              st.cache_data.clear()
+              st.success("🗑️ Publicação excluída!")
+              st.rerun()
 
       st.divider()
   else:
     st.info("Nenhuma novidade ou notícia publicada no momento.")
 
 
-# ==============================================================================
 # PÁGINA EXCLUSIVA: REGRAS DO CLÃ
 # ==============================================================================
 def renderizar_regras_cla():
