@@ -59,7 +59,7 @@ def conectar_banco():
     sheet_estado.append_row(["Chave", "Valor"])
     sheet_estado.append_row(["mes_finalizado", "FALSE"])
     sheet_estado.append_row(
-        ["mural_recado", "Bem-vindos ao aplicativo oficial!"]
+        ["mural_recado", "Bem-vindos ao aplicativo oficial do clã Winning Wars!"]
     )
 
   # Aba de Layouts
@@ -674,7 +674,7 @@ with col_nav:
     st.markdown(
         '<a'
         ' href="https://link.clashofclans.com/pt?action=OpenClanProfile&tag=2YPL9GU8Y"'
-        ' target="_blank" class="btn-external-link">🏰 Clã Vastaya ↗</a>',
+        ' target="_blank" class="btn-external-link">🏰 Clã Secundário Vastaya ↗</a>',
         unsafe_allow_html=True,
     )
 
