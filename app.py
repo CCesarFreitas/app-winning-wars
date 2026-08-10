@@ -873,235 +873,184 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
 # PÁGINA EXCLUSIVA: NOVIDADES E PAINEL DE NOTÍCIAS
 # ==============================================================================
 def renderizar_pagina_novidades():
-    if st.button("⬅️ Voltar ao Início"):
-        st.session_state["pagina_atual"] = "principal"
-        st.rerun()
+  if st.button("⬅️ Voltar ao Início"):
+    st.session_state["pagina_atual"] = "principal"
+    st.rerun()
 
-    st.markdown(
-        "<h1 style='text-align: center;'>📰 Novidades, Torneios & Eventos</h1>",
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        "<p style='text-align: center; color: #cbd5e1;'>Fique por dentro das "
-        "atualizações do Clash of Clans, eventos internos e comunicados da "
-        "liderança do clã!</p><br>",
-        unsafe_allow_html=True,
-    )
+  st.markdown(
+      "<h1 style='text-align: center;'>📰 Novidades, Torneios & Eventos</h1>",
+      unsafe_allow_html=True,
+  )
+  st.markdown(
+      "<p style='text-align: center; color: #cbd5e1;'>Fique por dentro das"
+      " atualizações do Clash of Clans, eventos internos e comunicados da"
+      " liderança do clã!</p><br>",
+      unsafe_allow_html=True,
+  )
 
-    if not df_novidades.empty:
-        items = []
-        for idx, item in df_novidades.iterrows():
-            ativo = str(item.get("Ativo", "TRUE")).strip().upper() != "FALSE"
-            if not ativo and not st.session_state.get("admin_logado"):
-                continue
-            fixado = str(item.get("Fixado", "FALSE")).strip().upper() == "TRUE"
-            items.append((fixado, idx, item))
+  eh_admin = "admin_logado" in st.session_state
 
-        items.sort(key=lambda x: (x[0], x[1]), reverse=True)
+  # PAINEL ADMINISTRATIVO DIRETO NA ABA NOVIDADES
+  if eh_admin:
+    with st.expander("🔐 [ADMIN] Publicar Nova Novidade", expanded=False):
+      with st.form("form_nova_novidade_pagina", clear_on_submit=True):
+        noticia_titulo = st.text_input("Título da Notícia")
+        noticia_tag = st.selectbox(
+            "Categoria / Tag",
+            ["🎉 Evento", "⚔️ Torneio", "🚀 Atualização Game", "📢 Aviso Clã", "🏆 Premiação Extra"],
+        )
+        noticia_conteudo = st.text_area("Conteúdo do Comunicado", height=140)
+        noticia_img = st.text_input(
+            "Link Direto da Imagem / Banner (Opcional)",
+            placeholder="https://exemplo.com/imagem.jpg",
+        )
+        btn_pub = st.form_submit_button("📢 Publicar Notícia", use_container_width=True)
 
-        if not items:
-            st.info("Nenhuma novidade ou notícia publicada no momento.")
-        else:
-            for _, idx, item in items:
-                tag_nome = str(item.get("Tag", "📢 Aviso Clã")).strip()
-                titulo = str(item.get("Titulo", "")).strip()
-                conteudo = str(item.get("Conteudo", "")).strip()
-                img_url = str(item.get("ImagemUrl", "")).strip()
-                data_hora = str(item.get("DataHora", "")).strip()
-                autor = str(item.get("Autor", "Liderança")).strip()
-                fixado = str(item.get("Fixado", "FALSE")).upper() == "TRUE"
-                ativo = str(item.get("Ativo", "TRUE")).upper() != "FALSE"
+        if btn_pub:
+          if noticia_titulo.strip() and noticia_conteudo.strip():
+            d_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
+            sheet_novidades.append_row([
+                d_hora,
+                noticia_titulo.strip(),
+                noticia_conteudo.strip(),
+                noticia_img.strip(),
+                noticia_tag,
+                st.session_state["admin_logado"],
+            ])
+            registrar_log(
+                st.session_state["admin_logado"],
+                f"Publicou notícia '{noticia_titulo.strip()}' pela página Novidades",
+            )
+            st.cache_data.clear()
+            st.success("✅ Notícia publicada com sucesso!")
+            st.rerun()
+          else:
+            st.error("⚠️ Preencha o título e o conteúdo antes de publicar.")
 
-                badge = "📌 FIXADO" if fixado else tag_nome
-                status = "" if ativo else " • 🔴 OCULTA"
+    st.caption("Como administrador, você pode editar ou excluir cada publicação diretamente abaixo.")
 
-                st.markdown(
-                    f"""
-                    <div class="news-card">
-                        <span class="news-tag">{escape(badge)}</span>
-                        <div class="news-title">{escape(titulo)}</div>
-                        <div class="news-meta">🕒 Publicado em {escape(data_hora)} por <b>{escape(autor)}</b>{status}</div>
-                        <div style="color:#e2e8f0;font-size:1.05rem;line-height:1.6;white-space:pre-wrap;">{escape(conteudo)}</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+  # LISTAGEM DAS NOVIDADES
+  if not df_novidades.empty:
+    novidades_inv = df_novidades.iloc[::-1]
 
-                if img_url:
-                    # V15: uma URL de imagem inválida nunca deve derrubar o app.
-                    st.markdown(
-                        f"""
-                        <div style="margin:12px 0;text-align:center;">
-                          <img src="{escape(img_url, quote=True)}"
-                               style="max-width:100%;height:auto;border-radius:14px;border:1px solid #334155;"
-                               onerror="this.style.display='none';">
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
+    for item_idx, item in novidades_inv.iterrows():
+      tag_nome = str(item.get("Tag", "Aviso")).strip()
+      titulo = str(item.get("Titulo", "")).strip()
+      conteudo = str(item.get("Conteudo", "")).strip()
+      img_url = str(item.get("ImagemUrl", "")).strip()
+      data_hora = str(item.get("DataHora", "")).strip()
+      autor = str(item.get("Autor", "Liderança")).strip()
 
-                if st.session_state.get("admin_logado"):
-                    with st.expander("🛡️ Controles administrativos"):
-                        e1, e2, e3 = st.columns(3)
+      from html import escape
 
-                        with e1:
-                            if st.button("✏️ Editar", key=f"edit_news_{idx}", use_container_width=True):
-                                st.session_state[f"editing_news_{idx}"] = True
-                                st.rerun()
+      st.markdown(
+          f"""
+            <div class="news-card">
+                <span class="news-tag">{escape(tag_nome)}</span>
+                <div class="news-title">{escape(titulo)}</div>
+                <div class="news-meta">🕒 Publicado em {escape(data_hora)} por <b>{escape(autor)}</b></div>
+                <div style="color: #e2e8f0; font-size: 1.05rem; line-height: 1.6; white-space: pre-wrap;">{escape(conteudo)}</div>
+            </div>
+            """,
+          unsafe_allow_html=True,
+      )
 
-                        with e2:
-                            if st.button(
-                                "📌 Desfixar" if fixado else "📌 Fixar",
-                                key=f"pin_news_{idx}",
-                                use_container_width=True,
-                            ):
-                                row = int(idx) + 2
-                                headers = sheet_novidades.row_values(1)
-                                if "Fixado" in headers:
-                                    col = headers.index("Fixado") + 1
-                                    sheet_novidades.update_cell(row, col, "FALSE" if fixado else "TRUE")
-                                registrar_log(
-                                    st.session_state["admin_logado"],
-                                    f"Alterou fixação da notícia '{titulo}'",
-                                )
-                                st.cache_data.clear()
-                                st.rerun()
+      # st.image(URL) podia derrubar a página quando a URL cadastrada não era
+      # uma imagem válida/acessível. HTML <img> com onerror evita esse crash.
+      if img_url:
+        st.markdown(
+            f"""<div style="text-align:center; margin:8px 0 16px 0;">
+            <img src="{escape(img_url, quote=True)}"
+                 alt="Imagem da novidade"
+                 style="max-width:100%; height:auto; border-radius:12px; border:2px solid #334155; box-shadow:0 6px 16px rgba(0,0,0,.45);"
+                 onerror="this.style.display='none';">
+            </div>""",
+            unsafe_allow_html=True,
+        )
 
-                        with e3:
-                            if st.button(
-                                "👁️ Ocultar" if ativo else "👁️ Publicar",
-                                key=f"toggle_news_{idx}",
-                                use_container_width=True,
-                            ):
-                                row = int(idx) + 2
-                                headers = sheet_novidades.row_values(1)
-                                if "Ativo" in headers:
-                                    col = headers.index("Ativo") + 1
-                                    sheet_novidades.update_cell(row, col, "FALSE" if ativo else "TRUE")
-                                registrar_log(
-                                    st.session_state["admin_logado"],
-                                    f"Alterou visibilidade da notícia '{titulo}'",
-                                )
-                                st.cache_data.clear()
-                                st.rerun()
+      # EDIÇÃO/EXCLUSÃO DIRETAMENTE NO CARD PARA ADMINS
+      if eh_admin:
+        with st.expander(f"⚙️ [ADMIN] Gerenciar: {titulo or 'Sem título'}", expanded=False):
+          with st.form(f"form_editar_novidade_{item_idx}", clear_on_submit=False):
+            edit_titulo = st.text_input(
+                "Título", value=titulo, key=f"edit_titulo_{item_idx}"
+            )
 
-                        if st.session_state.get(f"editing_news_{idx}", False):
-                            st.markdown("#### ✏️ Editar publicação")
-                            with st.form(f"edit_form_news_{idx}"):
-                                novo_titulo = st.text_input("Título", value=titulo)
-                                tags = [
-                                    "🎉 Evento", "⚔️ Torneio", "🚀 Atualização Game",
-                                    "📢 Aviso Clã", "🏆 Premiação Extra"
-                                ]
-                                tag_index = tags.index(tag_nome) if tag_nome in tags else 0
-                                nova_tag = st.selectbox("Categoria / Tag", tags, index=tag_index)
-                                novo_conteudo = st.text_area("Conteúdo", value=conteudo, height=140)
-                                nova_img = st.text_input("Link direto da imagem", value=img_url)
-                                salvar = st.form_submit_button("💾 Salvar alterações", use_container_width=True)
+            tags_disponiveis = [
+                "🎉 Evento", "⚔️ Torneio", "🚀 Atualização Game",
+                "📢 Aviso Clã", "🏆 Premiação Extra"
+            ]
+            tag_index = tags_disponiveis.index(tag_nome) if tag_nome in tags_disponiveis else 0
 
-                            if salvar:
-                                if novo_titulo.strip() and novo_conteudo.strip():
-                                    row = int(idx) + 2
-                                    headers = sheet_novidades.row_values(1)
-                                    updates = {
-                                        "Titulo": novo_titulo.strip(),
-                                        "Tag": nova_tag,
-                                        "Conteudo": novo_conteudo.strip(),
-                                        "ImagemUrl": nova_img.strip(),
-                                    }
-                                    for nome, valor in updates.items():
-                                        if nome in headers:
-                                            sheet_novidades.update_cell(row, headers.index(nome) + 1, valor)
-                                    registrar_log(
-                                        st.session_state["admin_logado"],
-                                        f"Editou notícia '{novo_titulo.strip()}'",
-                                    )
-                                    st.session_state.pop(f"editing_news_{idx}", None)
-                                    st.cache_data.clear()
-                                    st.success("✅ Publicação atualizada.")
-                                    st.rerun()
-                                else:
-                                    st.error("Título e conteúdo são obrigatórios.")
+            edit_tag = st.selectbox(
+                "Categoria / Tag",
+                tags_disponiveis,
+                index=tag_index,
+                key=f"edit_tag_{item_idx}",
+            )
+            edit_conteudo = st.text_area(
+                "Conteúdo", value=conteudo, height=140,
+                key=f"edit_conteudo_{item_idx}",
+            )
+            edit_img = st.text_input(
+                "Link da Imagem / Banner", value=img_url,
+                key=f"edit_img_{item_idx}",
+            )
 
-                        if st.session_state.get(f"confirm_delete_news_{idx}", False):
-                            st.warning("⚠️ Tem certeza? Esta ação não poderá ser desfeita.")
-                            d1, d2 = st.columns(2)
-                            with d1:
-                                if st.button("Cancelar", key=f"cancel_del_{idx}", use_container_width=True):
-                                    st.session_state.pop(f"confirm_delete_news_{idx}", None)
-                                    st.rerun()
-                            with d2:
-                                if st.button("❌ Excluir definitivamente", key=f"confirm_del_yes_{idx}", use_container_width=True):
-                                    sheet_novidades.delete_rows(int(idx) + 2)
-                                    registrar_log(
-                                        st.session_state["admin_logado"],
-                                        f"Excluiu notícia '{titulo}'",
-                                    )
-                                    st.session_state.pop(f"confirm_delete_news_{idx}", None)
-                                    st.cache_data.clear()
-                                    st.success("Notícia removida.")
-                                    st.rerun()
-                        else:
-                            if st.button("🗑️ Excluir", key=f"ask_del_{idx}", use_container_width=True):
-                                st.session_state[f"confirm_delete_news_{idx}"] = True
-                                st.rerun()
+            c_edit, c_del = st.columns(2)
+            with c_edit:
+              btn_editar = st.form_submit_button(
+                  "💾 Salvar Alterações", use_container_width=True
+              )
+            with c_del:
+              btn_excluir = st.form_submit_button(
+                  "🗑️ Excluir Publicação", use_container_width=True
+              )
 
-                st.divider()
-    else:
-        st.info("Nenhuma novidade ou notícia publicada no momento.")
-
-    # Publicação também disponível diretamente na página para admins.
-    if st.session_state.get("admin_logado"):
-        st.divider()
-        st.markdown("## 🛡️ Publicar nova novidade")
-        with st.form("form_publicar_novidade_pagina", clear_on_submit=True):
-            c1, c2 = st.columns([3, 1])
-            with c1:
-                noticia_titulo = st.text_input("Título da publicação")
-            with c2:
-                noticia_tag = st.selectbox(
-                    "Categoria / Tag",
-                    ["🎉 Evento", "⚔️ Torneio", "🚀 Atualização Game", "📢 Aviso Clã", "🏆 Premiação Extra"],
-                )
-            noticia_conteudo = st.text_area("Conteúdo", height=150)
-            noticia_img = st.text_input("Link direto da imagem / banner (opcional)")
-            p1, p2 = st.columns(2)
-            with p1:
-                fixar_nova = st.checkbox("📌 Fixar no topo", value=False)
-            with p2:
-                ativa_nova = st.checkbox("🟢 Publicar imediatamente", value=True)
-            publicar = st.form_submit_button("🚀 Publicar novidade", use_container_width=True)
-
-            if publicar:
-                if noticia_titulo.strip() and noticia_conteudo.strip():
-                    headers = sheet_novidades.row_values(1)
-                    d_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
-                    dados_nova = {
-                        "DataHora": d_hora,
-                        "Titulo": noticia_titulo.strip(),
-                        "Conteudo": noticia_conteudo.strip(),
-                        "ImagemUrl": noticia_img.strip(),
-                        "Tag": noticia_tag,
-                        "Autor": st.session_state["admin_logado"],
-                    }
-                    # Campos V15 só são usados se já existirem na planilha.
-                    if "Fixado" in headers:
-                        dados_nova["Fixado"] = "TRUE" if fixar_nova else "FALSE"
-                    if "Ativo" in headers:
-                        dados_nova["Ativo"] = "TRUE" if ativa_nova else "FALSE"
-                    if "Visualizacoes" in headers:
-                        dados_nova["Visualizacoes"] = "0"
-                    sheet_novidades.append_row([dados_nova.get(h, "") for h in headers])
-                    registrar_log(
+            if btn_editar:
+              if not edit_titulo.strip() or not edit_conteudo.strip():
+                st.error("⚠️ O título e o conteúdo são obrigatórios.")
+              else:
+                # O índice do DataFrame corresponde à linha da planilha - 1,
+                # pois a primeira linha da planilha é o cabeçalho.
+                linha_planilha = int(item_idx) + 2
+                sheet_novidades.update(
+                    f"A{linha_planilha}:F{linha_planilha}",
+                    [[
+                        data_hora,
+                        edit_titulo.strip(),
+                        edit_conteudo.strip(),
+                        edit_img.strip(),
+                        edit_tag,
                         st.session_state["admin_logado"],
-                        f"Publicou notícia '{noticia_titulo.strip()}'",
-                    )
-                    st.cache_data.clear()
-                    st.success("✅ Novidade publicada com sucesso!")
-                    st.rerun()
-                else:
-                    st.error("⚠️ Título e conteúdo são obrigatórios.")
+                    ]],
+                )
+                registrar_log(
+                    st.session_state["admin_logado"],
+                    f"Editou notícia '{titulo}' pela página Novidades",
+                )
+                st.cache_data.clear()
+                st.success("✅ Publicação atualizada!")
+                st.rerun()
 
+            if btn_excluir:
+              linha_planilha = int(item_idx) + 2
+              sheet_novidades.delete_rows(linha_planilha)
+              registrar_log(
+                  st.session_state["admin_logado"],
+                  f"Excluiu notícia '{titulo}' pela página Novidades",
+              )
+              st.cache_data.clear()
+              st.success("🗑️ Publicação excluída!")
+              st.rerun()
+
+      st.divider()
+  else:
+    st.info("Nenhuma novidade ou notícia publicada no momento.")
+
+
+# PÁGINA EXCLUSIVA: REGRAS DO CLÃ
+# ==============================================================================
 def renderizar_regras_cla():
   if st.button("⬅️ Voltar ao Início"):
     st.session_state["pagina_atual"] = "principal"
@@ -1524,55 +1473,6 @@ else:
           f"Sessão Ativa: **{st.session_state['admin_logado']}** (Gerenciamento"
           " Liberado)"
       )
-      if st.button("🚪 Encerrar sessão administrativa", key="logout_admin_v15"):
-        admin_saida = st.session_state.get("admin_logado", "Admin")
-        st.session_state.pop("admin_logado", None)
-        registrar_log(admin_saida, "Encerrou sessão administrativa")
-        st.rerun()
-
-      # V15 — Central de Comando
-      with st.container():
-        st.markdown("## 🛡️ Central de Comando")
-        st.caption(f"Sessão ativa: **{st.session_state.get('admin_logado', 'Admin')}**")
-
-        total_players = len(df) if not df.empty else 0
-        total_news = len(df_novidades) if not df_novidades.empty else 0
-        total_layouts = len(df_layouts) if not df_layouts.empty else 0
-        total_admins = len(df_admins) if not df_admins.empty else 0
-
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("👥 Players", total_players)
-        m2.metric("📰 Novidades", total_news)
-        m3.metric("🛡️ Layouts", total_layouts)
-        m4.metric("🔐 Admins", total_admins)
-
-        st.markdown("### ⚡ Ações rápidas")
-        q1, q2, q3, q4 = st.columns(4)
-        with q1:
-          if st.button("📰 Nova Novidade", use_container_width=True, key="quick_news_v15"):
-            st.session_state["pagina_atual"] = "novidades"
-            st.rerun()
-        with q2:
-          if st.button("➕ Novo Player", use_container_width=True, key="quick_player_v15"):
-            st.session_state["admin_atalho"] = "players"
-        with q3:
-          if st.button("📜 Ver Logs", use_container_width=True, key="quick_logs_v15"):
-            st.session_state["admin_atalho"] = "logs"
-        with q4:
-          if st.button("💾 Backup", use_container_width=True, key="quick_backup_v15"):
-            st.session_state["admin_atalho"] = "backup"
-
-        if not df_novidades.empty:
-          st.markdown("### 🕒 Últimas publicações")
-          for _, r in df_novidades.iloc[::-1].head(5).iterrows():
-            ativo = str(r.get("Ativo", "TRUE")).upper() != "FALSE"
-            fixado = str(r.get("Fixado", "FALSE")).upper() == "TRUE"
-            st.markdown(
-              f"{'🟢' if ativo else '⚫'} "
-              f"{'📌 ' if fixado else ''}**{escape(str(r.get('Titulo','')))}** — "
-              f"{escape(str(r.get('DataHora','')))}"
-            )
-        st.divider()
 
       sub_tab1, sub_tab2, sub_tab_pass, sub_tab3, sub_tab4, sub_tab_news, sub_tab5, sub_tab6, sub_tab7 = st.tabs([
           "➕ Players",
@@ -1953,7 +1853,7 @@ else:
               st.error("⚠️ Insira o título e o conteúdo antes de publicar.")
 
         st.divider()
-        st.markdown("#### 🗂️ Gerenciar / Excluir Notícias (painel legado)")
+        st.markdown("#### 🗑️ Gerenciar / Excluir Notícias")
         if not df_novidades.empty:
           for idx_n, row_n in df_novidades.iterrows():
             st.write(f"📌 **{row_n.get('Titulo')}** ({row_n.get('DataHora')})")
