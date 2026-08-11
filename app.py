@@ -92,7 +92,7 @@ def verificar_senha(senha: str, hash_armazenado: str) -> bool:
 
 
 # Obter senha inicial padrao via secrets para evitar exposicao no GitHub
-SENHA_ADMIN_INICIAL = st.secrets.get("admin_default_password", "winning123")
+SENHA_ADMIN_INICIAL = str(st.secrets.get("admin_default_password", "")).strip()
 
 
 # --- CONEXÃO COM O GOOGLE SHEETS ---
@@ -113,6 +113,10 @@ def conectar_banco():
   try:
     sheet_admins = spreadsheet.worksheet("Admins")
   except gspread.WorksheetNotFound:
+    if not SENHA_ADMIN_INICIAL:
+      raise RuntimeError(
+          "A aba Admins não existe e o secret 'admin_default_password' não foi configurado."
+      )
     sheet_admins = spreadsheet.add_worksheet(
         title="Admins", rows="100", cols="3"
     )
@@ -204,6 +208,17 @@ def conectar_banco():
     sheet_auditoria = spreadsheet.add_worksheet(title="AuditoriaPontos", rows="5000", cols="7")
     sheet_auditoria.append_row(["DataHora", "Admin", "Jogador", "Atividade", "Antes", "Depois", "Motivo"])
 
+  # Winning Wars 3.1 - backups automáticos antes de ações destrutivas
+  try:
+    sheet_backups = spreadsheet.worksheet("BackupsSeguranca")
+  except gspread.WorksheetNotFound:
+    sheet_backups = spreadsheet.add_worksheet(
+        title="BackupsSeguranca", rows="5000", cols="7"
+    )
+    sheet_backups.append_row([
+        "BackupID", "DataHora", "Admin", "Acao", "Aba", "Parte", "ConteudoJSON"
+    ])
+
   # Migração suave: adiciona nível de permissão aos admins antigos.
   try:
     headers_admin = sheet_admins.row_values(1)
@@ -227,6 +242,7 @@ def conectar_banco():
       sheet_historico,
       sheet_eventos,
       sheet_auditoria,
+      sheet_backups,
   )
 
 
@@ -242,6 +258,7 @@ try:
       sheet_historico,
       sheet_eventos,
       sheet_auditoria,
+      sheet_backups,
   ) = conectar_banco()
 except Exception:
   st.error(
@@ -257,6 +274,45 @@ def registrar_log(admin: str, acao: str):
     sheet_logs.append_row([data_hora, admin, acao])
   except Exception:
     pass
+
+
+def criar_backup_automatico(acao: str, planilhas) -> bool:
+  """Salva snapshots em partes na aba BackupsSeguranca antes de ações destrutivas."""
+  try:
+    agora = datetime.now()
+    backup_id = agora.strftime("BKP-%Y%m%d-%H%M%S-%f")
+    admin = st.session_state.get("admin_logado", "sistema")
+    data_hora = agora.strftime("%Y-%m-%d %H:%M:%S")
+
+    for nome_aba, worksheet in planilhas:
+      valores = worksheet.get_all_values()
+      conteudo = json.dumps(valores, ensure_ascii=False, separators=(",", ":"))
+      # Células do Google Sheets têm limite; divide snapshots grandes em blocos seguros.
+      partes = [conteudo[i:i + 35000] for i in range(0, len(conteudo), 35000)] or ["[]"]
+      for indice, parte in enumerate(partes, start=1):
+        sheet_backups.append_row([
+            backup_id, data_hora, admin, acao, nome_aba,
+            f"{indice}/{len(partes)}", parte
+        ])
+
+    registrar_log(admin, f"Backup automático {backup_id} criado antes de: {acao}")
+    return True
+  except Exception as exc:
+    registrar_log(
+        st.session_state.get("admin_logado", "sistema"),
+        f"FALHA no backup automático antes de '{acao}': {type(exc).__name__}",
+    )
+    return False
+
+
+def exigir_backup_automatico(acao: str, planilhas):
+  """Impede a ação destrutiva quando o snapshot de segurança não puder ser criado."""
+  if not criar_backup_automatico(acao, planilhas):
+    st.error(
+        "🛡️ A operação foi cancelada porque o backup automático de segurança falhou. "
+        "Nenhum dado foi apagado ou zerado."
+    )
+    st.stop()
 
 
 # --- CARREGAR DADOS COM CACHE DE DESEMPENHO (120 SEGUNDOS) ---
@@ -378,9 +434,7 @@ try:
   dados_admins = sheet_admins.get_all_records()
   df_admins = pd.DataFrame(dados_admins)
 except Exception:
-  df_admins = pd.DataFrame(
-      [["admin", gerar_hash_seguro(SENHA_ADMIN_INICIAL), "Dono"]], columns=["Usuario", "SenhaHash", "Nivel"]
-  )
+  df_admins = pd.DataFrame(columns=["Usuario", "SenhaHash", "Nivel"])
 
 try:
   dados_estado = dict(sheet_estado.get_all_values())
@@ -776,7 +830,7 @@ st.markdown(
         padding: 10px 14px !important;
         border-radius: 18px !important;
         border: 1px solid rgba(255,255,255,.28) !important;
-        font-family: 'Luckiest Guy', cursive, sans-serif !important;
+        font-family: inherit !important;
         font-size: 1.04rem !important;
         font-weight: 900 !important;
         line-height: 1.15 !important;
@@ -983,16 +1037,7 @@ st.markdown(
     }
     .mural-header { font-family: 'Luckiest Guy', cursive; color: #facc15; font-size: 1.15rem; margin-bottom: 4px; }
 
-    .news-card {
-        background: #0f172a; border: 2px solid #334155; border-top: 4px solid #38bdf8;
-        border-radius: 14px; padding: 20px; margin-bottom: 20px;
-        box-shadow: 0 6px 18px rgba(0,0,0,0.4); font-family: 'Nunito', sans-serif;
-    }
-    .news-tag {
-        display: inline-block; padding: 4px 10px; border-radius: 6px;
-        font-weight: 800; font-size: 0.85rem; color: #fff; background: #2563eb; margin-bottom: 8px;
-    }
-    .news-title { font-family: 'Luckiest Guy', cursive; color: #facc15; font-size: 1.5rem; margin-bottom: 6px; }
+    @keyframes newsSectionBlink {\n        0%, 100% { opacity: 1; text-shadow: 2px 2px 0 #000, 0 0 10px rgba(250,204,21,.45); transform: scale(1); }\n        50% { opacity: .72; text-shadow: 2px 2px 0 #000, 0 0 24px rgba(250,204,21,.95); transform: scale(1.018); }\n    }\n    @keyframes newsCardAttention {\n        0%,100% { box-shadow: 0 6px 18px rgba(0,0,0,.4), 0 0 0 rgba(56,189,248,0); }\n        50% { box-shadow: 0 8px 28px rgba(0,0,0,.55), 0 0 22px rgba(56,189,248,.20); }\n    }\n    @keyframes newsTagBlink {\n        0%,100% { transform: scale(1); filter: brightness(1); }\n        50% { transform: scale(1.07); filter: brightness(1.30); }\n    }\n\n    .news-section-title {\n        text-align: center;\n        display: block;\n        width: fit-content;\n        margin: 6px auto 10px auto !important;\n        padding: 9px 22px 8px;\n        border-radius: 16px;\n        border: 2px solid #facc15;\n        background: linear-gradient(135deg, rgba(120,53,15,.92), rgba(30,41,59,.94));\n        color: #facc15 !important;\n        animation: newsSectionBlink 1.7s ease-in-out infinite;\n        box-shadow: 0 8px 26px rgba(250,204,21,.22);\n    }\n    .news-card {\n        background: linear-gradient(145deg,#0f172a 0%,#111827 100%);\n        border: 2px solid #334155; border-top: 4px solid #38bdf8;\n        border-radius: 14px; padding: 20px; margin-bottom: 20px;\n        box-shadow: 0 6px 18px rgba(0,0,0,0.4); font-family: 'Nunito', sans-serif;\n        animation: newsCardAttention 3.2s ease-in-out infinite;\n    }\n    .news-tag {\n        display: inline-block; padding: 6px 12px; border-radius: 999px;\n        border: 2px solid rgba(255,255,255,.40);\n        font-family: 'Luckiest Guy', cursive;\n        font-weight: 900; font-size: 0.92rem; color: #fff; margin-bottom: 8px;\n        text-shadow: 1px 1px 0 rgba(0,0,0,.65);\n        box-shadow: 0 4px 14px rgba(0,0,0,.30);\n        animation: newsTagBlink 1.55s ease-in-out infinite;\n    }\n    .news-tag.tag-evento { background: linear-gradient(135deg,#c026d3,#7e22ce); }\n    .news-tag.tag-torneio { background: linear-gradient(135deg,#dc2626,#991b1b); }\n    .news-tag.tag-atualizacao { background: linear-gradient(135deg,#2563eb,#0369a1); }\n    .news-tag.tag-aviso { background: linear-gradient(135deg,#f59e0b,#b45309); }\n    .news-tag.tag-premiacao { background: linear-gradient(135deg,#eab308,#a16207); color:#fffbea; }\n    .news-tag.tag-default { background: linear-gradient(135deg,#475569,#1e293b); }\n\n    @media (prefers-reduced-motion: reduce) {\n        .news-section-title, .news-card, .news-tag { animation: none !important; }\n    }\n    .news-title { font-family: 'Luckiest Guy', cursive; color: #facc15; font-size: 1.5rem; margin-bottom: 6px; }
     .news-meta { color: #94a3b8; font-size: 0.85rem; margin-bottom: 12px; }
     .news-card-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
     .news-content { color: #e2e8f0; font-size: 1.05rem; line-height: 1.6; }
@@ -1051,7 +1096,7 @@ with col_nav:
           '<a'
           ' href="https://link.clashofclans.com/pt?action=OpenClanProfile&tag=2YPL9GU8Y"'
           ' target="_blank" rel="noopener noreferrer"'
-          ' class="top-nav-link nav-clan">🏰 CLÃ SECUNDÁRIO: VASTAYA ↗</a>',
+          ' class="top-nav-link nav-clan">🏰 VISITAR CLÃ VASTAYA ↗</a>',
           unsafe_allow_html=True,
       )
 
@@ -1073,13 +1118,35 @@ with col_admin_top:
 
         if btn_top_login:
           if not df_admins.empty:
-            val = df_admins[
-                (df_admins["Usuario"] == u_top)
-                & (df_admins["SenhaHash"] == gerar_hash(s_top))
+            usuario_digitado = u_top.strip()
+            linha_admin = df_admins[
+                df_admins["Usuario"].astype(str).str.lower() == usuario_digitado.lower()
             ]
-            if not val.empty:
-              st.session_state["admin_logado"] = u_top
-              registrar_log(u_top, "Logou pelo painel no canto superior direito")
+            autenticado = False
+            hash_atual = ""
+            if not linha_admin.empty:
+              hash_atual = str(linha_admin.iloc[0].get("SenhaHash", ""))
+              autenticado = verificar_senha(s_top, hash_atual)
+
+            if autenticado:
+              usuario_real = str(linha_admin.iloc[0]["Usuario"])
+              st.session_state["admin_logado"] = usuario_real
+
+              # Migra automaticamente hashes SHA-256 legados para PBKDF2 + salt.
+              if not hash_atual.startswith("pbkdf2_sha256$"):
+                try:
+                  cell_admin = sheet_admins.find(usuario_real)
+                  if cell_admin:
+                    headers_admin_login = sheet_admins.row_values(1)
+                    col_hash = headers_admin_login.index("SenhaHash") + 1
+                    sheet_admins.update_cell(
+                        cell_admin.row, col_hash, gerar_hash_seguro(s_top)
+                    )
+                    registrar_log(usuario_real, "Senha legada migrada automaticamente para PBKDF2")
+                except Exception:
+                  pass
+
+              registrar_log(usuario_real, "Logou pelo painel no canto superior direito")
               st.success("Logado com sucesso!")
               st.rerun()
             else:
@@ -1214,6 +1281,9 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
               ):
                 cell = sheet_layouts.find(row["Link"])
                 if cell:
+                  exigir_backup_automatico(
+                      f"Excluir layout de {cv_nome}", [("Layouts", sheet_layouts)]
+                  )
                   sheet_layouts.delete_rows(cell.row)
                   registrar_log(
                       st.session_state["admin_logado"],
@@ -1253,6 +1323,21 @@ def tornar_links_clicaveis(texto: str) -> str:
 
   return url_pattern.sub(substituir, texto_safe).replace("\n", "<br>")
 
+def classe_categoria_noticia(tag: str) -> str:
+  texto = str(tag or "").lower()
+  if "evento" in texto:
+    return "tag-evento"
+  if "torneio" in texto:
+    return "tag-torneio"
+  if "atualização" in texto or "atualizacao" in texto or "game" in texto:
+    return "tag-atualizacao"
+  if "aviso" in texto:
+    return "tag-aviso"
+  if "premiação" in texto or "premiacao" in texto:
+    return "tag-premiacao"
+  return "tag-default"
+
+
 # ==============================================================================
 # COMPONENTE REUTILIZÁVEL: FEED DE NOVIDADES
 # ==============================================================================
@@ -1261,7 +1346,7 @@ def renderizar_feed_novidades(limite=None, titulo="📰 Últimas Novidades"):
   from html import escape
 
   st.markdown(
-      f"<h2 style='text-align: center;'>{titulo}</h2>",
+      f"<h2 class='news-section-title'>{titulo}</h2>",
       unsafe_allow_html=True,
   )
   st.markdown(
@@ -1300,6 +1385,7 @@ def renderizar_feed_novidades(limite=None, titulo="📰 Últimas Novidades"):
     autor = str(item.get("Autor", "Liderança")).strip()
 
     tag_safe = escape(tag_nome)
+    tag_classe = classe_categoria_noticia(tag_nome)
     titulo_safe = escape(titulo_item)
     conteudo_safe = tornar_links_clicaveis(conteudo)
     data_safe = escape(data_hora)
@@ -1328,7 +1414,7 @@ def renderizar_feed_novidades(limite=None, titulo="📰 Últimas Novidades"):
         f"""
         <article class="news-card">
           <div class="news-card-top">
-            <span class="news-tag">{tag_safe}</span>
+            <span class="news-tag {tag_classe}">{tag_safe}</span>
             <div class="news-meta">🕒 Publicado em {data_safe} por <b>{autor_safe}</b></div>
           </div>
           <div class="news-title">{titulo_safe}</div>
@@ -1458,6 +1544,9 @@ def renderizar_feed_novidades(limite=None, titulo="📰 Últimas Novidades"):
             if not confirmar_feed_delete:
               st.warning("⚠️ Marque a confirmação antes de excluir a publicação.")
             else:
+              exigir_backup_automatico(
+                  f"Excluir publicação '{titulo_item}'", [("Novidades", sheet_novidades)]
+              )
               sheet_novidades.delete_rows(linha_news)
               registrar_log(
                   st.session_state["admin_logado"],
@@ -1539,6 +1628,7 @@ def renderizar_pagina_novidades():
       img_url = str(item.get("ImagemUrl", "")).strip()
       data_hora = str(item.get("DataHora", "")).strip()
       autor = str(item.get("Autor", "Liderança")).strip()
+      tag_classe = classe_categoria_noticia(tag_nome)
 
       from html import escape
 
@@ -1559,7 +1649,7 @@ def renderizar_pagina_novidades():
           f"""
             <article class="news-card">
                 <div class="news-card-top">
-                    <span class="news-tag">{escape(tag_nome)}</span>
+                    <span class="news-tag {tag_classe}">{escape(tag_nome)}</span>
                     <div class="news-meta">🕒 Publicado em {escape(data_hora)} por <b>{escape(autor)}</b></div>
                 </div>
                 <div class="news-title">{escape(titulo)}</div>
@@ -1637,6 +1727,9 @@ def renderizar_pagina_novidades():
 
             if btn_excluir:
               linha_planilha = int(item_idx) + 2
+              exigir_backup_automatico(
+                  f"Excluir notícia '{titulo}'", [("Novidades", sheet_novidades)]
+              )
               sheet_novidades.delete_rows(linha_planilha)
               registrar_log(
                   st.session_state["admin_logado"],
@@ -1993,6 +2086,10 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
                   str(evento_atual.get("Titulo", ""))
                   if evento_atual is not None else ""
               )
+              exigir_backup_automatico(
+                  f"Excluir evento ID {id_manage}: {titulo_excluido}",
+                  [("EventosCla", sheet_eventos)],
+              )
               sheet_eventos.delete_rows(linha_evento)
               registrar_log(
                   st.session_state["admin_logado"],
@@ -2049,6 +2146,10 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
     st.markdown("#### 🌅 Iniciar nova temporada")
     confirma_reset = st.checkbox("Confirmo que quero zerar as pontuações das atividades após arquivar o ranking atual", key="reset_temporada_20")
     if st.button("🌅 ARQUIVAR E ZERAR PONTUAÇÕES", disabled=not confirma_reset, use_container_width=True):
+      exigir_backup_automatico(
+          "Arquivar e zerar pontuações para iniciar nova temporada",
+          [("Dados", sheet_dados), ("EstadoMes", sheet_estado)],
+      )
       snapshot_ranking_atual("pre_reset", "Snapshot antes de zerar pontuações")
       headers = sheet_dados.row_values(1)
       atividades = [c for c in headers if c in ["JogosCla", "Eventos"] or c.startswith(("Guerra_", "Liga_", "Raide_"))]
@@ -2639,6 +2740,9 @@ else:
             if st.button("Remover Player", type="primary"):
               if confirmar_rem:
                 cell = sheet_dados.find(player_rem)
+                exigir_backup_automatico(
+                    f"Excluir jogador {player_rem}", [("Dados", sheet_dados)]
+                )
                 sheet_dados.delete_rows(cell.row)
                 registrar_log(
                     st.session_state["admin_logado"],
@@ -2999,6 +3103,9 @@ else:
             ):
               cell_n = sheet_novidades.find(row_n["Titulo"])
               if cell_n:
+                exigir_backup_automatico(
+                    f"Excluir notícia '{row_n['Titulo']}'", [("Novidades", sheet_novidades)]
+                )
                 sheet_novidades.delete_rows(cell_n.row)
                 registrar_log(
                     st.session_state["admin_logado"],
