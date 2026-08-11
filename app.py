@@ -2233,7 +2233,7 @@ else:
 
   # TÍTULO PRINCIPAL
   st.markdown(
-      "<h1 class='main-title'>⚔️ Winning Wars APP</h1>",
+      "<h1 class='main-title'>⚔️ Winning Wars APP ⚔️</h1>",
       unsafe_allow_html=True,
   )
   st.markdown(
