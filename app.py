@@ -794,45 +794,6 @@ st.markdown(
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@600;800;900&display=swap');
 
-    /* ==========================================================
-       MOBILE - BLOQUEIO SOMENTE DA ROLAGEM HORIZONTAL DA PÁGINA
-       Mantém intactos layout, colunas, tabelas, abas e componentes.
-       ========================================================== */
-    html,
-    body {
-        width: 100%;
-        max-width: 100%;
-        overflow-x: hidden !important;
-        overscroll-behavior-x: none;
-    }
-
-    body {
-        position: relative;
-    }
-
-    [data-testid="stAppViewContainer"],
-    .stApp,
-    .main {
-        width: 100%;
-        max-width: 100%;
-        overflow-x: hidden !important;
-        overscroll-behavior-x: none;
-    }
-
-    /* No celular apenas reforça o limite externo da página.
-       Nenhuma regra é aplicada às colunas ou componentes internos. */
-    @media (max-width: 768px) {
-        html,
-        body,
-        [data-testid="stAppViewContainer"],
-        .stApp,
-        .main {
-            max-width: 100vw !important;
-            overflow-x: hidden !important;
-        }
-    }
-
-
     /* ANIMAÇÃO DE TRANSIÇÃO SUAVE ENTRE PÁGINAS */
     @keyframes fadeInPage {
         from {
