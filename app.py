@@ -1,4 +1,6 @@
 import hashlib
+import hmac
+import os
 import json
 import random
 import re
@@ -63,7 +65,30 @@ components.html(
 
 # --- FUNÇÕES AUXILIARES ---
 def gerar_hash(senha: str) -> str:
+  """Hash legado mantido para compatibilidade com admins existentes."""
   return hashlib.sha256(senha.encode()).hexdigest()
+
+
+def gerar_hash_seguro(senha: str) -> str:
+  """PBKDF2 com salt; usado em novos cadastros e trocas de senha."""
+  salt = os.urandom(16)
+  digest = hashlib.pbkdf2_hmac("sha256", senha.encode(), salt, 210_000)
+  return f"pbkdf2_sha256$210000${salt.hex()}${digest.hex()}"
+
+
+def verificar_senha(senha: str, hash_armazenado: str) -> bool:
+  """Aceita hashes novos e o SHA-256 antigo sem quebrar a base atual."""
+  valor = str(hash_armazenado or "")
+  if valor.startswith("pbkdf2_sha256$"):
+    try:
+      _, iteracoes, salt_hex, digest_hex = valor.split("$", 3)
+      teste = hashlib.pbkdf2_hmac(
+          "sha256", senha.encode(), bytes.fromhex(salt_hex), int(iteracoes)
+      ).hex()
+      return hmac.compare_digest(teste, digest_hex)
+    except Exception:
+      return False
+  return hmac.compare_digest(gerar_hash(senha), valor)
 
 
 # Obter senha inicial padrao via secrets para evitar exposicao no GitHub
@@ -89,10 +114,10 @@ def conectar_banco():
     sheet_admins = spreadsheet.worksheet("Admins")
   except gspread.WorksheetNotFound:
     sheet_admins = spreadsheet.add_worksheet(
-        title="Admins", rows="100", cols="2"
+        title="Admins", rows="100", cols="3"
     )
-    sheet_admins.append_row(["Usuario", "SenhaHash"])
-    sheet_admins.append_row(["admin", gerar_hash(SENHA_ADMIN_INICIAL)])
+    sheet_admins.append_row(["Usuario", "SenhaHash", "Nivel"])
+    sheet_admins.append_row(["admin", gerar_hash_seguro(SENHA_ADMIN_INICIAL), "Dono"])
 
   # Aba de Estado e Recados
   try:
@@ -145,6 +170,52 @@ def conectar_banco():
         ["DataHora", "Titulo", "Conteudo", "ImagemUrl", "Tag", "Autor"]
     )
 
+  # Migração suave das notícias: campos extras da Central de Comunicação.
+  try:
+    headers_news = sheet_novidades.row_values(1)
+    extras_news = ["Fixada", "ExpiraEm", "Status", "LinkBotao"]
+    if len(headers_news) < 10:
+      sheet_novidades.resize(cols=10)
+    for extra in extras_news:
+      if extra not in headers_news:
+        sheet_novidades.update_cell(1, len(headers_news) + 1, extra)
+        headers_news.append(extra)
+  except Exception:
+    pass
+
+  # Winning Wars 2.0 - histórico de temporadas e evolução
+  try:
+    sheet_historico = spreadsheet.worksheet("Historico")
+  except gspread.WorksheetNotFound:
+    sheet_historico = spreadsheet.add_worksheet(title="Historico", rows="3000", cols="7")
+    sheet_historico.append_row(["DataHora", "Temporada", "Jogador", "Pontos", "Posicao", "Tipo", "Detalhe"])
+
+  # Winning Wars 2.0 - agenda/eventos do clã
+  try:
+    sheet_eventos = spreadsheet.worksheet("EventosCla")
+  except gspread.WorksheetNotFound:
+    sheet_eventos = spreadsheet.add_worksheet(title="EventosCla", rows="500", cols="7")
+    sheet_eventos.append_row(["ID", "Data", "Tipo", "Titulo", "Descricao", "Status", "Autor"])
+
+  # Winning Wars 2.0 - auditoria detalhada de pontuações
+  try:
+    sheet_auditoria = spreadsheet.worksheet("AuditoriaPontos")
+  except gspread.WorksheetNotFound:
+    sheet_auditoria = spreadsheet.add_worksheet(title="AuditoriaPontos", rows="5000", cols="7")
+    sheet_auditoria.append_row(["DataHora", "Admin", "Jogador", "Atividade", "Antes", "Depois", "Motivo"])
+
+  # Migração suave: adiciona nível de permissão aos admins antigos.
+  try:
+    headers_admin = sheet_admins.row_values(1)
+    if len(headers_admin) < 3:
+      sheet_admins.resize(cols=3)
+    if "Nivel" not in headers_admin:
+      sheet_admins.update_cell(1, len(headers_admin) + 1, "Nivel")
+      for row_i in range(2, len(sheet_admins.get_all_values()) + 1):
+        sheet_admins.update_cell(row_i, len(headers_admin) + 1, "Dono" if row_i == 2 else "Lider")
+  except Exception:
+    pass
+
   return (
       sheet_dados,
       sheet_admins,
@@ -153,6 +224,9 @@ def conectar_banco():
       sheet_logs,
       sheet_fama,
       sheet_novidades,
+      sheet_historico,
+      sheet_eventos,
+      sheet_auditoria,
   )
 
 
@@ -165,6 +239,9 @@ try:
       sheet_logs,
       sheet_fama,
       sheet_novidades,
+      sheet_historico,
+      sheet_eventos,
+      sheet_auditoria,
   ) = conectar_banco()
 except Exception:
   st.error(
@@ -215,6 +292,85 @@ def obter_novidades_cached():
     return []
 
 
+@st.cache_data(ttl=60)
+def obter_historico_cached():
+  try:
+    return sheet_historico.get_all_records()
+  except Exception:
+    return []
+
+
+@st.cache_data(ttl=60)
+def obter_eventos_cached():
+  try:
+    return sheet_eventos.get_all_records()
+  except Exception:
+    return []
+
+
+def nivel_admin_atual() -> str:
+  if "admin_logado" not in st.session_state:
+    return "Membro"
+  usuario = st.session_state["admin_logado"]
+  try:
+    atual = pd.DataFrame(sheet_admins.get_all_records())
+    if not atual.empty and "Nivel" in atual.columns:
+      linha = atual[atual["Usuario"] == usuario]
+      if not linha.empty:
+        return str(linha.iloc[0].get("Nivel", "Lider") or "Lider")
+  except Exception:
+    pass
+  return "Lider"
+
+
+def tem_permissao(*niveis) -> bool:
+  return nivel_admin_atual() in niveis
+
+
+def registrar_auditoria_ponto(jogador, atividade, antes, depois, motivo=""):
+  try:
+    admin = st.session_state.get("admin_logado", "sistema")
+    agora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    sheet_auditoria.append_row([agora, admin, jogador, atividade, antes, depois, motivo])
+  except Exception:
+    pass
+
+
+def salvar_snapshot_historico(df_rank_snapshot, temporada, tipo="snapshot", detalhe=""):
+  if df_rank_snapshot is None or df_rank_snapshot.empty:
+    return
+  agora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+  linhas = []
+  for pos, (_, row) in enumerate(df_rank_snapshot.reset_index(drop=True).iterrows(), start=1):
+    linhas.append([agora, temporada, str(row.get("Nome", "")), int(row.get("Total", 0)), pos, tipo, detalhe])
+  try:
+    sheet_historico.append_rows(linhas, value_input_option="USER_ENTERED")
+  except Exception:
+    for linha in linhas:
+      sheet_historico.append_row(linha)
+
+
+def snapshot_ranking_atual(tipo="alteracao", detalhe=""):
+  try:
+    atual = pd.DataFrame(sheet_dados.get_all_records())
+    if atual.empty or "Nome" not in atual.columns:
+      return
+    cols = [c for c in atual.columns if c in ["JogosCla", "Eventos"] or c.startswith(("Guerra_", "Liga_", "Raide_"))]
+    for c in cols:
+      atual[c] = pd.to_numeric(atual[c], errors="coerce").fillna(0)
+    atual["Total"] = atual[cols].sum(axis=1) if cols else 0
+    rank = atual.sort_values("Total", ascending=False).reset_index(drop=True)
+    salvar_snapshot_historico(rank, temporada_atual_texto(), tipo, detalhe)
+  except Exception:
+    pass
+
+
+def temporada_atual_texto():
+  meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+  agora = datetime.now()
+  return f"{meses[agora.month-1]}/{agora.year}"
+
+
 dados = obter_dados_cached()
 df = pd.DataFrame(dados) if dados else pd.DataFrame()
 
@@ -223,7 +379,7 @@ try:
   df_admins = pd.DataFrame(dados_admins)
 except Exception:
   df_admins = pd.DataFrame(
-      [["admin", gerar_hash(SENHA_ADMIN_INICIAL)]], columns=["Usuario", "SenhaHash"]
+      [["admin", gerar_hash_seguro(SENHA_ADMIN_INICIAL), "Dono"]], columns=["Usuario", "SenhaHash", "Nivel"]
   )
 
 try:
@@ -241,6 +397,8 @@ if "pagina_atual" not in st.session_state:
 df_layouts = pd.DataFrame(obter_layouts_cached())
 df_fama = pd.DataFrame(obter_galeria_cached())
 df_novidades = pd.DataFrame(obter_novidades_cached())
+df_historico = pd.DataFrame(obter_historico_cached())
+df_eventos = pd.DataFrame(obter_eventos_cached())
 
 
 # --- FUNÇÃO AUXILIAR PARA DETERMINAR A PRÓXIMA COLUNA SEQUENCIAL ---
@@ -948,7 +1106,20 @@ def renderizar_feed_novidades(limite=None, titulo="📰 Últimas Novidades"):
     st.info("Nenhuma novidade ou notícia publicada no momento.")
     return
 
-  novidades_feed = df_novidades.iloc[::-1]
+  novidades_feed = df_novidades.copy()
+  if "Status" in novidades_feed.columns:
+    novidades_feed = novidades_feed[~novidades_feed["Status"].astype(str).str.lower().isin(["encerrada", "encerrado", "inativa"])]
+  if "ExpiraEm" in novidades_feed.columns:
+    def _valida_expira(v):
+      txt = str(v or "").strip()
+      if not txt: return True
+      try: return datetime.strptime(txt, "%d/%m/%Y").date() >= datetime.now().date()
+      except Exception: return True
+    novidades_feed = novidades_feed[novidades_feed["ExpiraEm"].apply(_valida_expira)]
+  if "Fixada" in novidades_feed.columns:
+    novidades_feed["_fix"] = novidades_feed["Fixada"].astype(str).str.upper().isin(["SIM","TRUE","1"]).astype(int)
+    novidades_feed = novidades_feed.sort_values("_fix", ascending=False, kind="stable")
+  novidades_feed = novidades_feed.iloc[::-1] if "Fixada" not in novidades_feed.columns else pd.concat([novidades_feed[novidades_feed.get("_fix",0)==1], novidades_feed[novidades_feed.get("_fix",0)==0].iloc[::-1]])
   if limite is not None:
     novidades_feed = novidades_feed.head(limite)
 
@@ -982,6 +1153,9 @@ def renderizar_feed_novidades(limite=None, titulo="📰 Últimas Novidades"):
         </div>
       """
 
+    link_botao = str(item.get("LinkBotao", "")).strip()
+    link_html = f'<div style="margin-top:14px;"><a class="btn-external-link" href="{escape(link_botao, quote=True)}" target="_blank" rel="noopener noreferrer">🔗 ABRIR LINK ↗</a></div>' if link_botao else ""
+
     st.markdown(
         f"""
         <article class="news-card">
@@ -992,6 +1166,7 @@ def renderizar_feed_novidades(limite=None, titulo="📰 Últimas Novidades"):
           <div class="news-title">{titulo_safe}</div>
           {imagem_html}
           <div class="news-content">{conteudo_safe}</div>
+          {link_html}
         </article>
         """,
         unsafe_allow_html=True,
@@ -1214,6 +1389,291 @@ def renderizar_regras_cla():
 
 
 # ==============================================================================
+# WINNING WARS 2.0 - COMPONENTES DE EXPERIÊNCIA / GESTÃO
+# ==============================================================================
+def renderizar_dashboard_temporada(df_rank):
+  if df_rank is None or df_rank.empty:
+    return
+  total_membros = len(df_rank)
+  lider = str(df_rank.iloc[0].get("Nome", "-"))
+  pontos_lider = int(df_rank.iloc[0].get("Total", 0))
+  col1, col2, col3, col4 = st.columns(4)
+  col1.metric("👥 Membros", total_membros)
+  col2.metric("🏆 Líder", lider)
+  col3.metric("⭐ Pontos do líder", pontos_lider)
+  col4.metric("🎟️ Temporada", temporada_atual_texto())
+
+  if len(df_rank) >= 3:
+    terceiro = int(df_rank.iloc[2].get("Total", 0))
+    quarto = int(df_rank.iloc[3].get("Total", 0)) if len(df_rank) > 3 else None
+    texto = (
+        f"🥇 **{df_rank.iloc[0]['Nome']}** · {int(df_rank.iloc[0]['Total'])} pts   "
+        f"🥈 **{df_rank.iloc[1]['Nome']}** · {int(df_rank.iloc[1]['Total'])} pts   "
+        f"🥉 **{df_rank.iloc[2]['Nome']}** · {terceiro} pts"
+    )
+    st.markdown(texto)
+    if quarto is not None:
+      st.caption(f"🔥 Disputa pelo Top 3: {df_rank.iloc[3]['Nome']} está a {max(0, terceiro-quarto+1)} ponto(s) de ultrapassar o 3º colocado.")
+
+
+def calcular_medalhas(row, colunas_guerras, colunas_liga, colunas_raides, df_rank):
+  medalhas = []
+  total = int(row.get("Total", 0))
+  nome = str(row.get("Nome", ""))
+  if total >= 100: medalhas.append("💯 Centurião")
+  if total >= 50: medalhas.append("🔥 Em Chamas")
+  if colunas_guerras and sum(float(row.get(c, 0) or 0) for c in colunas_guerras) >= 20: medalhas.append("⚔️ Senhor da Guerra")
+  if colunas_raides and sum(float(row.get(c, 0) or 0) for c in colunas_raides) >= 20: medalhas.append("🏰 Mestre dos Raides")
+  if colunas_liga and all(float(row.get(c, 0) or 0) > 0 for c in colunas_liga): medalhas.append("🏆 Veterano da Liga")
+  if not df_rank.empty and str(df_rank.iloc[0].get("Nome")) == nome: medalhas.append("👑 Líder Atual")
+  if not df_fama.empty and any(nome in [str(r.get("Primeiro","")), str(r.get("Segundo","")), str(r.get("Terceiro",""))] for _, r in df_fama.iterrows()):
+    medalhas.append("🎟️ Hall da Fama")
+  return medalhas
+
+
+def renderizar_perfil_membro(df_rank, colunas_guerras, colunas_liga, colunas_raides):
+  st.markdown("### 👤 Perfil do Guerreiro")
+  if df_rank is None or df_rank.empty:
+    st.info("Ainda não existem dados para montar perfis.")
+    return
+  nomes = df_rank["Nome"].astype(str).tolist()
+  nome = st.selectbox("Escolha seu nome", nomes, key="perfil_membro_nome")
+  pos = nomes.index(nome)
+  row = df_rank.iloc[pos]
+  total = int(row.get("Total", 0))
+  acima = df_rank.iloc[pos-1] if pos > 0 else None
+  terceiro = df_rank.iloc[2] if len(df_rank) >= 3 else None
+
+  c1,c2,c3,c4 = st.columns(4)
+  c1.metric("🏆 Posição", f"{pos+1}º")
+  c2.metric("⭐ Pontos", total)
+  if acima is not None:
+    falta = max(0, int(acima.get("Total",0)) - total + 1)
+    c3.metric("⬆️ Próxima posição", f"{falta} pts")
+  else:
+    c3.metric("👑 Status", "Líder")
+  if terceiro is not None and pos >= 3:
+    c4.metric("🥉 Para o Top 3", f"{max(0, int(terceiro.get('Total',0))-total+1)} pts")
+  else:
+    c4.metric("🎟️ Top 3", "Dentro" if pos < 3 else "-")
+
+  guerra = int(sum(float(row.get(c,0) or 0) for c in colunas_guerras))
+  liga = int(sum(float(row.get(c,0) or 0) for c in colunas_liga))
+  raide = int(sum(float(row.get(c,0) or 0) for c in colunas_raides))
+  jogos = int(float(row.get("JogosCla",0) or 0))
+  eventos = int(float(row.get("Eventos",0) or 0))
+  st.markdown(f"**⚔️ Guerras:** {guerra}    **🏆 Liga:** {liga}    **🏰 Raides:** {raide}    **🎮 Jogos:** {jogos}    **🎉 Eventos:** {eventos}")
+
+  medals = calcular_medalhas(row, colunas_guerras, colunas_liga, colunas_raides, df_rank)
+  if medals:
+    st.markdown("**Conquistas:** " + " · ".join(medals))
+
+  if not df_historico.empty and "Jogador" in df_historico.columns:
+    hist = df_historico[df_historico["Jogador"].astype(str) == nome].copy()
+    if not hist.empty:
+      hist["Pontos"] = pd.to_numeric(hist["Pontos"], errors="coerce")
+      hist["DataHora"] = pd.to_datetime(hist["DataHora"], errors="coerce")
+      hist = hist.dropna(subset=["DataHora"]).sort_values("DataHora")
+      if not hist.empty:
+        st.markdown("#### 📈 Evolução")
+        st.line_chart(hist.set_index("DataHora")[["Pontos"]])
+
+
+def renderizar_agenda_membros():
+  st.markdown("### 📅 Agenda Winning Wars")
+  if df_eventos.empty:
+    st.info("Nenhum evento cadastrado no momento.")
+    return
+  agenda = df_eventos.copy()
+  if "Status" in agenda.columns:
+    agenda = agenda[agenda["Status"].astype(str).str.lower() != "encerrado"]
+  for _, ev in agenda.sort_values("Data", ascending=True).iterrows():
+    st.markdown(f"**{ev.get('Data','')} · {ev.get('Tipo','📅')} {ev.get('Titulo','Evento')}**  \n{ev.get('Descricao','')}")
+    st.divider()
+
+
+def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides):
+  st.markdown("### 🚀 Central de Gestão 2.0")
+  st.caption(f"Nível de acesso: **{nivel_admin_atual()}**")
+  if not tem_permissao("Dono", "Lider", "Co-lider"):
+    st.warning("Seu nível permite comunicação, mas não alteração de pontuações.")
+    return
+
+  quick, eventos_tab, comunicacao_tab, temporada_tab, auditoria_tab, permissoes_tab = st.tabs([
+      "⚡ Lançamento rápido", "📅 Eventos", "📢 Comunicação", "🏆 Temporada", "↩️ Auditoria", "🛡️ Permissões"
+  ])
+
+  with quick:
+    atividades = [c for c in df.columns if c in ["JogosCla", "Eventos"] or c.startswith(("Guerra_", "Liga_", "Raide_"))]
+    if df.empty or not atividades:
+      st.info("Cadastre jogadores e atividades antes de lançar pontos.")
+    else:
+      atividade = st.selectbox("Atividade", atividades, key="ww20_atividade")
+      base = df[["Nome", atividade]].copy()
+      base[atividade] = pd.to_numeric(base[atividade], errors="coerce").fillna(0).astype(int)
+      edit = st.data_editor(base, hide_index=True, use_container_width=True, disabled=["Nome"], key=f"quick_{atividade}")
+      motivo = st.text_input("Motivo/observação (opcional)", key="quick_motivo")
+      if st.button("💾 Salvar somente alterações", type="primary", use_container_width=True):
+        alteracoes = 0
+        headers = sheet_dados.row_values(1)
+        col_num = headers.index(atividade) + 1
+        for idx, row_edit in edit.iterrows():
+          antes = int(base.iloc[idx][atividade])
+          depois = int(row_edit[atividade])
+          if antes != depois:
+            nome_j = str(row_edit["Nome"])
+            cell_nome = sheet_dados.find(nome_j)
+            if cell_nome:
+              sheet_dados.update_cell(cell_nome.row, col_num, depois)
+              registrar_auditoria_ponto(nome_j, atividade, antes, depois, motivo)
+              registrar_log(st.session_state["admin_logado"], f"Alterou {nome_j} - {atividade}: {antes} → {depois}")
+              alteracoes += 1
+        if alteracoes:
+          snapshot_ranking_atual("alteracao", f"Lançamento rápido: {atividade}")
+          st.cache_data.clear(); st.success(f"✅ {alteracoes} alteração(ões) salva(s)."); st.rerun()
+        else:
+          st.info("Nenhuma pontuação foi alterada.")
+
+  with eventos_tab:
+    with st.form("novo_evento_20", clear_on_submit=True):
+      c1,c2 = st.columns(2)
+      data_ev = c1.date_input("Data")
+      tipo_ev = c2.selectbox("Tipo", ["⚔️ Guerra", "🏆 Liga", "🏰 Raide", "🎮 Jogos do Clã", "🎉 Evento", "📢 Aviso"] )
+      titulo_ev = st.text_input("Título")
+      desc_ev = st.text_area("Descrição")
+      if st.form_submit_button("➕ Adicionar à agenda"):
+        if titulo_ev.strip():
+          valores = sheet_eventos.get_all_values()
+          ids=[]
+          for r in valores[1:]:
+            try: ids.append(int(r[0]))
+            except: pass
+          novo_id = max(ids, default=0)+1
+          sheet_eventos.append_row([novo_id, data_ev.strftime("%d/%m/%Y"), tipo_ev, titulo_ev.strip(), desc_ev.strip(), "Ativo", st.session_state["admin_logado"]])
+          st.cache_data.clear(); st.success("Evento cadastrado!"); st.rerun()
+    if not df_eventos.empty:
+      st.dataframe(df_eventos, hide_index=True, use_container_width=True)
+      ids_ev = df_eventos.get("ID", pd.Series(dtype=str)).astype(str).tolist()
+      if ids_ev:
+        id_manage = st.selectbox("Gerenciar evento ID", ids_ev, key="ev_manage_id")
+        cenc, cdel = st.columns(2)
+        if cenc.button("✅ Marcar encerrado", use_container_width=True):
+          cell = sheet_eventos.find(id_manage)
+          headers_ev = sheet_eventos.row_values(1)
+          if cell and "Status" in headers_ev:
+            sheet_eventos.update_cell(cell.row, headers_ev.index("Status")+1, "Encerrado")
+            registrar_log(st.session_state["admin_logado"], f"Encerrou evento ID {id_manage}")
+            st.cache_data.clear(); st.rerun()
+        if cdel.button("🗑️ Excluir evento", use_container_width=True):
+          cell = sheet_eventos.find(id_manage)
+          if cell:
+            sheet_eventos.delete_rows(cell.row)
+            registrar_log(st.session_state["admin_logado"], f"Excluiu evento ID {id_manage}")
+            st.cache_data.clear(); st.rerun()
+
+  with comunicacao_tab:
+    st.markdown("#### 📢 Publicação avançada")
+    with st.form("comunicacao_20", clear_on_submit=True):
+      titulo_c = st.text_input("Título do comunicado")
+      tag_c = st.selectbox("Categoria", ["📢 Aviso Clã", "⚔️ Torneio", "🎉 Evento", "🏆 Premiação Extra", "🚨 Urgente"] )
+      conteudo_c = st.text_area("Conteúdo")
+      img_c = st.text_input("Imagem (URL, opcional)")
+      link_c = st.text_input("Link do botão (opcional)")
+      fixada_c = st.checkbox("📌 Fixar no topo")
+      usar_exp = st.checkbox("Definir data de expiração")
+      exp_c = st.date_input("Expira em", value=datetime.now().date())
+      if st.form_submit_button("📣 Publicar comunicado"):
+        if titulo_c.strip() and conteudo_c.strip():
+          exp_txt = exp_c.strftime("%d/%m/%Y") if usar_exp else ""
+          sheet_novidades.append_row([datetime.now().strftime("%d/%m/%Y %H:%M"), titulo_c.strip(), conteudo_c.strip(), img_c.strip(), tag_c, st.session_state["admin_logado"], "SIM" if fixada_c else "NAO", exp_txt, "Ativa", link_c.strip()])
+          registrar_log(st.session_state["admin_logado"], f"Publicou comunicado avançado '{titulo_c.strip()}'")
+          st.cache_data.clear(); st.success("Comunicado publicado!"); st.rerun()
+
+  with temporada_tab:
+    st.markdown("#### 🏆 Encerramento seguro da temporada")
+    st.write(f"Temporada sugerida: **{temporada_atual_texto()}**")
+    if not df_rank.empty:
+      st.write("Top 3 atual:")
+      st.write(" · ".join([f"{i+1}º {df_rank.iloc[i]['Nome']} ({int(df_rank.iloc[i]['Total'])} pts)" for i in range(min(3,len(df_rank)))]))
+    confirm = st.checkbox("Confirmo que revisei as pontuações e quero finalizar a temporada", key="confirm_finaliza_20")
+    c1,c2 = st.columns(2)
+    if c1.button("🔒 FINALIZAR TEMPORADA", type="primary", use_container_width=True, disabled=not confirm):
+      if not df_rank.empty:
+        temporada = temporada_atual_texto()
+        salvar_snapshot_historico(df_rank, temporada, "fechamento", "Ranking final")
+        if len(df_rank) >= 3:
+          sheet_fama.append_row([temporada, df_rank.iloc[0]["Nome"], df_rank.iloc[1]["Nome"], df_rank.iloc[2]["Nome"]])
+        cell = sheet_estado.find("mes_finalizado")
+        if cell: sheet_estado.update_cell(cell.row, 2, "TRUE")
+        else: sheet_estado.append_row(["mes_finalizado", "TRUE"])
+        registrar_log(st.session_state["admin_logado"], f"Finalizou temporada {temporada} e arquivou ranking")
+        st.cache_data.clear(); st.success("🏆 Temporada finalizada e arquivada!"); st.rerun()
+    if c2.button("🔓 REABRIR TEMPORADA", use_container_width=True):
+      cell = sheet_estado.find("mes_finalizado")
+      if cell: sheet_estado.update_cell(cell.row, 2, "FALSE")
+      registrar_log(st.session_state["admin_logado"], "Reabriu a temporada para edição")
+      st.cache_data.clear(); st.success("Temporada aberta."); st.rerun()
+
+    st.divider()
+    st.markdown("#### 🌅 Iniciar nova temporada")
+    confirma_reset = st.checkbox("Confirmo que quero zerar as pontuações das atividades após arquivar o ranking atual", key="reset_temporada_20")
+    if st.button("🌅 ARQUIVAR E ZERAR PONTUAÇÕES", disabled=not confirma_reset, use_container_width=True):
+      snapshot_ranking_atual("pre_reset", "Snapshot antes de zerar pontuações")
+      headers = sheet_dados.row_values(1)
+      atividades = [c for c in headers if c in ["JogosCla", "Eventos"] or c.startswith(("Guerra_", "Liga_", "Raide_"))]
+      total_linhas = len(sheet_dados.get_all_values())
+      for atividade in atividades:
+        col_n = headers.index(atividade)+1
+        if total_linhas >= 2:
+          inicio = gspread.utils.rowcol_to_a1(2, col_n)
+          fim = gspread.utils.rowcol_to_a1(total_linhas, col_n)
+          sheet_dados.update(f"{inicio}:{fim}", [[0] for _ in range(total_linhas-1)])
+      cell = sheet_estado.find("mes_finalizado")
+      if cell: sheet_estado.update_cell(cell.row, 2, "FALSE")
+      registrar_log(st.session_state["admin_logado"], "Iniciou nova temporada e zerou pontuações")
+      st.cache_data.clear(); st.success("🌅 Nova temporada iniciada com pontuações zeradas."); st.rerun()
+
+  with auditoria_tab:
+    try:
+      aud = pd.DataFrame(sheet_auditoria.get_all_records())
+    except Exception:
+      aud = pd.DataFrame()
+    if aud.empty:
+      st.info("Nenhuma alteração detalhada registrada ainda.")
+    else:
+      aud_rev = aud.iloc[::-1].head(100)
+      st.dataframe(aud_rev, hide_index=True, use_container_width=True)
+      st.caption("A auditoria registra quem alterou, jogador, atividade e valor antes/depois.")
+      ultima = aud.iloc[-1]
+      st.warning(f"Última alteração: {ultima.get('Jogador')} / {ultima.get('Atividade')} — {ultima.get('Antes')} → {ultima.get('Depois')}")
+      if st.button("↩️ Desfazer última alteração", use_container_width=True):
+        jogador = str(ultima.get("Jogador", "")); atividade = str(ultima.get("Atividade", "")); antes = ultima.get("Antes", 0)
+        headers = sheet_dados.row_values(1); cell_nome = sheet_dados.find(jogador) if jogador else None
+        if cell_nome and atividade in headers:
+          atual_val = sheet_dados.cell(cell_nome.row, headers.index(atividade)+1).value
+          sheet_dados.update_cell(cell_nome.row, headers.index(atividade)+1, antes)
+          registrar_auditoria_ponto(jogador, atividade, atual_val, antes, "DESFAZER última alteração")
+          registrar_log(st.session_state["admin_logado"], f"Desfez alteração de {jogador}/{atividade}")
+          snapshot_ranking_atual("desfazer", f"Reversão {jogador}/{atividade}")
+          st.cache_data.clear(); st.success("Alteração desfeita."); st.rerun()
+
+  with permissoes_tab:
+    if not tem_permissao("Dono"):
+      st.warning("Somente o nível Dono pode alterar permissões.")
+    else:
+      admins = pd.DataFrame(sheet_admins.get_all_records())
+      if not admins.empty:
+        usuario_p = st.selectbox("Administrador", admins["Usuario"].astype(str).tolist())
+        nivel_p = st.selectbox("Novo nível", ["Dono", "Lider", "Co-lider", "Editor"])
+        if st.button("🛡️ Atualizar permissão"):
+          cell = sheet_admins.find(usuario_p)
+          headers = sheet_admins.row_values(1)
+          if cell and "Nivel" in headers:
+            sheet_admins.update_cell(cell.row, headers.index("Nivel")+1, nivel_p)
+            registrar_log(st.session_state["admin_logado"], f"Alterou permissão de {usuario_p} para {nivel_p}")
+            st.success("Permissão atualizada."); st.rerun()
+
+# ==============================================================================
 # SELEÇÃO DE PÁGINAS
 # ==============================================================================
 if st.session_state["pagina_atual"] == "layouts_guerra":
@@ -1295,8 +1755,11 @@ else:
     df_rank = pd.DataFrame()
 
   # ABAS DESTACADAS DA PÁGINA PRINCIPAL
-  tab_ranking, tab_tabela, tab_admin = st.tabs(
-      ["🏆 Ranking ao Vivo", "📋 Tabela Detalhada", "🔐 Painel Admin"]
+  renderizar_dashboard_temporada(df_rank)
+  st.write("")
+
+  tab_ranking, tab_tabela, tab_perfil, tab_agenda, tab_admin = st.tabs(
+      ["🏆 Ranking ao Vivo", "📋 Tabela Detalhada", "👤 Meu Perfil", "📅 Agenda", "🔐 Painel Admin"]
   )
 
   # ABA 1: RANKING AO VIVO
@@ -1591,7 +2054,15 @@ else:
       altura = min(900, max(300, 150 + len(df_tabela_mobile) * 40))
       components.html(html_tabela, height=altura, scrolling=False)
 
-  # ABA 3: ÁREA ADMIN
+  # ABA 3: PERFIL INDIVIDUAL / CONQUISTAS
+  with tab_perfil:
+    renderizar_perfil_membro(df_rank, colunas_guerras, colunas_liga, colunas_raides)
+
+  # ABA 4: AGENDA DO CLÃ
+  with tab_agenda:
+    renderizar_agenda_membros()
+
+  # ABA 5: ÁREA ADMIN
   with tab_admin:
     st.subheader("🔐 Painel de Controle e Administração")
 
@@ -1606,7 +2077,8 @@ else:
           " Liberado)"
       )
 
-      sub_tab1, sub_tab2, sub_tab_pass, sub_tab3, sub_tab4, sub_tab_news, sub_tab5, sub_tab6, sub_tab7 = st.tabs([
+      sub_tab20, sub_tab1, sub_tab2, sub_tab_pass, sub_tab3, sub_tab4, sub_tab_news, sub_tab5, sub_tab6, sub_tab7 = st.tabs([
+          "🚀 Gestão 2.0",
           "➕ Players",
           "👤 Novo Admin",
           "🔑 Alterar Senha",
@@ -1618,13 +2090,17 @@ else:
           "🎲 Sorteio de Desempate",
       ])
 
+      with sub_tab20:
+        renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
+
       with sub_tab1:
         c1, c2 = st.columns(2)
         with c1:
           novo_nome = st.text_input("Nome do Player")
           if st.button("Cadastrar Player"):
             if novo_nome.strip() != "":
-              novo_id = len(dados) + 1
+              ids_existentes = pd.to_numeric(df.get("ID", pd.Series(dtype=float)), errors="coerce").dropna() if not df.empty else pd.Series(dtype=float)
+              novo_id = int(ids_existentes.max()) + 1 if not ids_existentes.empty else 1
               cols_atuais = len(sheet_dados.row_values(1))
               sheet_dados.append_row(
                   [novo_id, novo_nome.strip()] + [0] * (cols_atuais - 2)
@@ -1689,8 +2165,9 @@ else:
               ):
                 st.error("⚠️ Já existe um administrador com esse usuário!")
               else:
-                hash_senha = gerar_hash(pwd_limpo)
-                sheet_admins.append_row([usr_limpo, hash_senha])
+                hash_senha = gerar_hash_seguro(pwd_limpo)
+                nivel_novo = "Lider"
+                sheet_admins.append_row([usr_limpo, hash_senha, nivel_novo])
                 registrar_log(
                     st.session_state["admin_logado"],
                     f"Cadastrou o novo admin '{usr_limpo}'",
@@ -1719,16 +2196,16 @@ else:
               df_admins_atual = pd.DataFrame(sheet_admins.get_all_records())
               
               if not df_admins_atual.empty:
-                validacao = df_admins_atual[
-                    (df_admins_atual["Usuario"] == admin_atual)
-                    & (df_admins_atual["SenhaHash"] == gerar_hash(senha_atual))
-                ]
+                candidatos = df_admins_atual[df_admins_atual["Usuario"] == admin_atual]
+                validacao = candidatos[
+                    candidatos["SenhaHash"].apply(lambda h: verificar_senha(senha_atual, h))
+                ] if not candidatos.empty else candidatos
                 if validacao.empty:
                   st.error("⚠️ Senha atual incorreta!")
                 else:
                   cell = sheet_admins.find(admin_atual)
                   if cell:
-                    sheet_admins.update_cell(cell.row, 2, gerar_hash(nova_senha))
+                    sheet_admins.update_cell(cell.row, 2, gerar_hash_seguro(nova_senha))
                     registrar_log(admin_atual, "Alterou a própria senha de acesso")
                     st.cache_data.clear()
                     st.success("✅ Senha alterada com sucesso!")
@@ -1855,17 +2332,26 @@ else:
               df_editavel, use_container_width=True, hide_index=True
           )
           if st.button("💾 Salvar Alterações em Lote", type="primary"):
-            novos_dados = [
-                df_editado.columns.values.tolist()
-            ] + df_editado.fillna(0).values.tolist()
-            sheet_dados.clear()
-            sheet_dados.update(novos_dados)
-            registrar_log(
-                st.session_state["admin_logado"],
-                "Atualizou a planilha de pontos em lote",
-            )
+            alteracoes = []
+            headers = sheet_dados.row_values(1)
+            for idx_row in range(len(df_editado)):
+              nome_j = str(df_editado.iloc[idx_row].get("Nome", ""))
+              for col in df_editado.columns:
+                antes = df_editavel.iloc[idx_row].get(col)
+                depois = df_editado.iloc[idx_row].get(col)
+                if str(antes) != str(depois):
+                  try:
+                    cell_nome = sheet_dados.find(nome_j)
+                    if cell_nome and col in headers:
+                      sheet_dados.update_cell(cell_nome.row, headers.index(col)+1, depois)
+                      if col != "Nome": registrar_auditoria_ponto(nome_j, col, antes, depois, "Edição em lote")
+                      alteracoes.append(f"{nome_j}/{col}: {antes}→{depois}")
+                  except Exception:
+                    pass
+            registrar_log(st.session_state["admin_logado"], f"Atualizou {len(alteracoes)} campo(s) em lote")
+            if alteracoes: snapshot_ranking_atual("alteracao", "Edição em lote")
             st.cache_data.clear()
-            st.success("Pontuações salvas e atualizadas com sucesso!")
+            st.success(f"✅ {len(alteracoes)} alteração(ões) salva(s) sem apagar a planilha.")
             st.rerun()
 
       with sub_tab4:
