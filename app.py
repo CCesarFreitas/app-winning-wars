@@ -794,6 +794,71 @@ st.markdown(
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@600;800;900&display=swap');
 
+    /* ==========================================================
+       CORREÇÃO MOBILE: PÁGINA SOMENTE COM ROLAGEM VERTICAL
+       Não altera estrutura, layout ou funções do aplicativo.
+       ========================================================== */
+
+    html,
+    body {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+        overscroll-behavior-x: none !important;
+        touch-action: pan-y !important;
+    }
+
+    [data-testid="stAppViewContainer"],
+    [data-testid="stApp"],
+    .stApp,
+    .main {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+        overscroll-behavior-x: none !important;
+        touch-action: pan-y !important;
+    }
+
+    .main .block-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: clip !important;
+        box-sizing: border-box !important;
+        touch-action: pan-y !important;
+    }
+
+    img,
+    video,
+    canvas,
+    svg,
+    iframe {
+        max-width: 100% !important;
+    }
+
+    div[data-testid="stHorizontalBlock"],
+    div[data-testid="stHorizontalBlock"] > div,
+    div[data-testid="column"],
+    div[data-testid="stColumn"] {
+        min-width: 0 !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    @media (max-width: 768px) {
+        html,
+        body,
+        [data-testid="stAppViewContainer"],
+        [data-testid="stApp"],
+        .stApp,
+        .main,
+        .main .block-container {
+            overflow-x: hidden !important;
+            overscroll-behavior-x: none !important;
+            touch-action: pan-y !important;
+        }
+    }
+
+
     /* ANIMAÇÃO DE TRANSIÇÃO SUAVE ENTRE PÁGINAS */
     @keyframes fadeInPage {
         from {
