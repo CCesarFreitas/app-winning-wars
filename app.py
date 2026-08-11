@@ -894,6 +894,16 @@ st.markdown(
         }
     }
 
+    /* v22: isola o efeito do logo para ele não ampliar a largura rolável
+       da página no Safari/iPhone. Não interfere nas colunas do Streamlit. */
+    .ww-logo-stage {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+        overflow-x: clip;
+        text-align: center;
+    }
+
     .ww-logo-wrap {
         position: relative;
         display: inline-flex;
@@ -2543,7 +2553,7 @@ else:
   # LOGO PRINCIPAL COM EFEITO ANIMADO
   st.markdown(
       """
-    <div style="text-align:center;">
+    <div class="ww-logo-stage">
         <div class="ww-logo-wrap">
             <img
                 src="https://i.ibb.co/yBShz18b/winning.png"
