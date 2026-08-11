@@ -1172,6 +1172,133 @@ def renderizar_feed_novidades(limite=None, titulo="📰 Últimas Novidades"):
         unsafe_allow_html=True,
     )
 
+    # Winning Wars 2.3 - gerenciamento do próprio post diretamente no feed.
+    if "admin_logado" in st.session_state:
+      with st.expander(
+          f"⚙️ [ADMIN] Editar / excluir: {titulo_item or 'Publicação sem título'}",
+          expanded=False,
+      ):
+        tags_news = [
+            "🎉 Evento", "⚔️ Torneio", "🚀 Atualização Game",
+            "📢 Aviso Clã", "🏆 Premiação Extra"
+        ]
+        tag_idx_news = tags_news.index(tag_nome) if tag_nome in tags_news else 0
+        fixada_atual = str(item.get("Fixada", "")).strip().upper() in ["SIM", "TRUE", "1"]
+        expira_atual = str(item.get("ExpiraEm", "")).strip()
+        status_atual_news = str(item.get("Status", "Ativa")).strip() or "Ativa"
+        status_news_opcoes = ["Ativa", "Encerrada", "Inativa"]
+        status_idx_news = (
+            status_news_opcoes.index(status_atual_news)
+            if status_atual_news in status_news_opcoes else 0
+        )
+
+        with st.form(f"form_feed_news_admin_{item_idx}", clear_on_submit=False):
+          edit_feed_titulo = st.text_input(
+              "Título", value=titulo_item, key=f"feed_news_titulo_{item_idx}"
+          )
+          edit_feed_tag = st.selectbox(
+              "Categoria / Tag", tags_news, index=tag_idx_news,
+              key=f"feed_news_tag_{item_idx}",
+          )
+          edit_feed_conteudo = st.text_area(
+              "Conteúdo", value=conteudo, height=150,
+              key=f"feed_news_conteudo_{item_idx}",
+          )
+          edit_feed_img = st.text_input(
+              "Link da imagem / banner", value=img_url,
+              key=f"feed_news_img_{item_idx}",
+          )
+          edit_feed_link = st.text_input(
+              "Link do botão (opcional)", value=str(item.get("LinkBotao", "")).strip(),
+              key=f"feed_news_link_{item_idx}",
+          )
+
+          nf1, nf2, nf3 = st.columns(3)
+          with nf1:
+            edit_feed_fixada = st.checkbox(
+                "📌 Fixar no topo", value=fixada_atual,
+                key=f"feed_news_fixada_{item_idx}",
+            )
+          with nf2:
+            edit_feed_expira = st.text_input(
+                "Expira em", value=expira_atual, placeholder="DD/MM/AAAA",
+                key=f"feed_news_expira_{item_idx}",
+            )
+          with nf3:
+            edit_feed_status = st.selectbox(
+                "Status", status_news_opcoes, index=status_idx_news,
+                key=f"feed_news_status_{item_idx}",
+            )
+
+          confirmar_feed_delete = st.checkbox(
+              "⚠️ Confirmo a exclusão permanente deste post",
+              key=f"feed_news_confirm_delete_{item_idx}",
+          )
+          bf1, bf2 = st.columns(2)
+          with bf1:
+            salvar_feed_news = st.form_submit_button(
+                "💾 Salvar alterações", use_container_width=True, type="primary"
+            )
+          with bf2:
+            excluir_feed_news = st.form_submit_button(
+                "🗑️ Excluir publicação", use_container_width=True
+            )
+
+          linha_news = int(item_idx) + 2
+
+          if salvar_feed_news:
+            if not edit_feed_titulo.strip() or not edit_feed_conteudo.strip():
+              st.error("⚠️ Título e conteúdo são obrigatórios.")
+            else:
+              expira_limpa = edit_feed_expira.strip()
+              data_expira_valida = True
+              if expira_limpa:
+                try:
+                  datetime.strptime(expira_limpa, "%d/%m/%Y")
+                except ValueError:
+                  data_expira_valida = False
+
+              if not data_expira_valida:
+                st.error("⚠️ Use DD/MM/AAAA no campo de expiração ou deixe-o vazio.")
+              else:
+                headers_news = sheet_novidades.row_values(1)
+                atualizacoes_news = {{
+                    "Titulo": edit_feed_titulo.strip(),
+                    "Conteudo": edit_feed_conteudo.strip(),
+                    "ImagemUrl": edit_feed_img.strip(),
+                    "Tag": edit_feed_tag,
+                    "Autor": st.session_state["admin_logado"],
+                    "Fixada": "SIM" if edit_feed_fixada else "NAO",
+                    "ExpiraEm": expira_limpa,
+                    "Status": edit_feed_status,
+                    "LinkBotao": edit_feed_link.strip(),
+                }}
+                for coluna_news, valor_news in atualizacoes_news.items():
+                  if coluna_news in headers_news:
+                    sheet_novidades.update_cell(
+                        linha_news, headers_news.index(coluna_news) + 1, valor_news
+                    )
+                registrar_log(
+                    st.session_state["admin_logado"],
+                    f"Editou publicação '{titulo_item}' diretamente no feed Últimas Novidades",
+                )
+                st.cache_data.clear()
+                st.success("✅ Publicação atualizada com sucesso!")
+                st.rerun()
+
+          if excluir_feed_news:
+            if not confirmar_feed_delete:
+              st.warning("⚠️ Marque a confirmação antes de excluir a publicação.")
+            else:
+              sheet_novidades.delete_rows(linha_news)
+              registrar_log(
+                  st.session_state["admin_logado"],
+                  f"Excluiu publicação '{titulo_item}' diretamente no feed Últimas Novidades",
+              )
+              st.cache_data.clear()
+              st.success("🗑️ Publicação excluída com sucesso!")
+              st.rerun()
+
 
 # ==============================================================================
 # PÁGINA EXCLUSIVA: NOVIDADES E PAINEL DE NOTÍCIAS
@@ -1843,6 +1970,94 @@ else:
   st.markdown(
       "<p class='main-subtitle'>Acompanhe o ranking em tempo real. Ao final do"
       " mês, os Top 3 garantem o Passe Dourado!</p>",
+      unsafe_allow_html=True,
+  )
+
+  # BANNER DA TEMPORADA ATUAL - destaque temático sem repetir dados do ranking
+  temporada_topo = temporada_atual_texto()
+  status_temporada_topo = "TEMPORADA FINALIZADA" if mes_finalizado else "TEMPORADA EM DISPUTA"
+  icone_status_temporada = "🏆" if mes_finalizado else "⚔️"
+  st.markdown(
+      f"""
+      <style>
+        @keyframes wwSeasonGlow {{
+          0%, 100% {{ box-shadow: 0 0 12px rgba(250,204,21,.28), inset 0 0 18px rgba(250,204,21,.05); }}
+          50% {{ box-shadow: 0 0 28px rgba(250,204,21,.52), inset 0 0 30px rgba(250,204,21,.10); }}
+        }}
+        @keyframes wwSeasonShine {{
+          0% {{ transform: translateX(-150%) skewX(-20deg); }}
+          55%, 100% {{ transform: translateX(260%) skewX(-20deg); }}
+        }}
+        @keyframes wwSeasonFloat {{
+          0%, 100% {{ transform: translateY(0); }}
+          50% {{ transform: translateY(-3px); }}
+        }}
+        .ww-season-banner {{
+          position: relative;
+          overflow: hidden;
+          max-width: 760px;
+          margin: 2px auto 24px auto;
+          padding: 15px 22px 16px;
+          text-align: center;
+          border: 2px solid #facc15;
+          border-radius: 18px;
+          background:
+            radial-gradient(circle at 50% -30%, rgba(250,204,21,.25), transparent 52%),
+            linear-gradient(135deg, #111827 0%, #1e293b 50%, #111827 100%);
+          animation: wwSeasonGlow 2.8s ease-in-out infinite;
+        }}
+        .ww-season-banner::before {{
+          content: '';
+          position: absolute;
+          top: -50%;
+          left: -30%;
+          width: 25%;
+          height: 200%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,.22), transparent);
+          animation: wwSeasonShine 4.8s ease-in-out infinite;
+          pointer-events: none;
+        }}
+        .ww-season-kicker {{
+          color: #cbd5e1;
+          font-family: 'Nunito', sans-serif;
+          font-weight: 900;
+          font-size: .82rem;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+        }}
+        .ww-season-name {{
+          margin: 3px 0 2px;
+          color: #facc15;
+          font-family: 'Luckiest Guy', cursive;
+          font-size: clamp(1.7rem, 5vw, 2.45rem);
+          letter-spacing: 1px;
+          text-shadow: 2px 2px 0 #000, 0 0 16px rgba(250,204,21,.38);
+          animation: wwSeasonFloat 2.2s ease-in-out infinite;
+        }}
+        .ww-season-status {{
+          display: inline-block;
+          margin-top: 4px;
+          padding: 5px 12px;
+          border-radius: 999px;
+          background: rgba(15,23,42,.72);
+          border: 1px solid rgba(250,204,21,.42);
+          color: #f8fafc;
+          font-family: 'Nunito', sans-serif;
+          font-weight: 900;
+          font-size: .78rem;
+          letter-spacing: .7px;
+        }}
+        @media (max-width: 600px) {{
+          .ww-season-banner {{ margin-bottom: 18px; padding: 13px 14px 14px; border-radius: 15px; }}
+          .ww-season-kicker {{ font-size: .72rem; letter-spacing: 1.4px; }}
+        }}
+      </style>
+      <div class="ww-season-banner">
+        <div class="ww-season-kicker">🎟️ Competição Winning Wars</div>
+        <div class="ww-season-name">{temporada_topo}</div>
+        <div class="ww-season-status">{icone_status_temporada} {status_temporada_topo}</div>
+      </div>
+      """,
       unsafe_allow_html=True,
   )
 
