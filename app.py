@@ -15,6 +15,51 @@ st.set_page_config(
     page_title="Winning Wars APP", page_icon="https://i.ibb.co/YFV3LGy5/winningwars-ico.png", layout="wide"
 )
 
+# --- ÍCONE PARA IPHONE / IPAD (ADICIONAR À TELA DE INÍCIO) ---
+# O iOS/Safari usa apple-touch-icon, que é diferente do favicon/page_icon.
+_APP_ICON_URL = "https://i.ibb.co/YFV3LGy5/winningwars-ico.png"
+
+st.markdown(
+    f'<link rel="apple-touch-icon" sizes="180x180" href="{_APP_ICON_URL}">',
+    unsafe_allow_html=True,
+)
+
+# Injeta o Apple Touch Icon também no <head> da página principal do Streamlit.
+# Isso melhora a compatibilidade do atalho criado pelo Safari no iPhone/iPad.
+components.html(
+    f"""
+    <script>
+    (function() {{
+        try {{
+            const doc = window.parent.document;
+            const iconUrl = {repr('https://i.ibb.co/YFV3LGy5/winningwars-ico.png')};
+
+            let touchIcon = doc.querySelector('link[rel="apple-touch-icon"]');
+            if (!touchIcon) {{
+                touchIcon = doc.createElement('link');
+                touchIcon.rel = 'apple-touch-icon';
+                touchIcon.sizes = '180x180';
+                doc.head.appendChild(touchIcon);
+            }}
+            touchIcon.href = iconUrl;
+
+            let favicon = doc.querySelector('link[rel="icon"]');
+            if (!favicon) {{
+                favicon = doc.createElement('link');
+                favicon.rel = 'icon';
+                doc.head.appendChild(favicon);
+            }}
+            favicon.href = iconUrl;
+        }} catch (e) {{
+            console.debug('Não foi possível aplicar o ícone do iOS:', e);
+        }}
+    }})();
+    </script>
+    """,
+    height=0,
+    width=0,
+)
+
 
 # --- FUNÇÕES AUXILIARES ---
 def gerar_hash(senha: str) -> str:
