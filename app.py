@@ -775,10 +775,10 @@ st.markdown(
         background:
             linear-gradient(135deg, #facc15 0%, #eab308 42%, #ca8a04 100%) !important;
         color: #171717 !important;
-        font-family: 'Luckiest Guy', cursive, sans-serif !important;
+        font-family: inherit !important;
         font-size: 1.22rem !important;
         font-weight: 900 !important;
-        letter-spacing: .55px;
+        letter-spacing: .35px;
         text-shadow: 0 1px 0 rgba(255,255,255,.35) !important;
         box-shadow:
             0 5px 0 #78350f,
