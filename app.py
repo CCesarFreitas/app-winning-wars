@@ -776,7 +776,7 @@ st.markdown(
         padding: 10px 14px !important;
         border-radius: 18px !important;
         border: 1px solid rgba(255,255,255,.28) !important;
-        font-family: inherit !important;
+        font-family: 'Luckiest Guy', cursive, sans-serif !important;
         font-size: 1.04rem !important;
         font-weight: 900 !important;
         line-height: 1.15 !important;
