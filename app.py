@@ -13,12 +13,10 @@ from pathlib import Path
 import streamlit.components.v1 as components
 from oauth2client.service_account import ServiceAccountCredentials
 
-# Winning Wars v23 - editor rico para publicações do feed.
-# Dependência recomendada: streamlit-quill2 (importa como streamlit_quill).
-try:
-  from streamlit_quill import st_quill
-except ImportError:
-  st_quill = None
+# Winning Wars v24 - editor rico nativo.
+# Não depende de streamlit-quill/streamlit-quill2.
+# Quando Components V2 estiver disponível, usa um editor contenteditable nativo;
+# caso contrário, há fallback para st.text_area sem derrubar o aplicativo.
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
@@ -1824,49 +1822,343 @@ def conteudo_editor_tem_texto(conteudo: str) -> bool:
   return bool(sem_entidades.strip())
 
 
-TOOLBAR_FEED = [
-    ["bold", "italic", "underline", "strike"],
-    [{"color": []}, {"background": []}],
-    [{"header": [1, 2, 3, False]}, {"size": ["small", False, "large", "huge"]}],
-    [{"list": "ordered"}, {"list": "bullet"}],
-    [{"align": []}],
-    ["blockquote", "link"],
-    ["clean"],
-]
+# ----------------------------------------------------------------------
+# EDITOR RICO NATIVO DO STREAMLIT (v24)
+# ----------------------------------------------------------------------
+_EDITOR_RICO_FEED_COMPONENT = None
+
+_EDITOR_RICO_FEED_HTML = """
+<div class="ww-rich-editor">
+  <div class="ww-toolbar" role="toolbar" aria-label="Formatação da publicação">
+    <button type="button" data-cmd="bold" title="Negrito"><b>B</b></button>
+    <button type="button" data-cmd="italic" title="Itálico"><i>I</i></button>
+    <button type="button" data-cmd="underline" title="Sublinhado"><u>U</u></button>
+    <button type="button" data-cmd="strikeThrough" title="Tachado"><s>S</s></button>
+
+    <span class="ww-sep"></span>
+
+    <label class="ww-color-label" title="Cor do texto">A
+      <input type="color" class="ww-text-color" value="#f8fafc">
+    </label>
+    <label class="ww-color-label ww-bg-label" title="Marca-texto">▰
+      <input type="color" class="ww-bg-color" value="#facc15">
+    </label>
+
+    <span class="ww-sep"></span>
+
+    <select class="ww-format" title="Título / parágrafo">
+      <option value="p">Texto</option>
+      <option value="h2">Título</option>
+      <option value="h3">Subtítulo</option>
+    </select>
+
+    <button type="button" data-cmd="insertUnorderedList" title="Lista">• Lista</button>
+    <button type="button" data-cmd="insertOrderedList" title="Lista numerada">1. Lista</button>
+
+    <span class="ww-sep"></span>
+
+    <button type="button" data-align="left" title="Alinhar à esquerda">⬅</button>
+    <button type="button" data-align="center" title="Centralizar">↔</button>
+    <button type="button" data-align="right" title="Alinhar à direita">➡</button>
+
+    <span class="ww-sep"></span>
+
+    <button type="button" data-emoji="😀">😀</button>
+    <button type="button" data-emoji="⚔️">⚔️</button>
+    <button type="button" data-emoji="🏆">🏆</button>
+    <button type="button" data-emoji="🔥">🔥</button>
+    <button type="button" data-emoji="🎉">🎉</button>
+    <button type="button" data-emoji="📢">📢</button>
+
+    <button type="button" class="ww-link" title="Adicionar link">🔗</button>
+    <button type="button" class="ww-clear" title="Remover formatação">Tx</button>
+  </div>
+
+  <div
+    class="ww-editor-area"
+    contenteditable="true"
+    role="textbox"
+    aria-multiline="true"
+    data-placeholder="Digite o comunicado aqui..."
+  ></div>
+</div>
+"""
+
+_EDITOR_RICO_FEED_CSS = r"""
+:host {
+  display:block;
+  font-family: Arial, sans-serif;
+  color:#e2e8f0;
+}
+.ww-rich-editor {
+  width:100%;
+  max-width:100%;
+  border:1px solid #475569;
+  border-radius:12px;
+  overflow:hidden;
+  background:#0f172a;
+  box-sizing:border-box;
+}
+.ww-toolbar {
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:5px;
+  padding:8px;
+  background:#1e293b;
+  border-bottom:1px solid #475569;
+}
+.ww-toolbar button,
+.ww-toolbar select,
+.ww-color-label {
+  min-height:34px;
+  border:1px solid #64748b;
+  border-radius:7px;
+  background:#334155;
+  color:#f8fafc;
+  padding:5px 8px;
+  font-size:13px;
+  cursor:pointer;
+  box-sizing:border-box;
+}
+.ww-toolbar button:hover,
+.ww-toolbar select:hover,
+.ww-color-label:hover {
+  border-color:#facc15;
+}
+.ww-color-label {
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  font-weight:800;
+}
+.ww-color-label input {
+  width:22px;
+  height:22px;
+  padding:0;
+  border:0;
+  background:transparent;
+  cursor:pointer;
+}
+.ww-sep {
+  width:1px;
+  height:26px;
+  background:#64748b;
+  margin:0 2px;
+}
+.ww-editor-area {
+  min-height:170px;
+  max-height:420px;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding:14px;
+  outline:none;
+  color:#e2e8f0;
+  background:#0f172a;
+  line-height:1.55;
+  overflow-wrap:anywhere;
+  box-sizing:border-box;
+}
+.ww-editor-area:empty:before {
+  content:attr(data-placeholder);
+  color:#64748b;
+  pointer-events:none;
+}
+.ww-editor-area a {
+  color:#38bdf8;
+  text-decoration:underline;
+}
+.ww-editor-area blockquote {
+  border-left:4px solid #facc15;
+  padding-left:10px;
+}
+@media (max-width:600px) {
+  .ww-toolbar { gap:4px; padding:6px; }
+  .ww-toolbar button,
+  .ww-toolbar select,
+  .ww-color-label { min-height:32px; padding:4px 6px; font-size:12px; }
+  .ww-editor-area { min-height:150px; padding:12px; }
+}
+"""
+
+_EDITOR_RICO_FEED_JS = r"""
+export default function(component) {
+  const { data, setStateValue, parentElement } = component;
+  const editor = parentElement.querySelector(".ww-editor-area");
+  if (!editor) return;
+
+  // Inicializa apenas uma vez por instância. Assim o Streamlit pode rerodar
+  // sem apagar o que o administrador já digitou.
+  if (editor.dataset.wwInitialized !== "1") {
+    editor.innerHTML = (data && data.initial_html) ? data.initial_html : "";
+    editor.dataset.wwInitialized = "1";
+  }
+
+  let timer = null;
+  const enviarEstado = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      setStateValue("content", editor.innerHTML || "");
+    }, 180);
+  };
+
+  const aplicar = (cmd, value = null) => {
+    editor.focus();
+    try {
+      document.execCommand(cmd, false, value);
+    } catch (e) {
+      console.debug("Editor Winning Wars:", e);
+    }
+    enviarEstado();
+  };
+
+  parentElement.querySelectorAll("button[data-cmd]").forEach((btn) => {
+    btn.onmousedown = (ev) => ev.preventDefault();
+    btn.onclick = () => aplicar(btn.dataset.cmd);
+  });
+
+  parentElement.querySelectorAll("button[data-align]").forEach((btn) => {
+    btn.onmousedown = (ev) => ev.preventDefault();
+    btn.onclick = () => {
+      const mapa = {
+        left: "justifyLeft",
+        center: "justifyCenter",
+        right: "justifyRight"
+      };
+      aplicar(mapa[btn.dataset.align] || "justifyLeft");
+    };
+  });
+
+  const textColor = parentElement.querySelector(".ww-text-color");
+  if (textColor) {
+    textColor.oninput = () => aplicar("foreColor", textColor.value);
+  }
+
+  const bgColor = parentElement.querySelector(".ww-bg-color");
+  if (bgColor) {
+    bgColor.oninput = () => aplicar("hiliteColor", bgColor.value);
+  }
+
+  const format = parentElement.querySelector(".ww-format");
+  if (format) {
+    format.onchange = () => aplicar("formatBlock", format.value);
+  }
+
+  parentElement.querySelectorAll("button[data-emoji]").forEach((btn) => {
+    btn.onmousedown = (ev) => ev.preventDefault();
+    btn.onclick = () => aplicar("insertText", btn.dataset.emoji || "");
+  });
+
+  const linkBtn = parentElement.querySelector(".ww-link");
+  if (linkBtn) {
+    linkBtn.onmousedown = (ev) => ev.preventDefault();
+    linkBtn.onclick = () => {
+      editor.focus();
+      const url = window.prompt("Cole o link (https://...)");
+      if (url && /^https?:\/\//i.test(url.trim())) {
+        aplicar("createLink", url.trim());
+      }
+    };
+  }
+
+  const clearBtn = parentElement.querySelector(".ww-clear");
+  if (clearBtn) {
+    clearBtn.onmousedown = (ev) => ev.preventDefault();
+    clearBtn.onclick = () => aplicar("removeFormat");
+  }
+
+  editor.oninput = enviarEstado;
+  editor.onblur = () => setStateValue("content", editor.innerHTML || "");
+
+  // Garante que existe um valor inicial no backend.
+  if (!editor.dataset.wwStateSent) {
+    editor.dataset.wwStateSent = "1";
+    setStateValue("content", editor.innerHTML || "");
+  }
+
+  return () => {
+    if (timer) clearTimeout(timer);
+  };
+}
+"""
+
+
+def _obter_componente_editor_rico():
+  """Registra o componente V2 uma única vez. Retorna None em versões antigas."""
+  global _EDITOR_RICO_FEED_COMPONENT
+
+  if _EDITOR_RICO_FEED_COMPONENT is not None:
+    return _EDITOR_RICO_FEED_COMPONENT
+
+  try:
+    componentes_v2 = getattr(getattr(st, "components", None), "v2", None)
+    registrar = getattr(componentes_v2, "component", None)
+    if registrar is None:
+      return None
+
+    _EDITOR_RICO_FEED_COMPONENT = registrar(
+        "winning_wars_rich_feed_editor_v24",
+        html=_EDITOR_RICO_FEED_HTML,
+        css=_EDITOR_RICO_FEED_CSS,
+        js=_EDITOR_RICO_FEED_JS,
+        isolate_styles=True,
+    )
+    return _EDITOR_RICO_FEED_COMPONENT
+  except Exception:
+    # Nunca deixa uma falha do editor derrubar o restante do app.
+    return None
 
 
 def editor_rico_feed(rotulo: str, valor: str = "", key: str = "") -> str:
-  """Editor WYSIWYG para admins, com fallback caso a dependência não esteja instalada."""
+  """Editor visual sem dependências externas, com fallback seguro."""
   st.markdown(f"**{rotulo}**")
-  if st_quill is None:
-    st.warning(
-        "⚠️ Editor rico indisponível neste servidor. Adicione "
-        "`streamlit-quill2==0.0.5` às dependências do app. "
-        "Enquanto isso, o campo abaixo funciona em modo texto."
+  conteudo_inicial = conteudo_para_editor(valor)
+  componente = _obter_componente_editor_rico()
+
+  if componente is None:
+    st.info(
+        "ℹ️ O servidor está usando uma versão do Streamlit sem o editor visual "
+        "nativo V2. O conteúdo continuará funcionando em modo texto."
     )
     return st.text_area(
         rotulo,
         value=str(valor or ""),
         height=170,
-        key=f"{key}_fallback",
+        key=f"{key}_fallback_v24",
         label_visibility="collapsed",
     )
 
-  conteudo_inicial = conteudo_para_editor(valor)
-  resultado = st_quill(
-      value=conteudo_inicial,
-      placeholder="Digite o comunicado aqui... Você pode usar emojis 😀 ⚔️ 🏆 🔥 🎉",
-      html=True,
-      toolbar=TOOLBAR_FEED,
-      preserve_whitespace=True,
-      key=key,
-  )
-  st.caption(
-      "✨ Formatação disponível: negrito, itálico, sublinhado, tachado, "
-      "cores, marca-texto, títulos, tamanho, listas, alinhamento e links. "
-      "Emojis podem ser inseridos normalmente pelo teclado do celular/PC."
-  )
-  return str(resultado or "")
+  try:
+    resultado = componente(
+        key=f"{key}_v24",
+        data={"initial_html": conteudo_inicial},
+        on_content_change=lambda: None,
+    )
+
+    conteudo_resultado = getattr(resultado, "content", None)
+    if conteudo_resultado is None:
+      conteudo_resultado = conteudo_inicial
+
+    st.caption(
+        "✨ Use a barra acima para negrito, itálico, sublinhado, tachado, "
+        "cores, marca-texto, títulos, listas, alinhamento, links e emojis."
+    )
+    return str(conteudo_resultado or "")
+
+  except Exception:
+    # Fallback final: qualquer incompatibilidade do componente deixa somente
+    # este editor em modo texto, sem derrubar a página inteira.
+    st.warning(
+        "⚠️ O editor visual não pôde ser carregado neste navegador/servidor. "
+        "A publicação pode ser feita normalmente pelo campo abaixo."
+    )
+    return st.text_area(
+        rotulo,
+        value=str(valor or ""),
+        height=170,
+        key=f"{key}_fallback_error_v24",
+        label_visibility="collapsed",
+    )
 
 
 def classe_categoria_noticia(tag: str) -> str:
