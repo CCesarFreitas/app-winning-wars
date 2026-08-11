@@ -9,25 +9,26 @@ from datetime import datetime
 import gspread
 import pandas as pd
 import streamlit as st
+from pathlib import Path
 import streamlit.components.v1 as components
 from oauth2client.service_account import ServiceAccountCredentials
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
-    page_title="Winning Wars APP", page_icon="https://i.ibb.co/YFV3LGy5/winningwars-ico.png", layout="wide"
+    page_title="Winning Wars APP", page_icon=str(Path(__file__).parent / "static" / "favicon.png"), layout="wide"
 )
 
 # --- PWA / ÍCONE PARA IPHONE, IPAD E ANDROID ---
 # O favicon continua configurado em st.set_page_config.
 # Para instalação na Tela de Início, reforçamos apple-touch-icon,
 # manifest e metadados diretamente no <head> principal.
-_APP_ICON_URL = "https://i.ibb.co/YFV3LGy5/winningwars-ico.png"
+_APP_ICON_URL = "/app/static/icon-512.png"
 _PWA_MANIFEST_URL = "/app/static/manifest.webmanifest"
 
 st.markdown(
     """
-    <link rel="apple-touch-icon" sizes="180x180" href="https://i.ibb.co/YFV3LGy5/winningwars-ico.png">
-    <link rel="apple-touch-icon-precomposed" sizes="180x180" href="https://i.ibb.co/YFV3LGy5/winningwars-ico.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/app/static/apple-touch-icon.png">
+    <link rel="apple-touch-icon-precomposed" sizes="180x180" href="/app/static/apple-touch-icon.png">
     <link rel="manifest" href="/app/static/manifest.webmanifest">
     <meta name="theme-color" content="#0b0e14">
     <meta name="mobile-web-app-capable" content="yes">
@@ -42,7 +43,8 @@ components.html(
     """
     <script>
     (function() {
-        const ICON = "https://i.ibb.co/YFV3LGy5/winningwars-ico.png";
+        const ICON = "/app/static/favicon.png";
+        const TOUCH_ICON = "/app/static/apple-touch-icon.png";
         const MANIFEST = "/app/static/manifest.webmanifest";
         const APP_NAME = "Winning Wars APP";
         const THEME = "#0b0e14";
@@ -81,13 +83,13 @@ components.html(
                 const touch = doc.createElement("link");
                 touch.rel = "apple-touch-icon";
                 touch.sizes = "180x180";
-                touch.href = ICON;
+                touch.href = TOUCH_ICON;
                 doc.head.appendChild(touch);
 
                 const touchPre = doc.createElement("link");
                 touchPre.rel = "apple-touch-icon-precomposed";
                 touchPre.sizes = "180x180";
-                touchPre.href = ICON;
+                touchPre.href = TOUCH_ICON;
                 doc.head.appendChild(touchPre);
 
                 ensureLink(doc, "icon", ICON);
