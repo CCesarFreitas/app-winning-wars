@@ -776,7 +776,7 @@ st.markdown(
             linear-gradient(135deg, #facc15 0%, #eab308 42%, #ca8a04 100%) !important;
         color: #171717 !important;
         font-family: inherit !important;
-        font-size: 1.22rem !important;
+        font-size: 1.02rem !important;
         font-weight: 900 !important;
         letter-spacing: .35px;
         text-shadow: 0 1px 0 rgba(255,255,255,.35) !important;
@@ -904,7 +904,7 @@ st.markdown(
         .st-key-top_nav_menu div.stButton > button {
             min-height: 56px !important;
             padding: 10px 8px !important;
-            font-size: 1.08rem !important;
+            font-size: 1.02rem !important;
             line-height: 1.15 !important;
         }
     }
