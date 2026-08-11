@@ -736,6 +736,179 @@ st.markdown(
         background: linear-gradient(180deg, #4ade80 0%, #16a34a 100%) !important;
     }
 
+    /* ==========================================================
+       MENU SUPERIOR - BOTÕES DE NAVEGAÇÃO ANIMADOS
+       ========================================================== */
+    @keyframes navGlowPulse {
+        0%, 100% {
+            box-shadow:
+                0 5px 0 rgba(120, 53, 15, .95),
+                0 8px 20px rgba(250, 204, 21, .14);
+        }
+        50% {
+            box-shadow:
+                0 5px 0 rgba(120, 53, 15, .95),
+                0 10px 30px rgba(250, 204, 21, .34);
+        }
+    }
+
+    @keyframes navShine {
+        0%   { left: -120%; }
+        45%, 100% { left: 145%; }
+    }
+
+    @keyframes navIconFloat {
+        0%, 100% { transform: translateY(0) rotate(0deg); }
+        50%      { transform: translateY(-2px) rotate(-2deg); }
+    }
+
+    /* Escopo exclusivo do menu superior para não alterar outros botões do app */
+    .st-key-top_nav_menu div.stButton > button,
+    .top-nav-link {
+        position: relative !important;
+        overflow: hidden !important;
+        isolation: isolate;
+        min-height: 50px !important;
+        border-radius: 14px !important;
+        border: 2px solid #fde68a !important;
+        background:
+            linear-gradient(135deg, #facc15 0%, #eab308 42%, #ca8a04 100%) !important;
+        color: #171717 !important;
+        font-family: 'Luckiest Guy', cursive, sans-serif !important;
+        font-size: 1.02rem !important;
+        letter-spacing: .35px;
+        text-shadow: 0 1px 0 rgba(255,255,255,.35) !important;
+        box-shadow:
+            0 5px 0 #78350f,
+            0 8px 22px rgba(250, 204, 21, .18) !important;
+        transition:
+            transform .22s cubic-bezier(.2,.8,.2,1),
+            box-shadow .22s ease,
+            border-color .22s ease,
+            filter .22s ease !important;
+        animation: navGlowPulse 3.2s ease-in-out infinite;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Faixa de luz que atravessa os botões */
+    .st-key-top_nav_menu div.stButton > button::before,
+    .top-nav-link::before {
+        content: "";
+        position: absolute;
+        top: -35%;
+        left: -120%;
+        width: 52%;
+        height: 170%;
+        z-index: -1;
+        pointer-events: none;
+        background: linear-gradient(
+            100deg,
+            transparent 0%,
+            rgba(255,255,255,.08) 25%,
+            rgba(255,255,255,.58) 50%,
+            rgba(255,255,255,.08) 75%,
+            transparent 100%
+        );
+        transform: skewX(-18deg);
+        animation: navShine 4.6s ease-in-out infinite;
+    }
+
+    /* Camada escura sutil para dar profundidade */
+    .st-key-top_nav_menu div.stButton > button::after,
+    .top-nav-link::after {
+        content: "";
+        position: absolute;
+        inset: 2px;
+        border-radius: 10px;
+        z-index: -2;
+        pointer-events: none;
+        background: linear-gradient(
+            180deg,
+            rgba(255,255,255,.16),
+            transparent 48%,
+            rgba(120,53,15,.10)
+        );
+    }
+
+    .st-key-top_nav_menu div.stButton > button:hover,
+    .top-nav-link:hover {
+        transform: translateY(-4px) scale(1.025) !important;
+        border-color: #fff7c2 !important;
+        filter: saturate(1.08) brightness(1.04);
+        box-shadow:
+            0 7px 0 #78350f,
+            0 15px 34px rgba(250, 204, 21, .38) !important;
+    }
+
+    .st-key-top_nav_menu div.stButton > button:active,
+    .top-nav-link:active {
+        transform: translateY(2px) scale(.985) !important;
+        box-shadow:
+            0 2px 0 #78350f,
+            0 5px 12px rgba(250, 204, 21, .20) !important;
+        transition-duration: .08s !important;
+    }
+
+    .st-key-top_nav_menu div.stButton > button:focus-visible,
+    .top-nav-link:focus-visible {
+        outline: 3px solid rgba(254, 240, 138, .72) !important;
+        outline-offset: 3px;
+    }
+
+    .top-nav-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        width: 100%;
+        padding: 10px 12px;
+        text-align: center;
+        text-decoration: none !important;
+    }
+
+    /* O terceiro botão ganha leve variação verde, mantendo o tema */
+    .top-nav-link.nav-clan {
+        background:
+            linear-gradient(135deg, #4ade80 0%, #22c55e 44%, #15803d 100%) !important;
+        color: #ffffff !important;
+        border-color: #bbf7d0 !important;
+        text-shadow: 1px 1px 0 rgba(0,0,0,.5) !important;
+        box-shadow:
+            0 5px 0 #14532d,
+            0 8px 22px rgba(34,197,94,.20) !important;
+        animation-name: navClanPulse;
+    }
+
+    @keyframes navClanPulse {
+        0%, 100% {
+            box-shadow:
+                0 5px 0 #14532d,
+                0 8px 20px rgba(34,197,94,.15);
+        }
+        50% {
+            box-shadow:
+                0 5px 0 #14532d,
+                0 10px 30px rgba(34,197,94,.34);
+        }
+    }
+
+    .top-nav-link.nav-clan:hover {
+        box-shadow:
+            0 7px 0 #14532d,
+            0 15px 34px rgba(34,197,94,.38) !important;
+    }
+
+    /* Respeita usuários que preferem menos movimento */
+    @media (prefers-reduced-motion: reduce) {
+        .st-key-top_nav_menu div.stButton > button,
+        .top-nav-link,
+        .st-key-top_nav_menu div.stButton > button::before,
+        .top-nav-link::before {
+            animation: none !important;
+            transition-duration: .01ms !important;
+        }
+    }
+
     /* ABAS */
     button[data-baseweb="tab"] {
         font-size: 1.35rem !important;
@@ -870,22 +1043,26 @@ st.markdown(
 col_nav, col_admin_top = st.columns([6, 1])
 
 with col_nav:
-  b1, b2, b3 = st.columns(3)
-  with b1:
-    if st.button("🛡️ Layouts Guerra", use_container_width=True):
-      st.session_state["pagina_atual"] = "layouts_guerra"
-      st.rerun()
-  with b2:
-    if st.button("🏆 Layouts Rankeada", use_container_width=True):
-      st.session_state["pagina_atual"] = "layouts_rankeada"
-      st.rerun()
-  with b3:
-    st.markdown(
-        '<a'
-        ' href="https://link.clashofclans.com/pt?action=OpenClanProfile&tag=2YPL9GU8Y"'
-        ' target="_blank" class="btn-external-link">🏰 Clã Secundário Vastaya ↗</a>',
-        unsafe_allow_html=True,
-    )
+  # Container com chave própria para que as animações atinjam somente
+  # os botões de direcionamento do topo da página.
+  with st.container(key="top_nav_menu"):
+    b1, b2, b3 = st.columns(3)
+    with b1:
+      if st.button("🛡️ Layouts Guerra", use_container_width=True):
+        st.session_state["pagina_atual"] = "layouts_guerra"
+        st.rerun()
+    with b2:
+      if st.button("🏆 Layouts Rankeada", use_container_width=True):
+        st.session_state["pagina_atual"] = "layouts_rankeada"
+        st.rerun()
+    with b3:
+      st.markdown(
+          '<a'
+          ' href="https://link.clashofclans.com/pt?action=OpenClanProfile&tag=2YPL9GU8Y"'
+          ' target="_blank" rel="noopener noreferrer"'
+          ' class="top-nav-link nav-clan">🏰 Clã Secundário Vastaya ↗</a>',
+          unsafe_allow_html=True,
+      )
 
 with col_admin_top:
   if "admin_logado" in st.session_state:
@@ -1964,7 +2141,7 @@ else:
 
   # TÍTULO PRINCIPAL
   st.markdown(
-      "<h1 class='main-title'> Winning Wars APP</h1>",
+      "<h1 class='main-title'>⚔️ Winning Wars APP</h1>",
       unsafe_allow_html=True,
   )
   st.markdown(
