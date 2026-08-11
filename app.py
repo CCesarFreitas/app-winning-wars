@@ -737,186 +737,166 @@ st.markdown(
     }
 
     /* ==========================================================
-       MENU SUPERIOR - BOTÕES DE NAVEGAÇÃO ANIMADOS
+       PORTAIS DE NAVEGAÇÃO - DESTAQUE VISUAL / CTA
        ========================================================== */
-    @keyframes navGlowPulse {
-        0%, 100% {
-            box-shadow:
-                0 5px 0 rgba(120, 53, 15, .95),
-                0 8px 20px rgba(250, 204, 21, .14);
-        }
-        50% {
-            box-shadow:
-                0 5px 0 rgba(120, 53, 15, .95),
-                0 10px 30px rgba(250, 204, 21, .34);
-        }
+    @keyframes portalAuraGold {
+        0%,100% { box-shadow: 0 10px 28px rgba(245,158,11,.22), inset 0 1px 0 rgba(255,255,255,.20); }
+        50%     { box-shadow: 0 14px 42px rgba(250,204,21,.46), inset 0 1px 0 rgba(255,255,255,.30); }
+    }
+    @keyframes portalAuraBlue {
+        0%,100% { box-shadow: 0 10px 28px rgba(59,130,246,.22), inset 0 1px 0 rgba(255,255,255,.18); }
+        50%     { box-shadow: 0 14px 42px rgba(96,165,250,.46), inset 0 1px 0 rgba(255,255,255,.28); }
+    }
+    @keyframes portalAuraGreen {
+        0%,100% { box-shadow: 0 10px 28px rgba(34,197,94,.18), inset 0 1px 0 rgba(255,255,255,.18); }
+        50%     { box-shadow: 0 14px 40px rgba(74,222,128,.38), inset 0 1px 0 rgba(255,255,255,.26); }
+    }
+    @keyframes portalSweep {
+        0% { transform: translateX(-180%) skewX(-22deg); opacity:0; }
+        18% { opacity:.8; }
+        48%,100% { transform: translateX(320%) skewX(-22deg); opacity:0; }
+    }
+    @keyframes portalFloat {
+        0%,100% { transform: translateY(0); }
+        50% { transform: translateY(-3px); }
     }
 
-    @keyframes navShine {
-        0%   { left: -120%; }
-        45%, 100% { left: 145%; }
+    .st-key-top_nav_menu {
+        padding: 6px 2px 12px;
     }
 
-    @keyframes navIconFloat {
-        0%, 100% { transform: translateY(0) rotate(0deg); }
-        50%      { transform: translateY(-2px) rotate(-2deg); }
-    }
-
-    /* Escopo exclusivo do menu superior para não alterar outros botões do app */
+    /* Base comum dos três portais */
     .st-key-top_nav_menu div.stButton > button,
     .top-nav-link {
         position: relative !important;
         overflow: hidden !important;
         isolation: isolate;
-        min-height: 58px !important;
-        padding: 12px 16px !important;
-        border-radius: 14px !important;
-        border: 2px solid #fde68a !important;
-        background:
-            linear-gradient(135deg, #facc15 0%, #eab308 42%, #ca8a04 100%) !important;
-        color: #171717 !important;
+        width: 100%;
+        min-height: 68px !important;
+        padding: 10px 14px !important;
+        border-radius: 18px !important;
+        border: 1px solid rgba(255,255,255,.28) !important;
         font-family: inherit !important;
-        font-size: 1.02rem !important;
+        font-size: 1.04rem !important;
         font-weight: 900 !important;
-        letter-spacing: .35px;
-        text-shadow: 0 1px 0 rgba(255,255,255,.35) !important;
-        box-shadow:
-            0 5px 0 #78350f,
-            0 8px 22px rgba(250, 204, 21, .18) !important;
-        transition:
-            transform .22s cubic-bezier(.2,.8,.2,1),
-            box-shadow .22s ease,
-            border-color .22s ease,
-            filter .22s ease !important;
-        animation: navGlowPulse 3.2s ease-in-out infinite;
+        line-height: 1.15 !important;
+        letter-spacing: .15px !important;
+        text-decoration: none !important;
+        transition: transform .22s cubic-bezier(.2,.85,.25,1),
+                    filter .22s ease,
+                    box-shadow .22s ease,
+                    border-color .22s ease !important;
         -webkit-tap-highlight-color: transparent;
     }
 
-    /* Faixa de luz que atravessa os botões */
-    .st-key-top_nav_menu div.stButton > button::before,
-    .top-nav-link::before {
-        content: "";
-        position: absolute;
-        top: -35%;
-        left: -120%;
-        width: 52%;
-        height: 170%;
-        z-index: -1;
-        pointer-events: none;
-        background: linear-gradient(
-            100deg,
-            transparent 0%,
-            rgba(255,255,255,.08) 25%,
-            rgba(255,255,255,.58) 50%,
-            rgba(255,255,255,.08) 75%,
-            transparent 100%
-        );
-        transform: skewX(-18deg);
-        animation: navShine 4.6s ease-in-out infinite;
+    /* Guerra: fogo/dourado */
+    .st-key-top_nav_menu div[data-testid="stColumn"]:nth-child(1) div.stButton > button {
+        color: #fff7d6 !important;
+        background:
+          radial-gradient(circle at 15% 10%, rgba(255,255,255,.24), transparent 25%),
+          linear-gradient(135deg, #7c2d12 0%, #b45309 36%, #f59e0b 72%, #facc15 100%) !important;
+        text-shadow: 0 2px 3px rgba(0,0,0,.65) !important;
+        animation: portalAuraGold 2.8s ease-in-out infinite, portalFloat 4.4s ease-in-out infinite;
     }
 
-    /* Camada escura sutil para dar profundidade */
+    /* Rankeada: arena azul/roxa */
+    .st-key-top_nav_menu div[data-testid="stColumn"]:nth-child(2) div.stButton > button {
+        color: #eef6ff !important;
+        background:
+          radial-gradient(circle at 15% 10%, rgba(255,255,255,.22), transparent 25%),
+          linear-gradient(135deg, #312e81 0%, #4338ca 34%, #2563eb 68%, #38bdf8 100%) !important;
+        text-shadow: 0 2px 3px rgba(0,0,0,.62) !important;
+        animation: portalAuraBlue 3.1s ease-in-out infinite, portalFloat 4.8s ease-in-out infinite .3s;
+    }
+
+    /* Vastaya: portal esmeralda */
+    .top-nav-link.nav-clan {
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        color:#ecfdf5 !important;
+        background:
+          radial-gradient(circle at 15% 10%, rgba(255,255,255,.20), transparent 25%),
+          linear-gradient(135deg, #064e3b 0%, #047857 40%, #16a34a 72%, #4ade80 100%) !important;
+        text-shadow: 0 2px 3px rgba(0,0,0,.62) !important;
+        animation: portalAuraGreen 3.3s ease-in-out infinite, portalFloat 5s ease-in-out infinite .5s;
+    }
+
+    /* Reflexo cinematográfico */
+    .st-key-top_nav_menu div.stButton > button::before,
+    .top-nav-link::before {
+        content:"";
+        position:absolute;
+        z-index:-1;
+        top:-35%;
+        left:-35%;
+        width:30%;
+        height:175%;
+        pointer-events:none;
+        background:linear-gradient(90deg, transparent, rgba(255,255,255,.62), transparent);
+        animation:portalSweep 5.2s ease-in-out infinite;
+    }
+
+    /* Moldura interna */
     .st-key-top_nav_menu div.stButton > button::after,
     .top-nav-link::after {
-        content: "";
-        position: absolute;
-        inset: 2px;
-        border-radius: 10px;
-        z-index: -2;
-        pointer-events: none;
-        background: linear-gradient(
-            180deg,
-            rgba(255,255,255,.16),
-            transparent 48%,
-            rgba(120,53,15,.10)
-        );
+        content:"";
+        position:absolute;
+        inset:4px;
+        border-radius:13px;
+        border:1px solid rgba(255,255,255,.14);
+        pointer-events:none;
+        z-index:-1;
     }
 
     .st-key-top_nav_menu div.stButton > button:hover,
     .top-nav-link:hover {
-        transform: translateY(-4px) scale(1.025) !important;
-        border-color: #fff7c2 !important;
-        filter: saturate(1.08) brightness(1.04);
-        box-shadow:
-            0 7px 0 #78350f,
-            0 15px 34px rgba(250, 204, 21, .38) !important;
+        transform: translateY(-6px) scale(1.035) !important;
+        filter: brightness(1.12) saturate(1.13);
+        border-color: rgba(255,255,255,.70) !important;
     }
-
     .st-key-top_nav_menu div.stButton > button:active,
     .top-nav-link:active {
-        transform: translateY(2px) scale(.985) !important;
-        box-shadow:
-            0 2px 0 #78350f,
-            0 5px 12px rgba(250, 204, 21, .20) !important;
-        transition-duration: .08s !important;
+        transform: translateY(1px) scale(.98) !important;
+        filter: brightness(.96);
+        transition-duration:.07s !important;
     }
 
-    .st-key-top_nav_menu div.stButton > button:focus-visible,
-    .top-nav-link:focus-visible {
-        outline: 3px solid rgba(254, 240, 138, .72) !important;
-        outline-offset: 3px;
+    /* Texto auxiliar embaixo dos portais */
+    .portal-caption {
+        margin-top: -3px;
+        text-align:center;
+        font-size:.72rem;
+        font-weight:700;
+        letter-spacing:.35px;
+        color:#94a3b8;
+        opacity:.95;
     }
+    .portal-caption.gold { color:#fcd34d; }
+    .portal-caption.blue { color:#93c5fd; }
+    .portal-caption.green { color:#86efac; }
 
-    .top-nav-link {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 7px;
-        width: 100%;
-        padding: 10px 12px;
-        text-align: center;
-        text-decoration: none !important;
-    }
-
-    /* O terceiro botão ganha leve variação verde, mantendo o tema */
-    .top-nav-link.nav-clan {
-        background:
-            linear-gradient(135deg, #4ade80 0%, #22c55e 44%, #15803d 100%) !important;
-        color: #ffffff !important;
-        border-color: #bbf7d0 !important;
-        text-shadow: 1px 1px 0 rgba(0,0,0,.5) !important;
-        box-shadow:
-            0 5px 0 #14532d,
-            0 8px 22px rgba(34,197,94,.20) !important;
-        animation-name: navClanPulse;
-    }
-
-    @keyframes navClanPulse {
-        0%, 100% {
-            box-shadow:
-                0 5px 0 #14532d,
-                0 8px 20px rgba(34,197,94,.15);
+    @media (max-width:700px) {
+        .st-key-top_nav_menu div.stButton > button,
+        .top-nav-link {
+            min-height:62px !important;
+            padding:9px 7px !important;
+            font-size:.92rem !important;
+            border-radius:15px !important;
         }
-        50% {
-            box-shadow:
-                0 5px 0 #14532d,
-                0 10px 30px rgba(34,197,94,.34);
+        .portal-caption {
+            font-size:.62rem;
+            line-height:1.15;
         }
     }
 
-    .top-nav-link.nav-clan:hover {
-        box-shadow:
-            0 7px 0 #14532d,
-            0 15px 34px rgba(34,197,94,.38) !important;
-    }
-
-    @media (max-width: 700px) {
-        .st-key-top_nav_menu div.stButton > button {
-            min-height: 56px !important;
-            padding: 10px 8px !important;
-            font-size: 1.02rem !important;
-            line-height: 1.15 !important;
-        }
-    }
-
-    /* Respeita usuários que preferem menos movimento */
     @media (prefers-reduced-motion: reduce) {
         .st-key-top_nav_menu div.stButton > button,
         .top-nav-link,
         .st-key-top_nav_menu div.stButton > button::before,
         .top-nav-link::before {
-            animation: none !important;
-            transition-duration: .01ms !important;
+            animation:none !important;
+            transition-duration:.01ms !important;
         }
     }
 
@@ -1059,19 +1039,28 @@ with col_nav:
   with st.container(key="top_nav_menu"):
     b1, b2, b3 = st.columns(3)
     with b1:
-      if st.button("🛡️ Layouts Guerra", use_container_width=True):
+      if st.button("⚔️ ENTRAR NOS LAYOUTS DE GUERRA", use_container_width=True):
         st.session_state["pagina_atual"] = "layouts_guerra"
         st.rerun()
+      st.markdown(
+          '<div class="portal-caption gold">🛡️ Bases preparadas para defender estrelas</div>',
+          unsafe_allow_html=True,
+      )
     with b2:
-      if st.button("🏆 Layouts Rankeada", use_container_width=True):
+      if st.button("🏆 EXPLORAR LAYOUTS RANKEADOS", use_container_width=True):
         st.session_state["pagina_atual"] = "layouts_rankeada"
         st.rerun()
+      st.markdown(
+          '<div class="portal-caption blue">⚡ Estratégias para subir e dominar a arena</div>',
+          unsafe_allow_html=True,
+      )
     with b3:
       st.markdown(
           '<a'
           ' href="https://link.clashofclans.com/pt?action=OpenClanProfile&tag=2YPL9GU8Y"'
           ' target="_blank" rel="noopener noreferrer"'
-          ' class="top-nav-link nav-clan">🏰 Clã Secundário Vastaya ↗</a>',
+          ' class="top-nav-link nav-clan">🏰 VISITAR CLÃ VASTAYA ↗</a>'
+          '<div class="portal-caption green">🌿 Acesse diretamente o clã secundário</div>',
           unsafe_allow_html=True,
       )
 
