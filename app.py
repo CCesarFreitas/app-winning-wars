@@ -1755,7 +1755,6 @@ else:
     df_rank = pd.DataFrame()
 
   # ABAS DESTACADAS DA PÁGINA PRINCIPAL
-  renderizar_dashboard_temporada(df_rank)
   st.write("")
 
   tab_ranking, tab_tabela, tab_perfil, tab_agenda, tab_admin = st.tabs(
