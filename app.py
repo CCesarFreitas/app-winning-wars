@@ -13,7 +13,7 @@ from pathlib import Path
 import streamlit.components.v1 as components
 from oauth2client.service_account import ServiceAccountCredentials
 
-# Winning Wars v24 - editor rico nativo.
+# Winning Wars v25 - editor rico nativo + limpeza automática de campos.
 # Não depende de streamlit-quill/streamlit-quill2.
 # Quando Components V2 estiver disponível, usa um editor contenteditable nativo;
 # caso contrário, há fallback para st.text_area sem derrubar o aplicativo.
@@ -2083,6 +2083,26 @@ export default function(component) {
 """
 
 
+def chave_widget_resetavel(base_key: str) -> str:
+  """Gera uma chave nova quando o campo precisa ser limpo após salvar."""
+  contador = int(st.session_state.get(f"_reset_{base_key}", 0))
+  return f"{base_key}__{contador}"
+
+
+def resetar_widget(base_key: str):
+  """Invalida a chave atual para o próximo rerun nascer com o campo vazio."""
+  st.session_state[f"_reset_{base_key}"] = int(
+      st.session_state.get(f"_reset_{base_key}", 0)
+  ) + 1
+
+
+def resetar_editor_rico(base_key: str):
+  """Limpa todas as variantes possíveis do editor rico no próximo rerun."""
+  resetar_widget(f"editor_{base_key}_v24")
+  resetar_widget(f"editor_{base_key}_fallback_v24")
+  resetar_widget(f"editor_{base_key}_fallback_error_v24")
+
+
 def _obter_componente_editor_rico():
   """Registra o componente V2 uma única vez. Retorna None em versões antigas."""
   global _EDITOR_RICO_FEED_COMPONENT
@@ -2124,13 +2144,13 @@ def editor_rico_feed(rotulo: str, valor: str = "", key: str = "") -> str:
         rotulo,
         value=str(valor or ""),
         height=170,
-        key=f"{key}_fallback_v24",
+        key=chave_widget_resetavel(f"editor_{key}_fallback_v24"),
         label_visibility="collapsed",
     )
 
   try:
     resultado = componente(
-        key=f"{key}_v24",
+        key=chave_widget_resetavel(f"editor_{key}_v24"),
         data={"initial_html": conteudo_inicial},
         on_content_change=lambda: None,
     )
@@ -2156,7 +2176,7 @@ def editor_rico_feed(rotulo: str, valor: str = "", key: str = "") -> str:
         rotulo,
         value=str(valor or ""),
         height=170,
-        key=f"{key}_fallback_error_v24",
+        key=chave_widget_resetavel(f"editor_{key}_fallback_error_v24"),
         label_visibility="collapsed",
     )
 
@@ -2453,6 +2473,7 @@ def renderizar_pagina_novidades():
                 f"Publicou notícia '{noticia_titulo.strip()}' pela página Novidades",
             )
             st.cache_data.clear()
+            resetar_editor_rico("nova_novidade_editor_pagina")
             st.success("✅ Notícia publicada com sucesso!")
             st.rerun()
           else:
@@ -2744,7 +2765,7 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
       base = df[["Nome", atividade]].copy()
       base[atividade] = pd.to_numeric(base[atividade], errors="coerce").fillna(0).astype(int)
       edit = st.data_editor(base, hide_index=True, use_container_width=True, disabled=["Nome"], key=f"quick_{atividade}")
-      motivo = st.text_input("Motivo/observação (opcional)", key="quick_motivo")
+      motivo = st.text_input("Motivo/observação (opcional)", key=chave_widget_resetavel("quick_motivo"))
       if st.button("💾 Salvar somente alterações", type="primary", use_container_width=True):
         alteracoes = 0
         headers = sheet_dados.row_values(1)
@@ -2762,7 +2783,10 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
               alteracoes += 1
         if alteracoes:
           snapshot_ranking_atual("alteracao", f"Lançamento rápido: {atividade}")
-          st.cache_data.clear(); st.success(f"✅ {alteracoes} alteração(ões) salva(s)."); st.rerun()
+          st.cache_data.clear()
+          resetar_widget("quick_motivo")
+          st.success(f"✅ {alteracoes} alteração(ões) salva(s).")
+          st.rerun()
         else:
           st.info("Nenhuma pontuação foi alterada.")
 
@@ -3565,7 +3589,7 @@ else:
       with sub_tab1:
         c1, c2 = st.columns(2)
         with c1:
-          novo_nome = st.text_input("Nome do Player")
+          novo_nome = st.text_input("Nome do Player", key=chave_widget_resetavel("novo_player_nome"))
           if st.button("Cadastrar Player"):
             if novo_nome.strip() != "":
               ids_existentes = pd.to_numeric(df.get("ID", pd.Series(dtype=float)), errors="coerce").dropna() if not df.empty else pd.Series(dtype=float)
@@ -3579,6 +3603,7 @@ else:
                   f"Cadastrou player {novo_nome}",
               )
               st.cache_data.clear()
+              resetar_widget("novo_player_nome")
               st.success("Adicionado!")
               st.rerun()
         with c2:
@@ -3828,7 +3853,15 @@ else:
 
       with sub_tab4:
         st.markdown("#### 📢 Atualizar / Excluir Mural de Recados")
-        novo_recado = st.text_area("Recado para o topo da tela:", mural_recado)
+        if mural_recado:
+          st.caption(f"Recado atual: {mural_recado}")
+        else:
+          st.caption("Nenhum recado publicado no momento.")
+        novo_recado = st.text_area(
+            "Novo recado para o topo da tela:",
+            value="",
+            key=chave_widget_resetavel("novo_recado_mural"),
+        )
         col_rec1, col_rec2 = st.columns(2)
         with col_rec1:
           if st.button("Publicar Recado"):
@@ -3841,6 +3874,7 @@ else:
                 st.session_state["admin_logado"], "Atualizou mural de recados"
             )
             st.cache_data.clear()
+            resetar_widget("novo_recado_mural")
             st.success("Recado publicado!")
             st.rerun()
         with col_rec2:
@@ -3862,7 +3896,7 @@ else:
 
         # OPÇÃO A: ARQUIVAR MÊS ATUAL
         with st.expander("🏆 Arquivar Campeões do Mês Atual (Ranking Automático)"):
-          mes_ano_ref = st.text_input("Mês/Ano de Referência (Ex: Março/2026)")
+          mes_ano_ref = st.text_input("Mês/Ano de Referência (Ex: Março/2026)", key=chave_widget_resetavel("mes_ano_galeria"))
           if st.button("🏆 Arquivar Mês Atual na Galeria"):
             if len(df_rank) >= 3 and mes_ano_ref.strip():
               sheet_fama.append_row([
@@ -3876,6 +3910,7 @@ else:
                   f"Arquivou campeões do mês {mes_ano_ref}",
               )
               st.cache_data.clear()
+              resetar_widget("mes_ano_galeria")
               st.success("Registrado na Galeria da Fama com sucesso!")
               st.rerun()
 
@@ -3941,6 +3976,7 @@ else:
                   f"Publicou notícia '{noticia_titulo}'",
               )
               st.cache_data.clear()
+              resetar_editor_rico("nova_noticia_editor_painel")
               st.success("✅ Notícia publicada no painel de Novidades!")
               st.rerun()
             else:
