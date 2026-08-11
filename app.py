@@ -768,15 +768,17 @@ st.markdown(
         position: relative !important;
         overflow: hidden !important;
         isolation: isolate;
-        min-height: 50px !important;
+        min-height: 58px !important;
+        padding: 12px 16px !important;
         border-radius: 14px !important;
         border: 2px solid #fde68a !important;
         background:
             linear-gradient(135deg, #facc15 0%, #eab308 42%, #ca8a04 100%) !important;
         color: #171717 !important;
         font-family: 'Luckiest Guy', cursive, sans-serif !important;
-        font-size: 1.02rem !important;
-        letter-spacing: .35px;
+        font-size: 1.22rem !important;
+        font-weight: 900 !important;
+        letter-spacing: .55px;
         text-shadow: 0 1px 0 rgba(255,255,255,.35) !important;
         box-shadow:
             0 5px 0 #78350f,
@@ -896,6 +898,15 @@ st.markdown(
         box-shadow:
             0 7px 0 #14532d,
             0 15px 34px rgba(34,197,94,.38) !important;
+    }
+
+    @media (max-width: 700px) {
+        .st-key-top_nav_menu div.stButton > button {
+            min-height: 56px !important;
+            padding: 10px 8px !important;
+            font-size: 1.08rem !important;
+            line-height: 1.15 !important;
+        }
     }
 
     /* Respeita usuários que preferem menos movimento */
