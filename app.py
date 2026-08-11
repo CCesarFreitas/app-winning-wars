@@ -602,6 +602,12 @@ st.markdown(
         padding: 10px 12px; border-radius: 10px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
         border: 2px solid #60a5fa; box-shadow: 0px 4px 0px #1e3a8a; font-size: 0.95rem;
     }
+    .btn-whatsapp-link {
+        display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; text-align: center;
+        background: linear-gradient(180deg, #22c55e 0%, #15803d 100%); color: white !important;
+        padding: 10px 12px; border-radius: 10px; text-decoration: none; font-family: 'Luckiest Guy', cursive;
+        border: 2px solid #86efac; box-shadow: 0px 4px 0px #14532d; font-size: 0.95rem;
+    }
 
     .mural-banner {
         background: #1e293b; border-radius: 14px; padding: 14px 18px; margin-bottom: 22px;
@@ -852,6 +858,31 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
 
 
 # ==============================================================================
+# COMPONENTE AUXILIAR: LINKS CLICÁVEIS NO FEED
+# ==============================================================================
+def tornar_links_clicaveis(texto: str) -> str:
+  """Converte URLs HTTP/HTTPS em links que abrem em nova guia."""
+  from html import escape
+
+  texto_safe = escape(str(texto), quote=False)
+  url_pattern = re.compile(r"https?://[^\s<]+", re.IGNORECASE)
+
+  def substituir(match):
+    url = match.group(0)
+    pontuacao_final = ""
+    while url and url[-1] in ".,;:!?)]}":
+      pontuacao_final = url[-1] + pontuacao_final
+      url = url[:-1]
+    url_attr = escape(url, quote=True)
+    return (
+      f'<a href="{url_attr}" target="_blank" rel="noopener noreferrer" '
+      f'style="color:#38bdf8; text-decoration:underline; font-weight:800;">'
+      f'{escape(url)}</a>{escape(pontuacao_final)}'
+    )
+
+  return url_pattern.sub(substituir, texto_safe).replace("\n", "<br>")
+
+# ==============================================================================
 # COMPONENTE REUTILIZÁVEL: FEED DE NOVIDADES
 # ==============================================================================
 def renderizar_feed_novidades(limite=None, titulo="📰 Últimas Novidades"):
@@ -886,7 +917,7 @@ def renderizar_feed_novidades(limite=None, titulo="📰 Últimas Novidades"):
 
     tag_safe = escape(tag_nome)
     titulo_safe = escape(titulo_item)
-    conteudo_safe = escape(conteudo).replace("\n", "<br>")
+    conteudo_safe = tornar_links_clicaveis(conteudo)
     data_safe = escape(data_hora)
     autor_safe = escape(autor)
     img_safe = escape(img_url, quote=True)
@@ -1018,7 +1049,7 @@ def renderizar_pagina_novidades():
                 </div>
                 <div class="news-title">{escape(titulo)}</div>
                 {imagem_html_admin}
-                <div class="news-content">{escape(conteudo).replace(chr(10), "<br>")}</div>
+                <div class="news-content">{tornar_links_clicaveis(conteudo)}</div>
             </article>
             """,
           unsafe_allow_html=True,
@@ -2169,12 +2200,14 @@ else:
       "<h3 style='text-align: center;'>🔗 Links Rápidos</h3>",
       unsafe_allow_html=True,
   )
-  c_link1, c_link2, c_link3 = st.columns(3)
+  c_link1, c_link2, c_link3, c_link4 = st.columns(4)
 
   with c_link1:
     st.markdown(
         '<a href="https://www.youtube.com/@winningwarscoc?sub_confirmation=1" '
-        'target="_blank" class="btn-youtube-link">📺 YouTube ↗</a>',
+        'target="_blank" rel="noopener noreferrer" class="btn-youtube-link"><img '
+        'src="https://img.cdndsgni.com/preview/10000151.jpg" '
+        'height="20" style="border-radius: 4px; object-fit: cover;"> Canal Winning Wars YT ↗</a>',
         unsafe_allow_html=True,
     )
 
@@ -2186,8 +2219,17 @@ else:
   with c_link3:
     st.markdown(
         '<a href="https://link.clashofclans.com/?action=OpenSCID&p=25-1cb8481f-3a79-4681-90f9-8914acef2d63" '
-        'target="_blank" class="btn-scid"><img '
+        'target="_blank" rel="noopener noreferrer" class="btn-scid"><img '
         'src="https://i.ibb.co/fzPGy6fr/bg-hero-scid-landing-0.webp" '
-        'height="20" style="border-radius: 4px; object-fit: cover;"> Add Godoy ↗</a>',
+        'height="20" style="border-radius: 4px; object-fit: cover;"> Add no Supercell ID ↗</a>',
+        unsafe_allow_html=True,
+    )
+
+  with c_link4:
+    st.markdown(
+        '<a href="https://chat.whatsapp.com/FKFc5y323PCBnTFdsjhv64" '
+        'target="_blank" rel="noopener noreferrer" class="btn-whatsapp-link"><img '
+        'src="https://img.cdndsgni.com/preview/10000484.jpg" '
+        'height="20" style="border-radius: 4px; object-fit: cover;"> Grupo do Clã no Whats ↗</a>',
         unsafe_allow_html=True,
     )
