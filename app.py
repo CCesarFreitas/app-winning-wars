@@ -13,6 +13,13 @@ from pathlib import Path
 import streamlit.components.v1 as components
 from oauth2client.service_account import ServiceAccountCredentials
 
+# Winning Wars v23 - editor rico para publicações do feed.
+# Dependência recomendada: streamlit-quill2 (importa como streamlit_quill).
+try:
+  from streamlit_quill import st_quill
+except ImportError:
+  st_quill = None
+
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     page_title="Winning Wars APP", page_icon=str(Path(__file__).parent / "static" / "favicon.png"), layout="wide"
@@ -1369,7 +1376,25 @@ st.markdown(
     @keyframes newsSectionBlink {\n        0%, 100% { opacity: 1; text-shadow: 2px 2px 0 #000, 0 0 10px rgba(250,204,21,.45); transform: scale(1); }\n        50% { opacity: .72; text-shadow: 2px 2px 0 #000, 0 0 24px rgba(250,204,21,.95); transform: scale(1.018); }\n    }\n    @keyframes newsCardAttention {\n        0%,100% { box-shadow: 0 6px 18px rgba(0,0,0,.4), 0 0 0 rgba(56,189,248,0); }\n        50% { box-shadow: 0 8px 28px rgba(0,0,0,.55), 0 0 22px rgba(56,189,248,.20); }\n    }\n    @keyframes newsTagBlink {\n        0%,100% { transform: scale(1); filter: brightness(1); }\n        50% { transform: scale(1.07); filter: brightness(1.30); }\n    }\n\n    .news-section-title {\n        text-align: center;\n        display: block;\n        width: fit-content;\n        margin: 6px auto 10px auto !important;\n        padding: 9px 22px 8px;\n        border-radius: 16px;\n        border: 2px solid #facc15;\n        background: linear-gradient(135deg, rgba(120,53,15,.92), rgba(30,41,59,.94));\n        color: #facc15 !important;\n        animation: newsSectionBlink 1.7s ease-in-out infinite;\n        box-shadow: 0 8px 26px rgba(250,204,21,.22);\n    }\n    .news-card {\n        background: linear-gradient(145deg,#0f172a 0%,#111827 100%);\n        border: 2px solid #334155; border-top: 4px solid #38bdf8;\n        border-radius: 14px; padding: 20px; margin-bottom: 20px;\n        box-shadow: 0 6px 18px rgba(0,0,0,0.4); font-family: 'Nunito', sans-serif;\n        animation: newsCardAttention 3.2s ease-in-out infinite;\n    }\n    .news-tag {\n        display: inline-block; padding: 6px 12px; border-radius: 999px;\n        border: 2px solid rgba(255,255,255,.40);\n        font-family: 'Luckiest Guy', cursive;\n        font-weight: 900; font-size: 0.92rem; color: #fff; margin-bottom: 8px;\n        text-shadow: 1px 1px 0 rgba(0,0,0,.65);\n        box-shadow: 0 4px 14px rgba(0,0,0,.30);\n        animation: newsTagBlink 1.55s ease-in-out infinite;\n    }\n    .news-tag.tag-evento { background: linear-gradient(135deg,#c026d3,#7e22ce); }\n    .news-tag.tag-torneio { background: linear-gradient(135deg,#dc2626,#991b1b); }\n    .news-tag.tag-atualizacao { background: linear-gradient(135deg,#2563eb,#0369a1); }\n    .news-tag.tag-aviso { background: linear-gradient(135deg,#f59e0b,#b45309); }\n    .news-tag.tag-premiacao { background: linear-gradient(135deg,#eab308,#a16207); color:#fffbea; }\n    .news-tag.tag-default { background: linear-gradient(135deg,#475569,#1e293b); }\n\n    @media (prefers-reduced-motion: reduce) {\n        .news-section-title, .news-card, .news-tag { animation: none !important; }\n    }\n    .news-title { font-family: 'Luckiest Guy', cursive; color: #facc15; font-size: 1.5rem; margin-bottom: 6px; }
     .news-meta { color: #94a3b8; font-size: 0.85rem; margin-bottom: 12px; }
     .news-card-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-    .news-content { color: #e2e8f0; font-size: 1.05rem; line-height: 1.6; }
+    .news-content { color: #e2e8f0; font-size: 1.05rem; line-height: 1.6; overflow-wrap:anywhere; }
+    .news-content p { margin: 0 0 .7em 0; }
+    .news-content p:last-child { margin-bottom: 0; }
+    .news-content strong, .news-content b { font-weight: 900; color: inherit; }
+    .news-content em, .news-content i { font-style: italic; }
+    .news-content u { text-decoration: underline; }
+    .news-content s { text-decoration: line-through; }
+    .news-content blockquote {
+        margin: 10px 0; padding: 8px 12px; border-left: 4px solid #facc15;
+        background: rgba(250,204,21,.08); border-radius: 6px;
+    }
+    .news-content ul, .news-content ol { margin: 8px 0 8px 24px; padding-left: 12px; }
+    .news-content a { color:#38bdf8; text-decoration:underline; font-weight:800; overflow-wrap:anywhere; }
+    .news-content .ql-align-center { text-align:center; }
+    .news-content .ql-align-right { text-align:right; }
+    .news-content .ql-align-justify { text-align:justify; }
+    .news-content .ql-size-small { font-size:.8em; }
+    .news-content .ql-size-large { font-size:1.35em; }
+    .news-content .ql-size-huge { font-size:1.75em; line-height:1.25; }
     .news-image-wrap { position: relative; margin: 12px 0 16px 0; text-align: center; }
     .news-image { display: block; width: 100%; max-width: 100%; max-height: 520px; object-fit: contain; margin: 0 auto; border-radius: 12px; border: 2px solid #334155; box-shadow: 0 6px 16px rgba(0,0,0,.45); background: #111827; }
     .news-image-fallback { display: none; color: #94a3b8; background: #111827; border: 2px dashed #334155; border-radius: 12px; padding: 22px; font-weight: 800; }
@@ -1628,10 +1653,10 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
 
 
 # ==============================================================================
-# COMPONENTE AUXILIAR: LINKS CLICÁVEIS NO FEED
+# COMPONENTES AUXILIARES: EDITOR RICO + CONTEÚDO SEGURO DO FEED
 # ==============================================================================
 def tornar_links_clicaveis(texto: str) -> str:
-  """Converte URLs HTTP/HTTPS em links que abrem em nova guia."""
+  """Converte URLs de textos antigos em links clicáveis e escapa HTML."""
   from html import escape
 
   texto_safe = escape(str(texto), quote=False)
@@ -1645,12 +1670,204 @@ def tornar_links_clicaveis(texto: str) -> str:
       url = url[:-1]
     url_attr = escape(url, quote=True)
     return (
-      f'<a href="{url_attr}" target="_blank" rel="noopener noreferrer" '
-      f'style="color:#38bdf8; text-decoration:underline; font-weight:800;">'
+      f'<a href="{url_attr}" target="_blank" rel="noopener noreferrer">'
       f'{escape(url)}</a>{escape(pontuacao_final)}'
     )
 
   return url_pattern.sub(substituir, texto_safe).replace("\n", "<br>")
+
+
+def _parece_html_rico(texto: str) -> bool:
+  """Detecta somente tags que o editor rico realmente pode gerar."""
+  return bool(re.search(
+      r"</?(?:p|br|strong|b|em|i|u|s|strike|ul|ol|li|blockquote|h[1-6]|span|a)\b",
+      str(texto or ""),
+      flags=re.IGNORECASE,
+  ))
+
+
+def _sanitizar_estilo_feed(style: str) -> str:
+  """Mantém apenas estilos de texto seguros produzidos pelo Quill."""
+  permitidos = {
+      "color", "background-color", "text-align",
+  }
+  saida = []
+  for declaracao in str(style or "").split(";"):
+    if ":" not in declaracao:
+      continue
+    prop, valor = declaracao.split(":", 1)
+    prop = prop.strip().lower()
+    valor = valor.strip()
+    if prop not in permitidos or not valor:
+      continue
+    valor_lower = valor.lower()
+    # Impede CSS que possa carregar recursos externos ou executar expressões.
+    if any(x in valor_lower for x in ("url(", "expression(", "javascript:", "data:")):
+      continue
+    if len(valor) > 80:
+      continue
+    saida.append(f"{prop}:{valor}")
+  return ";".join(saida)
+
+
+def sanitizar_html_feed(html_bruto: str) -> str:
+  """Sanitiza o HTML do editor rico antes de exibi-lo com unsafe_allow_html."""
+  from html import escape
+  from html.parser import HTMLParser
+  from urllib.parse import urlparse
+
+  tags_permitidas = {
+      "p", "br", "strong", "b", "em", "i", "u", "s", "strike",
+      "ul", "ol", "li", "blockquote", "h1", "h2", "h3", "h4", "h5", "h6",
+      "span", "a",
+  }
+
+  classes_permitidas = re.compile(
+      r"^(?:ql-align-(?:center|right|justify)|ql-size-(?:small|large|huge)|"
+      r"ql-indent-[1-8])$"
+  )
+
+  class SanitizadorFeed(HTMLParser):
+    def __init__(self):
+      super().__init__(convert_charrefs=True)
+      self.partes = []
+
+    def handle_starttag(self, tag, attrs):
+      tag = tag.lower()
+      if tag not in tags_permitidas:
+        return
+      attrs_saida = []
+      for nome, valor in attrs:
+        nome = str(nome or "").lower()
+        valor = str(valor or "")
+
+        if nome == "style" and tag in {"p", "span", "h1", "h2", "h3", "h4", "h5", "h6"}:
+          estilo = _sanitizar_estilo_feed(valor)
+          if estilo:
+            attrs_saida.append(("style", estilo))
+
+        elif nome == "class":
+          classes = [c for c in valor.split() if classes_permitidas.match(c)]
+          if classes:
+            attrs_saida.append(("class", " ".join(classes)))
+
+        elif tag == "a" and nome == "href":
+          parsed = urlparse(valor.strip())
+          if parsed.scheme.lower() in {"http", "https", "mailto"}:
+            attrs_saida.append(("href", valor.strip()))
+
+      if tag == "a" and any(n == "href" for n, _ in attrs_saida):
+        attrs_saida.extend([("target", "_blank"), ("rel", "noopener noreferrer")])
+
+      atributos = "".join(
+          f' {escape(nome, quote=True)}="{escape(valor, quote=True)}"'
+          for nome, valor in attrs_saida
+      )
+      self.partes.append(f"<{tag}{atributos}>")
+
+    def handle_startendtag(self, tag, attrs):
+      if str(tag).lower() == "br":
+        self.partes.append("<br>")
+
+    def handle_endtag(self, tag):
+      tag = tag.lower()
+      if tag in tags_permitidas and tag != "br":
+        self.partes.append(f"</{tag}>")
+
+    def handle_data(self, data):
+      self.partes.append(escape(data, quote=False))
+
+    def handle_entityref(self, name):
+      self.partes.append(f"&{name};")
+
+    def handle_charref(self, name):
+      self.partes.append(f"&#{name};")
+
+  parser = SanitizadorFeed()
+  try:
+    parser.feed(str(html_bruto or ""))
+    parser.close()
+    return "".join(parser.partes)
+  except Exception:
+    return tornar_links_clicaveis(str(html_bruto or ""))
+
+
+def conteudo_feed_html(conteudo: str) -> str:
+  """Renderiza posts antigos como texto e posts novos como HTML rico sanitizado."""
+  bruto = str(conteudo or "")
+  if _parece_html_rico(bruto):
+    return sanitizar_html_feed(bruto)
+  return tornar_links_clicaveis(bruto)
+
+
+def conteudo_para_editor(conteudo: str) -> str:
+  """Converte conteúdo legado em HTML para edição sem perder quebras de linha."""
+  from html import escape
+
+  bruto = str(conteudo or "")
+  if _parece_html_rico(bruto):
+    return sanitizar_html_feed(bruto)
+  if not bruto.strip():
+    return ""
+  linhas = escape(bruto, quote=False).splitlines()
+  return "".join(f"<p>{linha if linha else '<br>'}</p>" for linha in linhas)
+
+
+def conteudo_editor_tem_texto(conteudo: str) -> bool:
+  """Evita salvar um editor visualmente vazio como <p><br></p>."""
+  sem_tags = re.sub(r"<[^>]*>", "", str(conteudo or ""))
+  sem_entidades = (
+      sem_tags.replace("&nbsp;", " ")
+      .replace("&#160;", " ")
+      .replace("\xa0", " ")
+  )
+  return bool(sem_entidades.strip())
+
+
+TOOLBAR_FEED = [
+    ["bold", "italic", "underline", "strike"],
+    [{"color": []}, {"background": []}],
+    [{"header": [1, 2, 3, False]}, {"size": ["small", False, "large", "huge"]}],
+    [{"list": "ordered"}, {"list": "bullet"}],
+    [{"align": []}],
+    ["blockquote", "link"],
+    ["clean"],
+]
+
+
+def editor_rico_feed(rotulo: str, valor: str = "", key: str = "") -> str:
+  """Editor WYSIWYG para admins, com fallback caso a dependência não esteja instalada."""
+  st.markdown(f"**{rotulo}**")
+  if st_quill is None:
+    st.warning(
+        "⚠️ Editor rico indisponível neste servidor. Adicione "
+        "`streamlit-quill2==0.0.5` às dependências do app. "
+        "Enquanto isso, o campo abaixo funciona em modo texto."
+    )
+    return st.text_area(
+        rotulo,
+        value=str(valor or ""),
+        height=170,
+        key=f"{key}_fallback",
+        label_visibility="collapsed",
+    )
+
+  conteudo_inicial = conteudo_para_editor(valor)
+  resultado = st_quill(
+      value=conteudo_inicial,
+      placeholder="Digite o comunicado aqui... Você pode usar emojis 😀 ⚔️ 🏆 🔥 🎉",
+      html=True,
+      toolbar=TOOLBAR_FEED,
+      preserve_whitespace=True,
+      key=key,
+  )
+  st.caption(
+      "✨ Formatação disponível: negrito, itálico, sublinhado, tachado, "
+      "cores, marca-texto, títulos, tamanho, listas, alinhamento e links. "
+      "Emojis podem ser inseridos normalmente pelo teclado do celular/PC."
+  )
+  return str(resultado or "")
+
 
 def classe_categoria_noticia(tag: str) -> str:
   texto = str(tag or "").lower()
@@ -1716,7 +1933,7 @@ def renderizar_feed_novidades(limite=None, titulo="📰 Últimas Novidades"):
     tag_safe = escape(tag_nome)
     tag_classe = classe_categoria_noticia(tag_nome)
     titulo_safe = escape(titulo_item)
-    conteudo_safe = tornar_links_clicaveis(conteudo)
+    conteudo_safe = conteudo_feed_html(conteudo)
     data_safe = escape(data_hora)
     autor_safe = escape(autor)
     img_safe = escape(img_url, quote=True)
@@ -1783,8 +2000,9 @@ def renderizar_feed_novidades(limite=None, titulo="📰 Últimas Novidades"):
               "Categoria / Tag", tags_news, index=tag_idx_news,
               key=f"feed_news_tag_{item_idx}",
           )
-          edit_feed_conteudo = st.text_area(
-              "Conteúdo", value=conteudo, height=150,
+          edit_feed_conteudo = editor_rico_feed(
+              "Conteúdo",
+              valor=conteudo,
               key=f"feed_news_conteudo_{item_idx}",
           )
           edit_feed_img = st.text_input(
@@ -1830,7 +2048,7 @@ def renderizar_feed_novidades(limite=None, titulo="📰 Últimas Novidades"):
           linha_news = int(item_idx) + 2
 
           if salvar_feed_news:
-            if not edit_feed_titulo.strip() or not edit_feed_conteudo.strip():
+            if not edit_feed_titulo.strip() or not conteudo_editor_tem_texto(edit_feed_conteudo):
               st.error("⚠️ Título e conteúdo são obrigatórios.")
             else:
               expira_limpa = edit_feed_expira.strip()
@@ -1847,7 +2065,7 @@ def renderizar_feed_novidades(limite=None, titulo="📰 Últimas Novidades"):
                 headers_news = sheet_novidades.row_values(1)
                 atualizacoes_news = {{
                     "Titulo": edit_feed_titulo.strip(),
-                    "Conteudo": edit_feed_conteudo.strip(),
+                    "Conteudo": sanitizar_html_feed(edit_feed_conteudo.strip()) if _parece_html_rico(edit_feed_conteudo) else edit_feed_conteudo.strip(),
                     "ImagemUrl": edit_feed_img.strip(),
                     "Tag": edit_feed_tag,
                     "Autor": st.session_state["admin_logado"],
@@ -1916,7 +2134,11 @@ def renderizar_pagina_novidades():
             "Categoria / Tag",
             ["🎉 Evento", "⚔️ Torneio", "🚀 Atualização Game", "📢 Aviso Clã", "🏆 Premiação Extra"],
         )
-        noticia_conteudo = st.text_area("Conteúdo do Comunicado", height=140)
+        noticia_conteudo = editor_rico_feed(
+            "Conteúdo do Comunicado",
+            valor="",
+            key="nova_novidade_editor_pagina",
+        )
         noticia_img = st.text_input(
             "Link Direto da Imagem / Banner (Opcional)",
             placeholder="https://exemplo.com/imagem.jpg",
@@ -1924,12 +2146,12 @@ def renderizar_pagina_novidades():
         btn_pub = st.form_submit_button("📢 Publicar Notícia", use_container_width=True)
 
         if btn_pub:
-          if noticia_titulo.strip() and noticia_conteudo.strip():
+          if noticia_titulo.strip() and conteudo_editor_tem_texto(noticia_conteudo):
             d_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
             sheet_novidades.append_row([
                 d_hora,
                 noticia_titulo.strip(),
-                noticia_conteudo.strip(),
+                sanitizar_html_feed(noticia_conteudo.strip()) if _parece_html_rico(noticia_conteudo) else noticia_conteudo.strip(),
                 noticia_img.strip(),
                 noticia_tag,
                 st.session_state["admin_logado"],
@@ -1983,7 +2205,7 @@ def renderizar_pagina_novidades():
                 </div>
                 <div class="news-title">{escape(titulo)}</div>
                 {imagem_html_admin}
-                <div class="news-content">{tornar_links_clicaveis(conteudo)}</div>
+                <div class="news-content">{conteudo_feed_html(conteudo)}</div>
             </article>
             """,
           unsafe_allow_html=True,
@@ -2009,8 +2231,9 @@ def renderizar_pagina_novidades():
                 index=tag_index,
                 key=f"edit_tag_{item_idx}",
             )
-            edit_conteudo = st.text_area(
-                "Conteúdo", value=conteudo, height=140,
+            edit_conteudo = editor_rico_feed(
+                "Conteúdo",
+                valor=conteudo,
                 key=f"edit_conteudo_{item_idx}",
             )
             edit_img = st.text_input(
@@ -2029,7 +2252,7 @@ def renderizar_pagina_novidades():
               )
 
             if btn_editar:
-              if not edit_titulo.strip() or not edit_conteudo.strip():
+              if not edit_titulo.strip() or not conteudo_editor_tem_texto(edit_conteudo):
                 st.error("⚠️ O título e o conteúdo são obrigatórios.")
               else:
                 # O índice do DataFrame corresponde à linha da planilha - 1,
@@ -2040,7 +2263,7 @@ def renderizar_pagina_novidades():
                     [[
                         data_hora,
                         edit_titulo.strip(),
-                        edit_conteudo.strip(),
+                        sanitizar_html_feed(edit_conteudo.strip()) if _parece_html_rico(edit_conteudo) else edit_conteudo.strip(),
                         edit_img.strip(),
                         edit_tag,
                         st.session_state["admin_logado"],
@@ -3401,18 +3624,22 @@ else:
               "Categoria / Tag",
               ["🎉 Evento", "⚔️ Torneio", "🚀 Atualização Game", "📢 Aviso Clã", "🏆 Premiação Extra"]
           )
-          noticia_conteudo = st.text_area("Conteúdo do Comunicado", height=120)
+          noticia_conteudo = editor_rico_feed(
+              "Conteúdo do Comunicado",
+              valor="",
+              key="nova_noticia_editor_painel",
+          )
           noticia_img = st.text_input("Link Direto da Imagem / Banner (Opcional)")
 
           btn_pub_noticia = st.form_submit_button("Publicar Notícia")
 
           if btn_pub_noticia:
-            if noticia_titulo.strip() and noticia_conteudo.strip():
+            if noticia_titulo.strip() and conteudo_editor_tem_texto(noticia_conteudo):
               d_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
               sheet_novidades.append_row([
                   d_hora,
                   noticia_titulo.strip(),
-                  noticia_conteudo.strip(),
+                  sanitizar_html_feed(noticia_conteudo.strip()) if _parece_html_rico(noticia_conteudo) else noticia_conteudo.strip(),
                   noticia_img.strip(),
                   noticia_tag,
                   st.session_state["admin_logado"],
