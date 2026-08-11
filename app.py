@@ -17,51 +17,122 @@ st.set_page_config(
     page_title="Winning Wars APP", page_icon="https://i.ibb.co/YFV3LGy5/winningwars-ico.png", layout="wide"
 )
 
-# --- ÍCONE PARA IPHONE / IPAD (ADICIONAR À TELA DE INÍCIO) ---
-# O iOS/Safari usa apple-touch-icon, que é diferente do favicon/page_icon.
+# --- PWA / ÍCONE PARA IPHONE, IPAD E ANDROID ---
+# O favicon continua configurado em st.set_page_config.
+# Para instalação na Tela de Início, reforçamos apple-touch-icon,
+# manifest e metadados diretamente no <head> principal.
 _APP_ICON_URL = "https://i.ibb.co/YFV3LGy5/winningwars-ico.png"
+_PWA_MANIFEST_URL = "/app/static/manifest.webmanifest"
 
 st.markdown(
-    f'<link rel="apple-touch-icon" sizes="180x180" href="{_APP_ICON_URL}">',
+    """
+    <link rel="apple-touch-icon" sizes="180x180" href="https://i.ibb.co/YFV3LGy5/winningwars-ico.png">
+    <link rel="apple-touch-icon-precomposed" sizes="180x180" href="https://i.ibb.co/YFV3LGy5/winningwars-ico.png">
+    <link rel="manifest" href="/app/static/manifest.webmanifest">
+    <meta name="theme-color" content="#0b0e14">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Winning Wars">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    """,
     unsafe_allow_html=True,
 )
 
-# Injeta o Apple Touch Icon também no <head> da página principal do Streamlit.
-# Isso melhora a compatibilidade do atalho criado pelo Safari no iPhone/iPad.
 components.html(
-    f"""
+    """
     <script>
-    (function() {{
-        try {{
+    (function() {
+        const ICON = "https://i.ibb.co/YFV3LGy5/winningwars-ico.png";
+        const MANIFEST = "/app/static/manifest.webmanifest";
+        const APP_NAME = "Winning Wars APP";
+        const THEME = "#0b0e14";
+
+        function ensureLink(doc, rel, href, sizes) {
+            let el = doc.head.querySelector('link[rel="' + rel + '"]');
+            if (!el) {
+                el = doc.createElement("link");
+                el.rel = rel;
+                doc.head.appendChild(el);
+            }
+            if (sizes) el.sizes = sizes;
+            el.href = href;
+            return el;
+        }
+
+        function ensureMeta(doc, name, content) {
+            let el = doc.head.querySelector('meta[name="' + name + '"]');
+            if (!el) {
+                el = doc.createElement("meta");
+                el.name = name;
+                doc.head.appendChild(el);
+            }
+            el.content = content;
+            return el;
+        }
+
+        function applyWinningWarsPWA() {
+            try {
+                const doc = window.parent.document;
+
+                doc.head.querySelectorAll(
+                    'link[rel="apple-touch-icon"], link[rel="apple-touch-icon-precomposed"]'
+                ).forEach(el => el.remove());
+
+                const touch = doc.createElement("link");
+                touch.rel = "apple-touch-icon";
+                touch.sizes = "180x180";
+                touch.href = ICON;
+                doc.head.appendChild(touch);
+
+                const touchPre = doc.createElement("link");
+                touchPre.rel = "apple-touch-icon-precomposed";
+                touchPre.sizes = "180x180";
+                touchPre.href = ICON;
+                doc.head.appendChild(touchPre);
+
+                ensureLink(doc, "icon", ICON);
+                ensureLink(doc, "shortcut icon", ICON);
+                ensureLink(doc, "manifest", MANIFEST);
+
+                ensureMeta(doc, "theme-color", THEME);
+                ensureMeta(doc, "mobile-web-app-capable", "yes");
+                ensureMeta(doc, "apple-mobile-web-app-capable", "yes");
+                ensureMeta(doc, "apple-mobile-web-app-title", "Winning Wars");
+                ensureMeta(doc, "apple-mobile-web-app-status-bar-style", "black-translucent");
+                ensureMeta(doc, "application-name", "Winning Wars APP");
+
+                doc.title = APP_NAME;
+            } catch (e) {
+                console.debug("Winning Wars PWA:", e);
+            }
+        }
+
+        applyWinningWarsPWA();
+        [250, 750, 1500, 3000, 6000].forEach(function(ms) {
+            setTimeout(applyWinningWarsPWA, ms);
+        });
+
+        try {
             const doc = window.parent.document;
-            const iconUrl = {repr('https://i.ibb.co/YFV3LGy5/winningwars-ico.png')};
-
-            let touchIcon = doc.querySelector('link[rel="apple-touch-icon"]');
-            if (!touchIcon) {{
-                touchIcon = doc.createElement('link');
-                touchIcon.rel = 'apple-touch-icon';
-                touchIcon.sizes = '180x180';
-                doc.head.appendChild(touchIcon);
-            }}
-            touchIcon.href = iconUrl;
-
-            let favicon = doc.querySelector('link[rel="icon"]');
-            if (!favicon) {{
-                favicon = doc.createElement('link');
-                favicon.rel = 'icon';
-                doc.head.appendChild(favicon);
-            }}
-            favicon.href = iconUrl;
-        }} catch (e) {{
-            console.debug('Não foi possível aplicar o ícone do iOS:', e);
-        }}
-    }})();
+            let busy = false;
+            const observer = new MutationObserver(function() {
+                if (busy) return;
+                busy = true;
+                setTimeout(function() {
+                    applyWinningWarsPWA();
+                    busy = false;
+                }, 80);
+            });
+            observer.observe(doc.head, { childList: true, subtree: true });
+        } catch (e) {
+            console.debug("Winning Wars PWA observer:", e);
+        }
+    })();
     </script>
     """,
     height=0,
     width=0,
 )
-
 
 # --- FUNÇÕES AUXILIARES ---
 def gerar_hash(senha: str) -> str:
