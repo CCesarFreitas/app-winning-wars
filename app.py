@@ -841,6 +841,161 @@ st.markdown(
         padding: 0 10px;
     }
     
+
+    /* ==========================================================
+       EMBLEMA PRINCIPAL - LOGO ANIMADA WINNING WARS
+       ========================================================== */
+    @keyframes wwLogoFloat {
+        0%, 100% {
+            transform: translateY(0) rotate(-0.5deg) scale(1);
+        }
+        50% {
+            transform: translateY(-7px) rotate(0.8deg) scale(1.025);
+        }
+    }
+
+    @keyframes wwLogoAura {
+        0%, 100% {
+            filter:
+                drop-shadow(0 8px 16px rgba(0,0,0,.72))
+                drop-shadow(0 0 8px rgba(250,204,21,.20))
+                drop-shadow(0 0 15px rgba(168,85,247,.12));
+        }
+        50% {
+            filter:
+                drop-shadow(0 10px 18px rgba(0,0,0,.72))
+                drop-shadow(0 0 17px rgba(250,204,21,.58))
+                drop-shadow(0 0 30px rgba(168,85,247,.34));
+        }
+    }
+
+    @keyframes wwLogoHalo {
+        0%, 100% {
+            opacity: .28;
+            transform: translate(-50%, -50%) scale(.88);
+        }
+        50% {
+            opacity: .72;
+            transform: translate(-50%, -50%) scale(1.08);
+        }
+    }
+
+    @keyframes wwLogoShine {
+        0% {
+            left: -85%;
+            opacity: 0;
+        }
+        20% {
+            opacity: .85;
+        }
+        48%, 100% {
+            left: 135%;
+            opacity: 0;
+        }
+    }
+
+    .ww-logo-wrap {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 8px;
+        margin-bottom: 8px;
+        padding: 10px 15px;
+        isolation: isolate;
+    }
+
+    .ww-logo-wrap::before {
+        content: "";
+        position: absolute;
+        z-index: -2;
+        top: 50%;
+        left: 50%;
+        width: 175px;
+        height: 175px;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        background:
+            radial-gradient(
+                circle,
+                rgba(250,204,21,.20) 0%,
+                rgba(168,85,247,.13) 42%,
+                rgba(15,23,42,0) 72%
+            );
+        animation: wwLogoHalo 3.4s ease-in-out infinite;
+        pointer-events: none;
+    }
+
+    .ww-logo-wrap::after {
+        content: "";
+        position: absolute;
+        z-index: 2;
+        top: 3%;
+        left: -85%;
+        width: 30%;
+        height: 94%;
+        transform: skewX(-18deg);
+        background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255,255,255,.04),
+            rgba(255,255,255,.58),
+            rgba(255,255,255,.04),
+            transparent
+        );
+        animation: wwLogoShine 5.6s ease-in-out infinite;
+        pointer-events: none;
+    }
+
+    .ww-main-logo {
+        position: relative;
+        z-index: 1;
+        display: block;
+        width: 180px;
+        max-width: 42vw;
+        height: auto;
+        cursor: default;
+        transform-origin: center center;
+        animation:
+            wwLogoFloat 4.1s ease-in-out infinite,
+            wwLogoAura 3.2s ease-in-out infinite;
+        transition:
+            transform .28s cubic-bezier(.2,.8,.2,1),
+            filter .28s ease !important;
+        will-change: transform, filter;
+    }
+
+    .ww-logo-wrap:hover .ww-main-logo {
+        animation-play-state: paused;
+        transform: translateY(-5px) scale(1.10) rotate(1.2deg);
+        filter:
+            drop-shadow(0 12px 20px rgba(0,0,0,.75))
+            drop-shadow(0 0 20px rgba(250,204,21,.70))
+            drop-shadow(0 0 34px rgba(168,85,247,.44));
+    }
+
+    @media (max-width: 700px) {
+        .ww-main-logo {
+            width: 165px;
+            max-width: 48vw;
+        }
+        .ww-logo-wrap::before {
+            width: 160px;
+            height: 160px;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .ww-main-logo,
+        .ww-logo-wrap::before,
+        .ww-logo-wrap::after {
+            animation: none !important;
+        }
+        .ww-logo-wrap:hover .ww-main-logo {
+            transform: scale(1.04);
+        }
+    }
+
     /* BOTÕES GERAIS */
     div.stButton > button {
         background: linear-gradient(180deg, #22c55e 0%, #15803d 100%) !important;
@@ -2385,11 +2540,17 @@ elif st.session_state["pagina_atual"] == "regras_cla":
 # PÁGINA PRINCIPAL
 # ==============================================================================
 else:
-  # LOGO COM TAMANHO AUMENTADO (180px)
+  # LOGO PRINCIPAL COM EFEITO ANIMADO
   st.markdown(
       """
-    <div style="text-align: center; margin-top: 10px; margin-bottom: 12px;">
-        <img src="https://i.ibb.co/yBShz18b/winning.png" width="180" style="filter: drop-shadow(0px 8px 16px rgba(0,0,0,0.7)); transition: transform 0.3s ease;">
+    <div style="text-align:center;">
+        <div class="ww-logo-wrap">
+            <img
+                src="https://i.ibb.co/yBShz18b/winning.png"
+                class="ww-main-logo"
+                alt="Winning Wars"
+            >
+        </div>
     </div>
     """,
       unsafe_allow_html=True,
