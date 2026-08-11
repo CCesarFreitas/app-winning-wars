@@ -1039,11 +1039,11 @@ with col_nav:
   with st.container(key="top_nav_menu"):
     b1, b2, b3 = st.columns(3)
     with b1:
-      if st.button("⚔️ ENTRAR NOS LAYOUTS DE GUERRA", use_container_width=True):
+      if st.button("⚔️ LAYOUTS PARA GUERRA", use_container_width=True):
         st.session_state["pagina_atual"] = "layouts_guerra"
         st.rerun()
     with b2:
-      if st.button("🏆 EXPLORAR LAYOUTS RANKEADOS", use_container_width=True):
+      if st.button("🏆 LAYOUTS PARA RANKEADAS", use_container_width=True):
         st.session_state["pagina_atual"] = "layouts_rankeada"
         st.rerun()
     with b3:
