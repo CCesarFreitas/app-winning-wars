@@ -954,6 +954,97 @@ st.markdown(
         }
     }
 
+
+    /* ===== TÍTULOS DE SESSÃO + RODAPÉ ANIMADOS ===== */
+    @keyframes wwSectionGlow {
+      0%,100% { text-shadow:0 2px 2px rgba(0,0,0,.75),0 0 7px rgba(250,204,21,.18); filter:brightness(1); }
+      50% { text-shadow:0 2px 2px rgba(0,0,0,.75),0 0 13px rgba(250,204,21,.58),0 0 25px rgba(245,158,11,.24); filter:brightness(1.12); }
+    }
+    @keyframes wwTitleSweep {
+      0% { background-position:-180% 0; }
+      100% { background-position:180% 0; }
+    }
+    div[data-testid="stMarkdownContainer"] h1,
+    div[data-testid="stMarkdownContainer"] h2,
+    div[data-testid="stMarkdownContainer"] h3 {
+      position:relative;
+      letter-spacing:.25px;
+      animation:wwSectionGlow 3.2s ease-in-out infinite;
+    }
+    div[data-testid="stMarkdownContainer"] h2::after,
+    div[data-testid="stMarkdownContainer"] h3::after {
+      content:"";
+      display:block;
+      width:min(170px,45%);
+      height:3px;
+      margin-top:6px;
+      border-radius:999px;
+      background:linear-gradient(90deg,transparent,rgba(250,204,21,.55),#fde68a,rgba(250,204,21,.55),transparent);
+      background-size:220% 100%;
+      animation:wwTitleSweep 3.4s linear infinite;
+      box-shadow:0 0 9px rgba(250,204,21,.28);
+    }
+    .main-title { animation:none !important; }
+
+    @keyframes wwFooterPulse {
+      0%,100% { box-shadow:0 4px 0 #451a03,0 7px 18px rgba(250,204,21,.16); }
+      50% { box-shadow:0 4px 0 #451a03,0 10px 29px rgba(250,204,21,.42); }
+    }
+    @keyframes wwFooterShine {
+      0% { left:-130%; }
+      48%,100% { left:150%; }
+    }
+
+    /* Detecta os links/botões existentes na área inferior da página */
+    .ww-footer-btn, .footer-button, .footer-btn,
+    div[class*="footer"] a, div[class*="rodape"] a {
+      position:relative !important;
+      overflow:hidden !important;
+      display:inline-flex !important;
+      align-items:center;
+      justify-content:center;
+      isolation:isolate;
+      border:1px solid rgba(253,230,138,.72) !important;
+      border-radius:13px !important;
+      background:linear-gradient(135deg,#78350f,#b45309,#ca8a04) !important;
+      color:#fff7d6 !important;
+      font-weight:900 !important;
+      text-decoration:none !important;
+      text-shadow:0 2px 2px rgba(0,0,0,.55);
+      box-shadow:0 4px 0 #451a03,0 7px 18px rgba(250,204,21,.16);
+      transition:transform .2s ease,filter .2s ease,box-shadow .2s ease !important;
+      animation:wwFooterPulse 3.1s ease-in-out infinite;
+    }
+    .ww-footer-btn::before, .footer-button::before, .footer-btn::before,
+    div[class*="footer"] a::before, div[class*="rodape"] a::before {
+      content:"";
+      position:absolute;
+      top:-40%; left:-130%;
+      width:42%; height:180%;
+      z-index:-1;
+      pointer-events:none;
+      transform:skewX(-20deg);
+      background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);
+      animation:wwFooterShine 4.8s ease-in-out infinite;
+    }
+    .ww-footer-btn:hover, .footer-button:hover, .footer-btn:hover,
+    div[class*="footer"] a:hover, div[class*="rodape"] a:hover {
+      transform:translateY(-4px) scale(1.035) !important;
+      filter:brightness(1.14) saturate(1.1);
+      box-shadow:0 6px 0 #451a03,0 13px 30px rgba(250,204,21,.42) !important;
+    }
+    @media (prefers-reduced-motion:reduce) {
+      div[data-testid="stMarkdownContainer"] h1,
+      div[data-testid="stMarkdownContainer"] h2,
+      div[data-testid="stMarkdownContainer"] h3,
+      div[data-testid="stMarkdownContainer"] h2::after,
+      div[data-testid="stMarkdownContainer"] h3::after,
+      .ww-footer-btn,.footer-button,.footer-btn,
+      div[class*="footer"] a,div[class*="rodape"] a {
+        animation:none !important;
+      }
+    }
+
     /* ABAS */
     button[data-baseweb="tab"] {
         font-size: 1.35rem !important;
@@ -2233,7 +2324,7 @@ else:
 
   # TÍTULO PRINCIPAL
   st.markdown(
-      "<h1 class='main-title'>⚔️ Winning Wars APP ⚔️</h1>",
+      "<h1 class='main-title'>⚔️ Winning Wars APP</h1>",
       unsafe_allow_html=True,
   )
   st.markdown(
