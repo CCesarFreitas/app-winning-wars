@@ -1556,20 +1556,156 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
       ids_ev = df_eventos.get("ID", pd.Series(dtype=str)).astype(str).tolist()
       if ids_ev:
         id_manage = st.selectbox("Gerenciar evento ID", ids_ev, key="ev_manage_id")
+
+        # Localiza a linha pelo ID exclusivamente na primeira coluna.
+        valores_eventos = sheet_eventos.get_all_values()
+        linha_evento = None
+        for numero_linha, valores_linha in enumerate(valores_eventos[1:], start=2):
+          if valores_linha and str(valores_linha[0]).strip() == str(id_manage).strip():
+            linha_evento = numero_linha
+            break
+
+        evento_sel = df_eventos[
+            df_eventos["ID"].astype(str).str.strip() == str(id_manage).strip()
+        ]
+        evento_atual = evento_sel.iloc[0] if not evento_sel.empty else None
+
+        if evento_atual is not None:
+          st.markdown("#### ✏️ Editar evento publicado")
+
+          tipos_evento = [
+              "⚔️ Guerra", "🏆 Liga", "🏰 Raide",
+              "🎮 Jogos do Clã", "🎉 Evento", "📢 Aviso"
+          ]
+          tipo_atual = str(evento_atual.get("Tipo", "🎉 Evento")).strip()
+          indice_tipo = tipos_evento.index(tipo_atual) if tipo_atual in tipos_evento else 4
+
+          try:
+            data_atual_evento = datetime.strptime(
+                str(evento_atual.get("Data", "")).strip(), "%d/%m/%Y"
+            ).date()
+          except (ValueError, TypeError):
+            data_atual_evento = datetime.now().date()
+
+          status_atual = str(evento_atual.get("Status", "Ativo")).strip()
+          status_opcoes = ["Ativo", "Encerrado"]
+          indice_status = (
+              status_opcoes.index(status_atual)
+              if status_atual in status_opcoes else 0
+          )
+
+          with st.form(f"editar_evento_{id_manage}", clear_on_submit=False):
+            ce1, ce2 = st.columns(2)
+            edit_data_ev = ce1.date_input(
+                "Data do evento",
+                value=data_atual_evento,
+                key=f"edit_data_ev_{id_manage}",
+            )
+            edit_tipo_ev = ce2.selectbox(
+                "Tipo do evento",
+                tipos_evento,
+                index=indice_tipo,
+                key=f"edit_tipo_ev_{id_manage}",
+            )
+            edit_titulo_ev = st.text_input(
+                "Título do evento",
+                value=str(evento_atual.get("Titulo", "")),
+                key=f"edit_titulo_ev_{id_manage}",
+            )
+            edit_desc_ev = st.text_area(
+                "Descrição do evento",
+                value=str(evento_atual.get("Descricao", "")),
+                key=f"edit_desc_ev_{id_manage}",
+            )
+            edit_status_ev = st.selectbox(
+                "Status",
+                status_opcoes,
+                index=indice_status,
+                key=f"edit_status_ev_{id_manage}",
+            )
+
+            if st.form_submit_button(
+                "💾 Salvar alterações do evento",
+                use_container_width=True,
+                type="primary",
+            ):
+              if not edit_titulo_ev.strip():
+                st.error("⚠️ O título do evento é obrigatório.")
+              elif linha_evento is None:
+                st.error("⚠️ Não foi possível localizar o evento na planilha.")
+              else:
+                headers_ev = sheet_eventos.row_values(1)
+                dados_atualizados = {
+                    "Data": edit_data_ev.strftime("%d/%m/%Y"),
+                    "Tipo": edit_tipo_ev,
+                    "Titulo": edit_titulo_ev.strip(),
+                    "Descricao": edit_desc_ev.strip(),
+                    "Status": edit_status_ev,
+                    "Autor": st.session_state["admin_logado"],
+                }
+
+                for coluna, valor in dados_atualizados.items():
+                  if coluna in headers_ev:
+                    sheet_eventos.update_cell(
+                        linha_evento, headers_ev.index(coluna) + 1, valor
+                    )
+
+                registrar_log(
+                    st.session_state["admin_logado"],
+                    f"Editou evento ID {id_manage}: '{edit_titulo_ev.strip()}'",
+                )
+                st.cache_data.clear()
+                st.success("✅ Evento atualizado com sucesso!")
+                st.rerun()
+
+        st.markdown("#### ⚙️ Outras ações")
         cenc, cdel = st.columns(2)
-        if cenc.button("✅ Marcar encerrado", use_container_width=True):
-          cell = sheet_eventos.find(id_manage)
+
+        if cenc.button(
+            "✅ Marcar encerrado",
+            use_container_width=True,
+            key=f"encerrar_evento_{id_manage}",
+        ):
           headers_ev = sheet_eventos.row_values(1)
-          if cell and "Status" in headers_ev:
-            sheet_eventos.update_cell(cell.row, headers_ev.index("Status")+1, "Encerrado")
-            registrar_log(st.session_state["admin_logado"], f"Encerrou evento ID {id_manage}")
-            st.cache_data.clear(); st.rerun()
-        if cdel.button("🗑️ Excluir evento", use_container_width=True):
-          cell = sheet_eventos.find(id_manage)
-          if cell:
-            sheet_eventos.delete_rows(cell.row)
-            registrar_log(st.session_state["admin_logado"], f"Excluiu evento ID {id_manage}")
-            st.cache_data.clear(); st.rerun()
+          if linha_evento and "Status" in headers_ev:
+            sheet_eventos.update_cell(
+                linha_evento, headers_ev.index("Status") + 1, "Encerrado"
+            )
+            registrar_log(
+                st.session_state["admin_logado"],
+                f"Encerrou evento ID {id_manage}",
+            )
+            st.cache_data.clear()
+            st.success("✅ Evento marcado como encerrado.")
+            st.rerun()
+
+        with cdel:
+          confirmar_exclusao_evento = st.checkbox(
+              "Confirmar exclusão",
+              key=f"confirmar_exclusao_evento_{id_manage}",
+          )
+          if st.button(
+              "🗑️ Excluir evento",
+              use_container_width=True,
+              key=f"excluir_evento_{id_manage}",
+          ):
+            if not confirmar_exclusao_evento:
+              st.warning("⚠️ Marque 'Confirmar exclusão' antes de excluir.")
+            elif linha_evento is None:
+              st.error("⚠️ Não foi possível localizar o evento na planilha.")
+            else:
+              titulo_excluido = (
+                  str(evento_atual.get("Titulo", ""))
+                  if evento_atual is not None else ""
+              )
+              sheet_eventos.delete_rows(linha_evento)
+              registrar_log(
+                  st.session_state["admin_logado"],
+                  f"Excluiu evento ID {id_manage}: '{titulo_excluido}'",
+              )
+              st.cache_data.clear()
+              st.success("🗑️ Evento excluído com sucesso!")
+              st.rerun()
 
   with comunicacao_tab:
     st.markdown("#### 📢 Publicação avançada")
