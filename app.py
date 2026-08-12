@@ -6,6 +6,7 @@ import random
 import re
 import time
 import requests
+from io import BytesIO
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import gspread
@@ -15,7 +16,15 @@ from pathlib import Path
 import streamlit.components.v1 as components
 from oauth2client.service_account import ServiceAccountCredentials
 
-# Winning Wars v31 - upload direto de imagens + feed aprimorado + horário Brasília.
+try:
+  from PIL import Image, ImageOps
+  PILLOW_DISPONIVEL = True
+except ImportError:
+  Image = None
+  ImageOps = None
+  PILLOW_DISPONIVEL = False
+
+# Winning Wars v32 - upload direto + otimização automática de imagens + feed aprimorado + horário Brasília.
 # Não depende de streamlit-quill/streamlit-quill2.
 # Quando Components V2 estiver disponível, usa um editor contenteditable nativo;
 # caso contrário, há fallback para st.text_area sem derrubar o aplicativo.
@@ -189,6 +198,13 @@ def data_hora_postagem() -> str:
 
 
 # --- UPLOAD DIRETO DE IMAGENS (CLOUDINARY) ---
+# v32: antes do envio, as imagens são redimensionadas e convertidas para WEBP
+# para reduzir armazenamento/tráfego sem perder qualidade visual dos layouts.
+IMAGEM_MAX_DIMENSAO = 1920
+IMAGEM_WEBP_QUALIDADE = 85
+IMAGEM_LIMITE_ENTRADA_MB = 10
+
+
 def cloudinary_configurado() -> bool:
   """Confere se as credenciais do Cloudinary foram cadastradas nos Secrets."""
   return all(
@@ -197,12 +213,82 @@ def cloudinary_configurado() -> bool:
   )
 
 
-def upload_imagem_cloudinary(arquivo, pasta: str = "geral") -> tuple[str, str]:
-  """Envia uma imagem recebida pelo st.file_uploader e devolve (URL, erro).
+def otimizar_imagem_upload(arquivo) -> tuple[bytes, str, str, str]:
+  """Converte o upload para WEBP otimizado.
 
-  A URL retornada é HTTPS permanente do Cloudinary e pode ser gravada diretamente
-  nas colunas ImagemUrl já existentes no Google Sheets.
+  Retorna: (bytes_otimizados, mime_type, nome_arquivo, erro).
+  Corrige orientação EXIF, limita a maior dimensão a 1920 px e remove
+  metadados ao recriar o arquivo.
   """
+  if arquivo is None:
+    return b"", "", "", ""
+
+  if not PILLOW_DISPONIVEL:
+    return b"", "", "", (
+        "A otimização automática precisa da biblioteca Pillow. "
+        "Adicione 'Pillow' ao requirements.txt e reinicie o app."
+    )
+
+  tipos_permitidos = {"image/png", "image/jpeg", "image/webp"}
+  tipo_original = str(getattr(arquivo, "type", "") or "").lower()
+  if tipo_original not in tipos_permitidos:
+    return b"", "", "", "Formato não permitido. Use PNG, JPG/JPEG ou WEBP."
+
+  dados_originais = arquivo.getvalue()
+  limite = IMAGEM_LIMITE_ENTRADA_MB * 1024 * 1024
+  if len(dados_originais) > limite:
+    return b"", "", "", (
+        f"A imagem é maior que {IMAGEM_LIMITE_ENTRADA_MB} MB. "
+        "Escolha uma imagem menor antes de enviar."
+    )
+
+  try:
+    with Image.open(BytesIO(dados_originais)) as img:
+      # Fotos de celular podem vir rotacionadas apenas por metadados EXIF.
+      img = ImageOps.exif_transpose(img)
+
+      largura, altura = img.size
+      if largura <= 0 or altura <= 0:
+        return b"", "", "", "Não foi possível identificar as dimensões da imagem."
+
+      if max(largura, altura) > IMAGEM_MAX_DIMENSAO:
+        escala = IMAGEM_MAX_DIMENSAO / float(max(largura, altura))
+        novo_tamanho = (
+            max(1, int(round(largura * escala))),
+            max(1, int(round(altura * escala))),
+        )
+        try:
+          resample = Image.Resampling.LANCZOS
+        except AttributeError:
+          resample = Image.LANCZOS
+        img = img.resize(novo_tamanho, resample)
+
+      # WEBP aceita transparência; mantém alpha quando existir.
+      tem_alpha = img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info)
+      img = img.convert("RGBA" if tem_alpha else "RGB")
+
+      saida = BytesIO()
+      img.save(
+          saida,
+          format="WEBP",
+          quality=IMAGEM_WEBP_QUALIDADE,
+          method=6,
+          optimize=True,
+      )
+      dados_otimizados = saida.getvalue()
+
+    nome_original = Path(str(getattr(arquivo, "name", "imagem") or "imagem")).stem
+    nome_seguro = re.sub(r"[^a-zA-Z0-9_-]", "-", nome_original).strip("-_") or "imagem"
+    nome_final = f"{nome_seguro}.webp"
+    return dados_otimizados, "image/webp", nome_final, ""
+  except Exception:
+    return b"", "", "", (
+        "Não foi possível processar essa imagem. Tente outro arquivo PNG, JPG ou WEBP."
+    )
+
+
+def upload_imagem_cloudinary(arquivo, pasta: str = "geral") -> tuple[str, str]:
+  """Otimiza e envia uma imagem ao Cloudinary, retornando (URL, erro)."""
   if arquivo is None:
     return "", ""
 
@@ -212,15 +298,11 @@ def upload_imagem_cloudinary(arquivo, pasta: str = "geral") -> tuple[str, str]:
         "cloudinary_api_key e cloudinary_api_secret nos Secrets do Streamlit."
     )
 
-  tipos_permitidos = {"image/png", "image/jpeg", "image/webp"}
-  tipo = str(getattr(arquivo, "type", "") or "").lower()
-  if tipo not in tipos_permitidos:
-    return "", "Formato não permitido. Use PNG, JPG/JPEG ou WEBP."
-
-  dados = arquivo.getvalue()
-  limite = 10 * 1024 * 1024  # 10 MB por imagem
-  if len(dados) > limite:
-    return "", "A imagem é maior que 10 MB. Reduza o arquivo antes de enviar."
+  dados, tipo, nome_arquivo, erro_otimizacao = otimizar_imagem_upload(arquivo)
+  if erro_otimizacao:
+    return "", erro_otimizacao
+  if not dados:
+    return "", "A imagem ficou vazia após o processamento."
 
   cloud_name = str(st.secrets["cloudinary_cloud_name"]).strip()
   api_key = str(st.secrets["cloudinary_api_key"]).strip()
@@ -248,7 +330,7 @@ def upload_imagem_cloudinary(arquivo, pasta: str = "geral") -> tuple[str, str]:
             "signature": assinatura,
         },
         files={
-            "file": (getattr(arquivo, "name", "imagem"), dados, tipo),
+            "file": (nome_arquivo, dados, tipo),
         },
         timeout=45,
     )
@@ -1662,10 +1744,11 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
                 "📷 Foto do Layout",
                 type=["png", "jpg", "jpeg", "webp"],
                 key=f"upload_layout_{tipo_layout}_{cv_nome}_v31",
-                help="Selecione a imagem direto do celular ou computador. Máximo: 10 MB.",
+                help="Selecione a imagem direto do celular ou computador. Máximo: 10 MB. O app redimensiona para até 1920 px e converte automaticamente para WEBP otimizado.",
             )
             if imagem_layout is not None:
               st.image(imagem_layout, caption="Prévia da imagem que será publicada", use_container_width=True)
+              st.caption("⚡ Otimização automática: até 1920 px • WEBP • qualidade 85%")
             img_url = st.text_input(
                 "Ou use um link direto de imagem (opcional)",
                 help="Compatibilidade com layouts antigos. Se uma imagem for selecionada acima, ela terá prioridade.",
@@ -2405,7 +2488,7 @@ def renderizar_feed_novidades(limite=None, titulo="📰 Últimas Novidades"):
             "🖼️ Imagem / banner (opcional)",
             type=["png", "jpg", "jpeg", "webp"],
             key="upload_feed_direto_v31",
-            help="Selecione a imagem direto do celular ou computador. Máximo: 10 MB.",
+            help="Selecione a imagem direto do celular ou computador. Máximo: 10 MB. O app redimensiona para até 1920 px e converte automaticamente para WEBP otimizado.",
         )
         if feed_nova_imagem is not None:
           st.image(feed_nova_imagem, caption="Prévia do banner", use_container_width=True)
@@ -2703,7 +2786,7 @@ def renderizar_pagina_novidades():
             "🖼️ Imagem / Banner (Opcional)",
             type=["png", "jpg", "jpeg", "webp"],
             key="upload_novidade_pagina_v31",
-            help="Selecione a imagem direto do celular ou computador. Máximo: 10 MB.",
+            help="Selecione a imagem direto do celular ou computador. Máximo: 10 MB. O app redimensiona para até 1920 px e converte automaticamente para WEBP otimizado.",
         )
         if noticia_imagem is not None:
           st.image(noticia_imagem, caption="Prévia do banner", use_container_width=True)
@@ -4230,7 +4313,7 @@ else:
               "🖼️ Imagem / Banner (Opcional)",
               type=["png", "jpg", "jpeg", "webp"],
               key="upload_noticia_painel_v31",
-              help="Selecione a imagem direto do celular ou computador. Máximo: 10 MB.",
+              help="Selecione a imagem direto do celular ou computador. Máximo: 10 MB. O app redimensiona para até 1920 px e converte automaticamente para WEBP otimizado.",
           )
           if noticia_imagem_painel is not None:
             st.image(noticia_imagem_painel, caption="Prévia do banner", use_container_width=True)
