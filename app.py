@@ -6,6 +6,7 @@ import random
 import re
 import time
 from datetime import datetime
+from zoneinfo import ZoneInfo
 import gspread
 import pandas as pd
 import streamlit as st
@@ -171,6 +172,19 @@ def verificar_senha(senha: str, hash_armazenado: str) -> bool:
 
 # Obter senha inicial padrao via secrets para evitar exposicao no GitHub
 SENHA_ADMIN_INICIAL = str(st.secrets.get("admin_default_password", "")).strip()
+
+
+# --- HORÁRIO OFICIAL DO APP (BRASÍLIA) ---
+FUSO_WINNING_WARS = ZoneInfo("America/Sao_Paulo")
+
+
+def agora_winning_wars() -> datetime:
+  """Retorna a data/hora oficial do app no fuso de Brasília, independente do servidor."""
+  return datetime.now(FUSO_WINNING_WARS)
+
+
+def data_hora_postagem() -> str:
+  return agora_winning_wars().strftime("%d/%m/%Y %H:%M")
 
 
 # --- CONEXÃO COM O GOOGLE SHEETS ---
@@ -1790,12 +1804,59 @@ def sanitizar_html_feed(html_bruto: str) -> str:
     return tornar_links_clicaveis(str(html_bruto or ""))
 
 
-def conteudo_feed_html(conteudo: str) -> str:
-  """Renderiza posts antigos como texto e posts novos como HTML rico sanitizado."""
+def formatar_texto_colado_feed(conteudo: str) -> str:
+  """Converte texto colado (Markdown simples/HTML seguro) para o HTML exibido no feed.
+
+  Aceita emojis normalmente, **negrito**, *itálico*, __negrito__, _itálico_,
+  ~~tachado~~, links Markdown e HTML seguro como <span style="color:#facc15">.
+  """
+  from html import escape
+
   bruto = str(conteudo or "")
   if _parece_html_rico(bruto):
     return sanitizar_html_feed(bruto)
-  return tornar_links_clicaveis(bruto)
+
+  texto = escape(bruto, quote=False)
+
+  # Links no formato [texto](https://endereco)
+  texto = re.sub(
+      r"\[([^\]\n]+)\]\((https?://[^\s)]+)\)",
+      lambda m: (
+          f'<a href="{escape(m.group(2), quote=True)}" target="_blank" '
+          f'rel="noopener noreferrer">{m.group(1)}</a>'
+      ),
+      texto,
+  )
+
+  # Markdown simples, suficiente para anúncios produzidos no ChatGPT.
+  texto = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", texto)
+  texto = re.sub(r"__(.+?)__", r"<strong>\1</strong>", texto)
+  texto = re.sub(r"~~(.+?)~~", r"<s>\1</s>", texto)
+  texto = re.sub(r"(?<!\*)\*([^*\n]+?)\*(?!\*)", r"<em>\1</em>", texto)
+  texto = re.sub(r"(?<!_)_([^_\n]+?)_(?!_)", r"<em>\1</em>", texto)
+
+  # Torna URLs soltas clicáveis sem mexer em hrefs que já foram criados acima.
+  partes = re.split(r"(<a\b[^>]*>.*?</a>)", texto, flags=re.IGNORECASE | re.DOTALL)
+  url_pattern = re.compile(r"https?://[^\s<]+", re.IGNORECASE)
+  for i in range(0, len(partes), 2):
+    def _link(match):
+      url = match.group(0)
+      final = ""
+      while url and url[-1] in ".,;:!?)]}":
+        final = url[-1] + final
+        url = url[:-1]
+      return (
+          f'<a href="{escape(url, quote=True)}" target="_blank" rel="noopener noreferrer">'
+          f'{url}</a>{final}'
+      )
+    partes[i] = url_pattern.sub(_link, partes[i])
+
+  return "".join(partes).replace("\n", "<br>")
+
+
+def conteudo_feed_html(conteudo: str) -> str:
+  """Renderiza HTML seguro ou formatação simples colada no campo do post."""
+  return formatar_texto_colado_feed(conteudo)
 
 
 def conteudo_para_editor(conteudo: str) -> str:
@@ -2213,6 +2274,70 @@ def renderizar_feed_novidades(limite=None, titulo="📰 Últimas Novidades"):
       unsafe_allow_html=True,
   )
 
+  # v30: administrador publica diretamente no próprio feed, sem abrir o painel.
+  if "admin_logado" in st.session_state:
+    with st.expander("➕ [ADMIN] Publicar direto em Últimas Novidades", expanded=False):
+      st.caption(
+          "Cole o anúncio pronto. Emojis funcionam normalmente; use **texto** para negrito, "
+          "*texto* para itálico e, para cores, HTML seguro como "
+          "<span style=\"color:#facc15\">texto dourado</span>."
+      )
+      with st.form("form_publicar_direto_feed_v30", clear_on_submit=True):
+        feed_novo_titulo = st.text_input("Título da publicação")
+        feed_nova_tag = st.selectbox(
+            "Categoria / Tag",
+            ["🎉 Evento", "⚔️ Torneio", "🚀 Atualização Game", "📢 Aviso Clã", "🏆 Premiação Extra"],
+        )
+        feed_novo_conteudo = st.text_area(
+            "Conteúdo",
+            value="",
+            height=200,
+            key=chave_widget_resetavel("feed_novo_conteudo_v30"),
+            placeholder="Cole aqui o texto do anúncio gerado no ChatGPT...",
+        )
+        feed_nova_img = st.text_input(
+            "Link direto da imagem / banner (opcional)",
+            placeholder="https://...",
+        )
+        feed_novo_link = st.text_input(
+            "Link do botão (opcional)",
+            placeholder="https://...",
+        )
+        feed_fixar = st.checkbox("📌 Fixar no topo")
+        publicar_feed_direto = st.form_submit_button(
+            "📢 POSTAR NO FEED", use_container_width=True, type="primary"
+        )
+
+        if publicar_feed_direto:
+          if not feed_novo_titulo.strip() or not conteudo_editor_tem_texto(feed_novo_conteudo):
+            st.error("⚠️ Preencha o título e o conteúdo antes de publicar.")
+          else:
+            conteudo_salvar = (
+                sanitizar_html_feed(feed_novo_conteudo.strip())
+                if _parece_html_rico(feed_novo_conteudo)
+                else feed_novo_conteudo.strip()
+            )
+            sheet_novidades.append_row([
+                data_hora_postagem(),
+                feed_novo_titulo.strip(),
+                conteudo_salvar,
+                feed_nova_img.strip(),
+                feed_nova_tag,
+                st.session_state["admin_logado"],
+                "SIM" if feed_fixar else "NAO",
+                "",
+                "Ativa",
+                feed_novo_link.strip(),
+            ])
+            registrar_log(
+                st.session_state["admin_logado"],
+                f"Publicou '{feed_novo_titulo.strip()}' diretamente no feed Últimas Novidades",
+            )
+            st.cache_data.clear()
+            resetar_widget("feed_novo_conteudo_v30")
+            st.success("✅ Publicação enviada para o feed!")
+            st.rerun()
+
   if df_novidades.empty:
     st.info("Nenhuma novidade ou notícia publicada no momento.")
     return
@@ -2224,7 +2349,7 @@ def renderizar_feed_novidades(limite=None, titulo="📰 Últimas Novidades"):
     def _valida_expira(v):
       txt = str(v or "").strip()
       if not txt: return True
-      try: return datetime.strptime(txt, "%d/%m/%Y").date() >= datetime.now().date()
+      try: return datetime.strptime(txt, "%d/%m/%Y").date() >= agora_winning_wars().date()
       except Exception: return True
     novidades_feed = novidades_feed[novidades_feed["ExpiraEm"].apply(_valida_expira)]
   if "Fixada" in novidades_feed.columns:
@@ -2312,10 +2437,10 @@ def renderizar_feed_novidades(limite=None, titulo="📰 Últimas Novidades"):
               "Categoria / Tag", tags_news, index=tag_idx_news,
               key=f"feed_news_tag_{item_idx}",
           )
-          edit_feed_conteudo = editor_rico_feed(
-              "Conteúdo",
-              valor=conteudo,
+          edit_feed_conteudo = st.text_area(
+              "Conteúdo", value=conteudo, height=190,
               key=f"feed_news_conteudo_{item_idx}",
+              help="Aceita emojis, **negrito**, *itálico* e HTML seguro para texto colorido.",
           )
           edit_feed_img = st.text_input(
               "Link da imagem / banner", value=img_url,
@@ -2446,10 +2571,13 @@ def renderizar_pagina_novidades():
             "Categoria / Tag",
             ["🎉 Evento", "⚔️ Torneio", "🚀 Atualização Game", "📢 Aviso Clã", "🏆 Premiação Extra"],
         )
-        noticia_conteudo = editor_rico_feed(
+        noticia_conteudo = st.text_area(
             "Conteúdo do Comunicado",
-            valor="",
-            key="nova_novidade_editor_pagina",
+            value="",
+            height=190,
+            key=chave_widget_resetavel("nova_novidade_conteudo_pagina"),
+            help=("Cole o texto pronto aqui. Aceita emojis, **negrito**, *itálico* e HTML seguro "
+                  "como <span style=\"color:#facc15\">texto colorido</span>."),
         )
         noticia_img = st.text_input(
             "Link Direto da Imagem / Banner (Opcional)",
@@ -2459,7 +2587,7 @@ def renderizar_pagina_novidades():
 
         if btn_pub:
           if noticia_titulo.strip() and conteudo_editor_tem_texto(noticia_conteudo):
-            d_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
+            d_hora = data_hora_postagem()
             sheet_novidades.append_row([
                 d_hora,
                 noticia_titulo.strip(),
@@ -2473,7 +2601,7 @@ def renderizar_pagina_novidades():
                 f"Publicou notícia '{noticia_titulo.strip()}' pela página Novidades",
             )
             st.cache_data.clear()
-            resetar_editor_rico("nova_novidade_editor_pagina")
+            resetar_widget("nova_novidade_conteudo_pagina")
             st.success("✅ Notícia publicada com sucesso!")
             st.rerun()
           else:
@@ -2544,10 +2672,10 @@ def renderizar_pagina_novidades():
                 index=tag_index,
                 key=f"edit_tag_{item_idx}",
             )
-            edit_conteudo = editor_rico_feed(
-                "Conteúdo",
-                valor=conteudo,
+            edit_conteudo = st.text_area(
+                "Conteúdo", value=conteudo, height=190,
                 key=f"edit_conteudo_{item_idx}",
+                help="Aceita emojis, **negrito**, *itálico* e HTML seguro para texto colorido.",
             )
             edit_img = st.text_input(
                 "Link da Imagem / Banner", value=img_url,
@@ -2972,16 +3100,16 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
     with st.form("comunicacao_20", clear_on_submit=True):
       titulo_c = st.text_input("Título do comunicado")
       tag_c = st.selectbox("Categoria", ["📢 Aviso Clã", "⚔️ Torneio", "🎉 Evento", "🏆 Premiação Extra", "🚨 Urgente"] )
-      conteudo_c = st.text_area("Conteúdo")
+      conteudo_c = st.text_area("Conteúdo", help="Aceita emojis, **negrito**, *itálico* e HTML seguro para cores.")
       img_c = st.text_input("Imagem (URL, opcional)")
       link_c = st.text_input("Link do botão (opcional)")
       fixada_c = st.checkbox("📌 Fixar no topo")
       usar_exp = st.checkbox("Definir data de expiração")
-      exp_c = st.date_input("Expira em", value=datetime.now().date())
+      exp_c = st.date_input("Expira em", value=agora_winning_wars().date())
       if st.form_submit_button("📣 Publicar comunicado"):
         if titulo_c.strip() and conteudo_c.strip():
           exp_txt = exp_c.strftime("%d/%m/%Y") if usar_exp else ""
-          sheet_novidades.append_row([datetime.now().strftime("%d/%m/%Y %H:%M"), titulo_c.strip(), conteudo_c.strip(), img_c.strip(), tag_c, st.session_state["admin_logado"], "SIM" if fixada_c else "NAO", exp_txt, "Ativa", link_c.strip()])
+          sheet_novidades.append_row([data_hora_postagem(), titulo_c.strip(), conteudo_c.strip(), img_c.strip(), tag_c, st.session_state["admin_logado"], "SIM" if fixada_c else "NAO", exp_txt, "Ativa", link_c.strip()])
           registrar_log(st.session_state["admin_logado"], f"Publicou comunicado avançado '{titulo_c.strip()}'")
           st.cache_data.clear(); st.success("Comunicado publicado!"); st.rerun()
 
@@ -3951,10 +4079,12 @@ else:
               "Categoria / Tag",
               ["🎉 Evento", "⚔️ Torneio", "🚀 Atualização Game", "📢 Aviso Clã", "🏆 Premiação Extra"]
           )
-          noticia_conteudo = editor_rico_feed(
+          noticia_conteudo = st.text_area(
               "Conteúdo do Comunicado",
-              valor="",
-              key="nova_noticia_editor_painel",
+              value="",
+              height=190,
+              key=chave_widget_resetavel("nova_noticia_conteudo_painel"),
+              help="Cole o texto pronto com emojis, **negrito**, *itálico* ou HTML seguro para cores.",
           )
           noticia_img = st.text_input("Link Direto da Imagem / Banner (Opcional)")
 
@@ -3962,7 +4092,7 @@ else:
 
           if btn_pub_noticia:
             if noticia_titulo.strip() and conteudo_editor_tem_texto(noticia_conteudo):
-              d_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
+              d_hora = data_hora_postagem()
               sheet_novidades.append_row([
                   d_hora,
                   noticia_titulo.strip(),
@@ -3976,7 +4106,7 @@ else:
                   f"Publicou notícia '{noticia_titulo}'",
               )
               st.cache_data.clear()
-              resetar_editor_rico("nova_noticia_editor_painel")
+              resetar_widget("nova_noticia_conteudo_painel")
               st.success("✅ Notícia publicada no painel de Novidades!")
               st.rerun()
             else:
