@@ -1448,7 +1448,7 @@ with col_nav:
           '<a'
           ' href="https://link.clashofclans.com/pt?action=OpenClanProfile&tag=2YPL9GU8Y"'
           ' target="_blank" rel="noopener noreferrer"'
-          ' class="top-nav-link nav-clan">🏰 VISITAR CLÃ VASTAYA ↗</a>',
+          ' class="top-nav-link nav-clan">🏰 CLÃ VASTAYA (guerra farm) ↗</a>',
           unsafe_allow_html=True,
       )
 
