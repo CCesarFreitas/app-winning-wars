@@ -5,6 +5,7 @@ import json
 import random
 import re
 import time
+import requests
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import gspread
@@ -14,7 +15,7 @@ from pathlib import Path
 import streamlit.components.v1 as components
 from oauth2client.service_account import ServiceAccountCredentials
 
-# Winning Wars v25 - editor rico nativo + limpeza automática de campos.
+# Winning Wars v31 - upload direto de imagens + feed aprimorado + horário Brasília.
 # Não depende de streamlit-quill/streamlit-quill2.
 # Quando Components V2 estiver disponível, usa um editor contenteditable nativo;
 # caso contrário, há fallback para st.text_area sem derrubar o aplicativo.
@@ -185,6 +186,94 @@ def agora_winning_wars() -> datetime:
 
 def data_hora_postagem() -> str:
   return agora_winning_wars().strftime("%d/%m/%Y %H:%M")
+
+
+# --- UPLOAD DIRETO DE IMAGENS (CLOUDINARY) ---
+def cloudinary_configurado() -> bool:
+  """Confere se as credenciais do Cloudinary foram cadastradas nos Secrets."""
+  return all(
+      str(st.secrets.get(chave, "")).strip()
+      for chave in ("cloudinary_cloud_name", "cloudinary_api_key", "cloudinary_api_secret")
+  )
+
+
+def upload_imagem_cloudinary(arquivo, pasta: str = "geral") -> tuple[str, str]:
+  """Envia uma imagem recebida pelo st.file_uploader e devolve (URL, erro).
+
+  A URL retornada é HTTPS permanente do Cloudinary e pode ser gravada diretamente
+  nas colunas ImagemUrl já existentes no Google Sheets.
+  """
+  if arquivo is None:
+    return "", ""
+
+  if not cloudinary_configurado():
+    return "", (
+        "O upload direto ainda não está configurado. Cadastre cloudinary_cloud_name, "
+        "cloudinary_api_key e cloudinary_api_secret nos Secrets do Streamlit."
+    )
+
+  tipos_permitidos = {"image/png", "image/jpeg", "image/webp"}
+  tipo = str(getattr(arquivo, "type", "") or "").lower()
+  if tipo not in tipos_permitidos:
+    return "", "Formato não permitido. Use PNG, JPG/JPEG ou WEBP."
+
+  dados = arquivo.getvalue()
+  limite = 10 * 1024 * 1024  # 10 MB por imagem
+  if len(dados) > limite:
+    return "", "A imagem é maior que 10 MB. Reduza o arquivo antes de enviar."
+
+  cloud_name = str(st.secrets["cloudinary_cloud_name"]).strip()
+  api_key = str(st.secrets["cloudinary_api_key"]).strip()
+  api_secret = str(st.secrets["cloudinary_api_secret"]).strip()
+
+  pasta_segura = re.sub(r"[^a-zA-Z0-9_\-/]", "-", str(pasta or "geral")).strip("/-")
+  folder = f"winning-wars/{pasta_segura or 'geral'}"
+  timestamp = int(time.time())
+
+  # Assinatura server-side: o api_secret nunca é enviado ao navegador.
+  parametros_assinados = {"folder": folder, "timestamp": timestamp}
+  texto_assinatura = "&".join(
+      f"{chave}={parametros_assinados[chave]}" for chave in sorted(parametros_assinados)
+  ) + api_secret
+  assinatura = hashlib.sha1(texto_assinatura.encode("utf-8")).hexdigest()
+
+  endpoint = f"https://api.cloudinary.com/v1_1/{cloud_name}/image/upload"
+  try:
+    resposta = requests.post(
+        endpoint,
+        data={
+            "api_key": api_key,
+            "timestamp": str(timestamp),
+            "folder": folder,
+            "signature": assinatura,
+        },
+        files={
+            "file": (getattr(arquivo, "name", "imagem"), dados, tipo),
+        },
+        timeout=45,
+    )
+    resposta.raise_for_status()
+    payload = resposta.json()
+    url = str(payload.get("secure_url", "") or "").strip()
+    if not url:
+      return "", "O serviço recebeu a imagem, mas não retornou uma URL válida."
+    return url, ""
+  except requests.RequestException as exc:
+    detalhe = ""
+    try:
+      detalhe = str(exc.response.json().get("error", {}).get("message", "")) if exc.response is not None else ""
+    except Exception:
+      detalhe = ""
+    return "", f"Falha no upload da imagem{': ' + detalhe if detalhe else ''}."
+  except Exception as exc:
+    return "", f"Falha inesperada no upload da imagem ({type(exc).__name__})."
+
+
+def resolver_imagem_upload(arquivo, url_manual: str, pasta: str) -> tuple[str, str]:
+  """Prioriza o arquivo enviado; mantém URL manual como compatibilidade/fallback."""
+  if arquivo is not None:
+    return upload_imagem_cloudinary(arquivo, pasta)
+  return str(url_manual or "").strip(), ""
 
 
 # --- CONEXÃO COM O GOOGLE SHEETS ---
@@ -1569,28 +1658,45 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
               key=f"form_{tipo_layout}_{cv_nome}", clear_on_submit=True
           ):
             link_layout = st.text_input("Link Oficial do Layout (URL)")
-            img_url = st.text_input("Link Direto da Foto (Opcional)")
+            imagem_layout = st.file_uploader(
+                "📷 Foto do Layout",
+                type=["png", "jpg", "jpeg", "webp"],
+                key=f"upload_layout_{tipo_layout}_{cv_nome}_v31",
+                help="Selecione a imagem direto do celular ou computador. Máximo: 10 MB.",
+            )
+            if imagem_layout is not None:
+              st.image(imagem_layout, caption="Prévia da imagem que será publicada", use_container_width=True)
+            img_url = st.text_input(
+                "Ou use um link direto de imagem (opcional)",
+                help="Compatibilidade com layouts antigos. Se uma imagem for selecionada acima, ela terá prioridade.",
+            )
 
             btn_enviar = st.form_submit_button("Publicar Layout")
 
             if btn_enviar:
               if link_layout.strip():
-                sheet_layouts.append_row([
-                    tipo_layout,
-                    cv_nome,
-                    st.session_state["admin_logado"],
-                    link_layout.strip(),
-                    "",
-                    img_url.strip(),
-                    "",
-                ])
-                registrar_log(
-                    st.session_state["admin_logado"],
-                    f"Adicionou layout {tipo_layout} para {cv_nome}",
+                imagem_final, erro_upload = resolver_imagem_upload(
+                    imagem_layout, img_url, f"layouts/{tipo_layout.lower()}/{cv_nome.lower()}"
                 )
-                st.cache_data.clear()
-                st.success("Layout publicado com sucesso!")
-                st.rerun()
+                if erro_upload:
+                  st.error(f"⚠️ {erro_upload}")
+                else:
+                  sheet_layouts.append_row([
+                      tipo_layout,
+                      cv_nome,
+                      st.session_state["admin_logado"],
+                      link_layout.strip(),
+                      "",
+                      imagem_final,
+                      "",
+                  ])
+                  registrar_log(
+                      st.session_state["admin_logado"],
+                      f"Adicionou layout {tipo_layout} para {cv_nome}",
+                  )
+                  st.cache_data.clear()
+                  st.success("✅ Layout publicado com sucesso!")
+                  st.rerun()
               else:
                 st.error("⚠️ Insira o link do layout antes de publicar.")
 
@@ -2295,8 +2401,16 @@ def renderizar_feed_novidades(limite=None, titulo="📰 Últimas Novidades"):
             key=chave_widget_resetavel("feed_novo_conteudo_v30"),
             placeholder="Cole aqui o texto do anúncio gerado no ChatGPT...",
         )
+        feed_nova_imagem = st.file_uploader(
+            "🖼️ Imagem / banner (opcional)",
+            type=["png", "jpg", "jpeg", "webp"],
+            key="upload_feed_direto_v31",
+            help="Selecione a imagem direto do celular ou computador. Máximo: 10 MB.",
+        )
+        if feed_nova_imagem is not None:
+          st.image(feed_nova_imagem, caption="Prévia do banner", use_container_width=True)
         feed_nova_img = st.text_input(
-            "Link direto da imagem / banner (opcional)",
+            "Ou use um link direto de imagem (opcional)",
             placeholder="https://...",
         )
         feed_novo_link = st.text_input(
@@ -2317,11 +2431,17 @@ def renderizar_feed_novidades(limite=None, titulo="📰 Últimas Novidades"):
                 if _parece_html_rico(feed_novo_conteudo)
                 else feed_novo_conteudo.strip()
             )
+            imagem_final, erro_upload = resolver_imagem_upload(
+                feed_nova_imagem, feed_nova_img, "novidades/feed"
+            )
+            if erro_upload:
+              st.error(f"⚠️ {erro_upload}")
+              st.stop()
             sheet_novidades.append_row([
                 data_hora_postagem(),
                 feed_novo_titulo.strip(),
                 conteudo_salvar,
-                feed_nova_img.strip(),
+                imagem_final,
                 feed_nova_tag,
                 st.session_state["admin_logado"],
                 "SIM" if feed_fixar else "NAO",
@@ -2579,8 +2699,16 @@ def renderizar_pagina_novidades():
             help=("Cole o texto pronto aqui. Aceita emojis, **negrito**, *itálico* e HTML seguro "
                   "como <span style=\"color:#facc15\">texto colorido</span>."),
         )
+        noticia_imagem = st.file_uploader(
+            "🖼️ Imagem / Banner (Opcional)",
+            type=["png", "jpg", "jpeg", "webp"],
+            key="upload_novidade_pagina_v31",
+            help="Selecione a imagem direto do celular ou computador. Máximo: 10 MB.",
+        )
+        if noticia_imagem is not None:
+          st.image(noticia_imagem, caption="Prévia do banner", use_container_width=True)
         noticia_img = st.text_input(
-            "Link Direto da Imagem / Banner (Opcional)",
+            "Ou use um link direto da imagem (opcional)",
             placeholder="https://exemplo.com/imagem.jpg",
         )
         btn_pub = st.form_submit_button("📢 Publicar Notícia", use_container_width=True)
@@ -2588,11 +2716,17 @@ def renderizar_pagina_novidades():
         if btn_pub:
           if noticia_titulo.strip() and conteudo_editor_tem_texto(noticia_conteudo):
             d_hora = data_hora_postagem()
+            imagem_final, erro_upload = resolver_imagem_upload(
+                noticia_imagem, noticia_img, "novidades/pagina"
+            )
+            if erro_upload:
+              st.error(f"⚠️ {erro_upload}")
+              st.stop()
             sheet_novidades.append_row([
                 d_hora,
                 noticia_titulo.strip(),
                 sanitizar_html_feed(noticia_conteudo.strip()) if _parece_html_rico(noticia_conteudo) else noticia_conteudo.strip(),
-                noticia_img.strip(),
+                imagem_final,
                 noticia_tag,
                 st.session_state["admin_logado"],
             ])
@@ -3109,7 +3243,13 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
       if st.form_submit_button("📣 Publicar comunicado"):
         if titulo_c.strip() and conteudo_c.strip():
           exp_txt = exp_c.strftime("%d/%m/%Y") if usar_exp else ""
-          sheet_novidades.append_row([data_hora_postagem(), titulo_c.strip(), conteudo_c.strip(), img_c.strip(), tag_c, st.session_state["admin_logado"], "SIM" if fixada_c else "NAO", exp_txt, "Ativa", link_c.strip()])
+          imagem_final, erro_upload = resolver_imagem_upload(
+              imagem_c, img_c, "novidades/comunicados"
+          )
+          if erro_upload:
+            st.error(f"⚠️ {erro_upload}")
+            st.stop()
+          sheet_novidades.append_row([data_hora_postagem(), titulo_c.strip(), conteudo_c.strip(), imagem_final, tag_c, st.session_state["admin_logado"], "SIM" if fixada_c else "NAO", exp_txt, "Ativa", link_c.strip()])
           registrar_log(st.session_state["admin_logado"], f"Publicou comunicado avançado '{titulo_c.strip()}'")
           st.cache_data.clear(); st.success("Comunicado publicado!"); st.rerun()
 
@@ -4086,18 +4226,32 @@ else:
               key=chave_widget_resetavel("nova_noticia_conteudo_painel"),
               help="Cole o texto pronto com emojis, **negrito**, *itálico* ou HTML seguro para cores.",
           )
-          noticia_img = st.text_input("Link Direto da Imagem / Banner (Opcional)")
+          noticia_imagem_painel = st.file_uploader(
+              "🖼️ Imagem / Banner (Opcional)",
+              type=["png", "jpg", "jpeg", "webp"],
+              key="upload_noticia_painel_v31",
+              help="Selecione a imagem direto do celular ou computador. Máximo: 10 MB.",
+          )
+          if noticia_imagem_painel is not None:
+            st.image(noticia_imagem_painel, caption="Prévia do banner", use_container_width=True)
+          noticia_img = st.text_input("Ou use um link direto da imagem (opcional)")
 
           btn_pub_noticia = st.form_submit_button("Publicar Notícia")
 
           if btn_pub_noticia:
             if noticia_titulo.strip() and conteudo_editor_tem_texto(noticia_conteudo):
               d_hora = data_hora_postagem()
+              imagem_final, erro_upload = resolver_imagem_upload(
+                  noticia_imagem_painel, noticia_img, "novidades/painel-admin"
+              )
+              if erro_upload:
+                st.error(f"⚠️ {erro_upload}")
+                st.stop()
               sheet_novidades.append_row([
                   d_hora,
                   noticia_titulo.strip(),
                   sanitizar_html_feed(noticia_conteudo.strip()) if _parece_html_rico(noticia_conteudo) else noticia_conteudo.strip(),
-                  noticia_img.strip(),
+                  imagem_final,
                   noticia_tag,
                   st.session_state["admin_logado"],
               ])
