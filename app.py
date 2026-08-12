@@ -1448,7 +1448,7 @@ with col_nav:
           '<a'
           ' href="https://link.clashofclans.com/pt?action=OpenClanProfile&tag=2YPL9GU8Y"'
           ' target="_blank" rel="noopener noreferrer"'
-          ' class="top-nav-link nav-clan">🏰 CLÃ VASTAYA (guerra farm) ↗</a>',
+          ' class="top-nav-link nav-clan">🏰 VISITAR CLÃ VASTAYA ↗</a>',
           unsafe_allow_html=True,
       )
 
@@ -2375,7 +2375,7 @@ def renderizar_feed_novidades(limite=None, titulo="📰 Últimas Novidades"):
                 st.error("⚠️ Use DD/MM/AAAA no campo de expiração ou deixe-o vazio.")
               else:
                 headers_news = sheet_novidades.row_values(1)
-                atualizacoes_news = {{
+                atualizacoes_news = {
                     "Titulo": edit_feed_titulo.strip(),
                     "Conteudo": sanitizar_html_feed(edit_feed_conteudo.strip()) if _parece_html_rico(edit_feed_conteudo) else edit_feed_conteudo.strip(),
                     "ImagemUrl": edit_feed_img.strip(),
@@ -2385,7 +2385,7 @@ def renderizar_feed_novidades(limite=None, titulo="📰 Últimas Novidades"):
                     "ExpiraEm": expira_limpa,
                     "Status": edit_feed_status,
                     "LinkBotao": edit_feed_link.strip(),
-                }}
+                }
                 for coluna_news, valor_news in atualizacoes_news.items():
                   if coluna_news in headers_news:
                     sheet_novidades.update_cell(
