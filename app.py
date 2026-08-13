@@ -24,7 +24,7 @@ except ImportError:
   ImageOps = None
   PILLOW_DISPONIVEL = False
 
-# Winning Wars v34 - Dark Mode padrão/forçado + upload direto + otimização automática de imagens + feed aprimorado + horário Brasília.
+# Winning Wars v32 - upload direto + otimização automática de imagens + feed aprimorado + horário Brasília.
 # Não depende de streamlit-quill/streamlit-quill2.
 # Quando Components V2 estiver disponível, usa um editor contenteditable nativo;
 # caso contrário, há fallback para st.text_area sem derrubar o aplicativo.
@@ -32,93 +32,6 @@ except ImportError:
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     page_title="Winning Wars APP", page_icon=str(Path(__file__).parent / "static" / "favicon.png"), layout="wide"
-)
-
-# --- WINNING WARS v34: DARK MODE PADRÃO/FORÇADO ---
-# Mantém a identidade visual escura mesmo quando o navegador/Streamlit estiver em tema claro.
-st.markdown(
-    """
-    <style>
-    :root {
-        color-scheme: dark !important;
-    }
-
-    html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"] {
-        background: #0b0e14 !important;
-        color: #e2e8f0 !important;
-    }
-
-    [data-testid="stHeader"] {
-        background: rgba(11, 14, 20, 0.96) !important;
-    }
-
-    [data-testid="stToolbar"],
-    [data-testid="stDecoration"] {
-        background: transparent !important;
-    }
-
-    [data-testid="stSidebar"] > div:first-child {
-        background: #0f172a !important;
-    }
-
-    [data-testid="stAppViewContainer"] .main {
-        background: radial-gradient(circle, #1e293b 0%, #0b0e14 100%) !important;
-    }
-
-    /* Campos nativos do Streamlit permanecem legíveis no modo escuro. */
-    input, textarea, select, [data-baseweb="select"] > div, [data-baseweb="input"] > div {
-        color: #e2e8f0 !important;
-        background-color: #111827 !important;
-    }
-
-    label, p, span, div {
-        -webkit-font-smoothing: antialiased;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-components.html(
-    """
-    <script>
-    (function forceWinningWarsDarkMode() {
-        try {
-            const doc = window.parent.document;
-            const root = doc.documentElement;
-            root.style.colorScheme = "dark";
-            root.setAttribute("data-theme", "dark");
-            root.classList.add("ww-force-dark");
-
-            const body = doc.body;
-            if (body) {
-                body.style.backgroundColor = "#0b0e14";
-                body.style.color = "#e2e8f0";
-            }
-
-            let meta = doc.head.querySelector('meta[name="color-scheme"]');
-            if (!meta) {
-                meta = doc.createElement("meta");
-                meta.name = "color-scheme";
-                doc.head.appendChild(meta);
-            }
-            meta.content = "dark";
-
-            let theme = doc.head.querySelector('meta[name="theme-color"]');
-            if (!theme) {
-                theme = doc.createElement("meta");
-                theme.name = "theme-color";
-                doc.head.appendChild(theme);
-            }
-            theme.content = "#0b0e14";
-        } catch (e) {
-            console.debug("Winning Wars Dark Mode:", e);
-        }
-    })();
-    </script>
-    """,
-    height=0,
-    width=0,
 )
 
 # --- PWA / ÍCONE PARA IPHONE, IPAD E ANDROID ---
