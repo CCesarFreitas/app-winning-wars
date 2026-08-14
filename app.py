@@ -24,7 +24,7 @@ except ImportError:
   ImageOps = None
   PILLOW_DISPONIVEL = False
 
-# Winning Wars v32 - upload direto + otimização automática de imagens + feed aprimorado + horário Brasília.
+# Winning Wars v39 - upload direto + otimização automática de imagens + feed aprimorado + horário Brasília.
 # Não depende de streamlit-quill/streamlit-quill2.
 # Quando Components V2 estiver disponível, usa um editor contenteditable nativo;
 # caso contrário, há fallback para st.text_area sem derrubar o aplicativo.
@@ -198,7 +198,7 @@ def data_hora_postagem() -> str:
 
 
 # --- UPLOAD DIRETO DE IMAGENS (CLOUDINARY) ---
-# v32: antes do envio, as imagens são redimensionadas e convertidas para WEBP
+# v38: antes do envio, as imagens são redimensionadas e convertidas para WEBP
 # para reduzir armazenamento/tráfego sem perder qualidade visual dos layouts.
 IMAGEM_MAX_DIMENSAO = 1920
 IMAGEM_WEBP_QUALIDADE = 85
@@ -719,6 +719,73 @@ except Exception:
 # ESTADO DE NAVEGAÇÃO
 if "pagina_atual" not in st.session_state:
   st.session_state["pagina_atual"] = "principal"
+
+mostrar_atalho_admin_global()
+
+
+# ==============================================================================
+# V39 - CENTRAL ADMINISTRATIVA LATERAL FIXA
+# Menu profissional disponível em qualquer página para administradores logados.
+# ==============================================================================
+def renderizar_menu_admin_lateral():
+  if "admin_logado" not in st.session_state:
+    return
+
+  st.sidebar.markdown(
+      """
+      <div style="
+          padding:12px;
+          border-radius:14px;
+          background:linear-gradient(135deg,#111827,#1e293b);
+          border:1px solid rgba(250,204,21,.35);
+          margin-bottom:12px;">
+          <h3 style="margin:0;color:#facc15;">⚔️ Winning Wars</h3>
+          <strong style="color:#e2e8f0;">Painel Admin</strong>
+      </div>
+      """,
+      unsafe_allow_html=True,
+  )
+
+  st.sidebar.success(
+      f"👤 {st.session_state['admin_logado']}"
+  )
+
+  opcoes_admin = {
+      "🏠 Página Principal": "principal",
+      "🛡️ Layouts Guerra": "layouts_guerra",
+      "🏆 Layouts Rankeada": "layouts_rankeada",
+      "📰 Novidades": "novidades",
+      "📜 Regras do Clã": "regras_cla",
+  }
+
+  st.sidebar.markdown("### 🚀 Navegação Rápida")
+
+  for titulo, pagina in opcoes_admin.items():
+    if st.sidebar.button(titulo, key=f"menu_admin_{pagina}", use_container_width=True):
+      st.session_state["pagina_atual"] = pagina
+      st.rerun()
+
+  st.sidebar.divider()
+
+  if st.sidebar.button(
+      "🔐 Abrir Central Administrativa",
+      key="abrir_central_admin",
+      use_container_width=True
+  ):
+    st.session_state["pagina_atual"] = "principal"
+    st.session_state["abrir_admin_global"] = True
+    st.rerun()
+
+  if st.sidebar.button(
+      "🚪 Encerrar Sessão Admin",
+      key="logout_admin",
+      use_container_width=True
+  ):
+    st.session_state.pop("admin_logado", None)
+    st.rerun()
+
+
+renderizar_menu_admin_lateral()
 
 df_layouts = pd.DataFrame(obter_layouts_cached())
 df_fama = pd.DataFrame(obter_galeria_cached())
@@ -1722,6 +1789,21 @@ def remover_layouts_antigos(dias=30):
     return 0
 
 
+
+# ==============================================================================
+# V39 - ATALHO ADMIN GLOBAL
+# Permite abrir o painel administrativo de qualquer página sem voltar ao início.
+# ==============================================================================
+def mostrar_atalho_admin_global():
+  if "admin_logado" in st.session_state:
+    with st.container():
+      col1, col2 = st.columns([4, 1])
+      with col2:
+        if st.button("🔐 Admin", key="admin_global_btn", use_container_width=True):
+          st.session_state["pagina_atual"] = "principal"
+          st.session_state["abrir_admin_global"] = True
+          st.rerun()
+
 # ==============================================================================
 # FUNÇÃO PARA RENDERIZAR PÁGINAS DE LAYOUT
 # ==============================================================================
@@ -1805,16 +1887,24 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
                 if erro_upload:
                   st.error(f"⚠️ {erro_upload}")
                 else:
-                  sheet_layouts.append_row([
-                      tipo_layout,
-                      cv_nome,
-                      st.session_state["admin_logado"],
-                      link_layout.strip(),
-                      "",
-                      imagem_final,
-                      "",
-                      data_hora_postagem(),
-                  ])
+                  # v38: gravação por nome de coluna para evitar deslocamento
+                  # quando novas colunas forem adicionadas na aba Layouts.
+                  novo_layout = {
+                      "Tipo": tipo_layout,
+                      "CV": cv_nome,
+                      "Autor": st.session_state["admin_logado"],
+                      "Link": link_layout.strip(),
+                      "Descricao": "",
+                      "ImagemUrl": imagem_final,
+                      "Tag": "",
+                      "DataHora": data_hora_postagem(),
+                  }
+                  cabecalho_layouts = sheet_layouts.row_values(1)
+                  linha_layout = [
+                      novo_layout.get(coluna, "")
+                      for coluna in cabecalho_layouts
+                  ]
+                  sheet_layouts.append_row(linha_layout)
                   registrar_log(
                       st.session_state["admin_logado"],
                       f"Adicionou layout {tipo_layout} para {cv_nome}",
