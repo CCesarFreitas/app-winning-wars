@@ -24,7 +24,7 @@ except ImportError:
   ImageOps = None
   PILLOW_DISPONIVEL = False
 
-# Winning Wars v42 - upload direto + otimização automática de imagens + feed aprimorado + horário Brasília.
+# Winning Wars v43 - upload direto + otimização automática de imagens + feed aprimorado + horário Brasília.
 # Não depende de streamlit-quill/streamlit-quill2.
 # Quando Components V2 estiver disponível, usa um editor contenteditable nativo;
 # caso contrário, há fallback para st.text_area sem derrubar o aplicativo.
@@ -723,7 +723,7 @@ if "pagina_atual" not in st.session_state:
 
 
 # ==============================================================================
-# V42 - CENTRAL ADMINISTRATIVA LATERAL FIXA
+# V43 - CENTRAL ADMINISTRATIVA LATERAL FIXA
 # Menu profissional disponível em qualquer página para administradores logados.
 # ==============================================================================
 def renderizar_menu_admin_lateral():
@@ -1790,12 +1790,8 @@ def remover_layouts_antigos(dias=30):
 
 
 
-# V42: ativa recursos administrativos somente após todas as funções existirem
-mostrar_atalho_admin_global()
-renderizar_menu_admin_lateral()
-
 # ==============================================================================
-# V42 - ATALHO ADMIN GLOBAL
+# V43 - ATALHO ADMIN GLOBAL
 # Permite abrir o painel administrativo de qualquer página sem voltar ao início.
 # ==============================================================================
 def mostrar_atalho_admin_global():
@@ -1811,6 +1807,12 @@ def mostrar_atalho_admin_global():
 # ==============================================================================
 # FUNÇÃO PARA RENDERIZAR PÁGINAS DE LAYOUT
 # ==============================================================================
+
+# V43: inicialização do painel administrativo após todas as funções carregadas
+mostrar_atalho_admin_global()
+renderizar_menu_admin_lateral()
+
+
 def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
   if st.button("⬅️ Voltar ao Início"):
     st.session_state["pagina_atual"] = "principal"
