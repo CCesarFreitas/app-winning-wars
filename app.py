@@ -24,7 +24,7 @@ except ImportError:
   ImageOps = None
   PILLOW_DISPONIVEL = False
 
-# Winning Wars v41 - upload direto + otimização automática de imagens + feed aprimorado + horário Brasília.
+# Winning Wars v42 - upload direto + otimização automática de imagens + feed aprimorado + horário Brasília.
 # Não depende de streamlit-quill/streamlit-quill2.
 # Quando Components V2 estiver disponível, usa um editor contenteditable nativo;
 # caso contrário, há fallback para st.text_area sem derrubar o aplicativo.
@@ -723,7 +723,7 @@ if "pagina_atual" not in st.session_state:
 
 
 # ==============================================================================
-# V41 - CENTRAL ADMINISTRATIVA LATERAL FIXA
+# V42 - CENTRAL ADMINISTRATIVA LATERAL FIXA
 # Menu profissional disponível em qualquer página para administradores logados.
 # ==============================================================================
 def renderizar_menu_admin_lateral():
@@ -792,10 +792,6 @@ df_eventos = pd.DataFrame(obter_eventos_cached())
 
 
 # --- FUNÇÃO AUXILIAR PARA DETERMINAR A PRÓXIMA COLUNA SEQUENCIAL ---
-
-# V41: inicialização dos atalhos admin após carregamento das funções
-mostrar_atalho_admin_global()
-renderizar_menu_admin_lateral()
 
 def obter_proxima_coluna_sequencial(col_prefixo: str, df_cols) -> str:
   max_num = 0
@@ -1792,8 +1788,14 @@ def remover_layouts_antigos(dias=30):
 
 
 
+
+
+# V42: ativa recursos administrativos somente após todas as funções existirem
+mostrar_atalho_admin_global()
+renderizar_menu_admin_lateral()
+
 # ==============================================================================
-# V41 - ATALHO ADMIN GLOBAL
+# V42 - ATALHO ADMIN GLOBAL
 # Permite abrir o painel administrativo de qualquer página sem voltar ao início.
 # ==============================================================================
 def mostrar_atalho_admin_global():
