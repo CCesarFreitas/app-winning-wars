@@ -24,7 +24,7 @@ except ImportError:
   ImageOps = None
   PILLOW_DISPONIVEL = False
 
-# Winning Wars v43 - upload direto + otimização automática de imagens + feed aprimorado + horário Brasília.
+# Winning Wars v38 - upload direto + otimização automática de imagens + feed aprimorado + horário Brasília.
 # Não depende de streamlit-quill/streamlit-quill2.
 # Quando Components V2 estiver disponível, usa um editor contenteditable nativo;
 # caso contrário, há fallback para st.text_area sem derrubar o aplicativo.
@@ -720,69 +720,7 @@ except Exception:
 if "pagina_atual" not in st.session_state:
   st.session_state["pagina_atual"] = "principal"
 
-
-
-# ==============================================================================
-# V43 - CENTRAL ADMINISTRATIVA LATERAL FIXA
-# Menu profissional disponível em qualquer página para administradores logados.
-# ==============================================================================
-def renderizar_menu_admin_lateral():
-  if "admin_logado" not in st.session_state:
-    return
-
-  st.sidebar.markdown(
-      """
-      <div style="
-          padding:12px;
-          border-radius:14px;
-          background:linear-gradient(135deg,#111827,#1e293b);
-          border:1px solid rgba(250,204,21,.35);
-          margin-bottom:12px;">
-          <h3 style="margin:0;color:#facc15;">⚔️ Winning Wars</h3>
-          <strong style="color:#e2e8f0;">Painel Admin</strong>
-      </div>
-      """,
-      unsafe_allow_html=True,
-  )
-
-  st.sidebar.success(
-      f"👤 {st.session_state['admin_logado']}"
-  )
-
-  opcoes_admin = {
-      "🏠 Página Principal": "principal",
-      "🛡️ Layouts Guerra": "layouts_guerra",
-      "🏆 Layouts Rankeada": "layouts_rankeada",
-      "📰 Novidades": "novidades",
-      "📜 Regras do Clã": "regras_cla",
-  }
-
-  st.sidebar.markdown("### 🚀 Navegação Rápida")
-
-  for titulo, pagina in opcoes_admin.items():
-    if st.sidebar.button(titulo, key=f"menu_admin_{pagina}", use_container_width=True):
-      st.session_state["pagina_atual"] = pagina
-      st.rerun()
-
-  st.sidebar.divider()
-
-  if st.sidebar.button(
-      "🔐 Abrir Central Administrativa",
-      key="abrir_central_admin",
-      use_container_width=True
-  ):
-    st.session_state["pagina_atual"] = "principal"
-    st.session_state["abrir_admin_global"] = True
-    st.rerun()
-
-  if st.sidebar.button(
-      "🚪 Encerrar Sessão Admin",
-      key="logout_admin",
-      use_container_width=True
-  ):
-    st.session_state.pop("admin_logado", None)
-    st.rerun()
-
+mostrar_atalho_admin_global()
 
 df_layouts = pd.DataFrame(obter_layouts_cached())
 df_fama = pd.DataFrame(obter_galeria_cached())
@@ -792,7 +730,6 @@ df_eventos = pd.DataFrame(obter_eventos_cached())
 
 
 # --- FUNÇÃO AUXILIAR PARA DETERMINAR A PRÓXIMA COLUNA SEQUENCIAL ---
-
 def obter_proxima_coluna_sequencial(col_prefixo: str, df_cols) -> str:
   max_num = 0
   pattern = re.compile(rf"^{col_prefixo}_(\d+)$", re.IGNORECASE)
@@ -1788,10 +1725,8 @@ def remover_layouts_antigos(dias=30):
 
 
 
-
-
 # ==============================================================================
-# V43 - ATALHO ADMIN GLOBAL
+# V38 - ATALHO ADMIN GLOBAL
 # Permite abrir o painel administrativo de qualquer página sem voltar ao início.
 # ==============================================================================
 def mostrar_atalho_admin_global():
@@ -1807,12 +1742,6 @@ def mostrar_atalho_admin_global():
 # ==============================================================================
 # FUNÇÃO PARA RENDERIZAR PÁGINAS DE LAYOUT
 # ==============================================================================
-
-# V43: inicialização do painel administrativo após todas as funções carregadas
-mostrar_atalho_admin_global()
-renderizar_menu_admin_lateral()
-
-
 def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
   if st.button("⬅️ Voltar ao Início"):
     st.session_state["pagina_atual"] = "principal"
