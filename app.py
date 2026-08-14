@@ -407,8 +407,17 @@ def conectar_banco():
         title="Layouts", rows="500", cols="7"
     )
     sheet_layouts.append_row(
-        ["Tipo", "CV", "Autor", "Link", "Descricao", "ImagemUrl", "Tag"]
+        ["Tipo", "CV", "Autor", "Link", "Descricao", "ImagemUrl", "Tag", "DataHora"]
     )
+
+  # Migração suave dos layouts: adiciona data de publicação para controle de validade
+  try:
+    headers_layouts = sheet_layouts.row_values(1)
+    if "DataHora" not in headers_layouts:
+      sheet_layouts.resize(cols=max(8, len(headers_layouts) + 1))
+      sheet_layouts.update_cell(1, len(headers_layouts) + 1, "DataHora")
+  except Exception:
+    pass
 
   # Aba de Logs
   try:
@@ -1692,6 +1701,27 @@ with col_admin_top:
 st.write("---")
 
 
+def remover_layouts_antigos(dias=30):
+  """Remove layouts antigos baseado na data de publicação."""
+  removidos = 0
+  try:
+    valores = sheet_layouts.get_all_records()
+    hoje = agora_winning_wars()
+    for idx, item in enumerate(valores[::-1], start=2):
+      data = str(item.get("DataHora", "")).strip()
+      try:
+        publicado = datetime.strptime(data, "%d/%m/%Y %H:%M").replace(tzinfo=FUSO_WINNING_WARS)
+      except Exception:
+        continue
+      if (hoje - publicado).days >= dias:
+        row_num = len(valores) + 1 - idx + 2
+        sheet_layouts.delete_rows(row_num)
+        removidos += 1
+    return removidos
+  except Exception:
+    return 0
+
+
 # ==============================================================================
 # FUNÇÃO PARA RENDERIZAR PÁGINAS DE LAYOUT
 # ==============================================================================
@@ -1704,6 +1734,17 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
       f"<h1 style='text-align: center;'>{titulo}</h1>", unsafe_allow_html=True
   )
   eh_admin = "admin_logado" in st.session_state
+
+  if eh_admin:
+    with st.expander("🧹 Manutenção de Layouts (Admin)"):
+      st.caption("Remove layouts antigos para manter a biblioteca atualizada.")
+      if st.button("🗑️ Excluir layouts com mais de 30 dias", use_container_width=True):
+        exigir_backup_automatico("Limpeza automática de layouts antigos", [("Layouts", sheet_layouts)])
+        qtd = remover_layouts_antigos(30)
+        registrar_log(st.session_state["admin_logado"], f"Removeu {qtd} layouts com mais de 30 dias")
+        st.cache_data.clear()
+        st.success(f"{qtd} layout(s) antigo(s) removido(s).")
+        st.rerun()
 
   cv_map = {
       "CV 18": "https://i.ibb.co/fGLhwj76/Town-Hall18.webp",
@@ -1772,6 +1813,7 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
                       "",
                       imagem_final,
                       "",
+                      data_hora_postagem(),
                   ])
                   registrar_log(
                       st.session_state["admin_logado"],
