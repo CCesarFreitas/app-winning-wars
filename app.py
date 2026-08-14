@@ -407,10 +407,10 @@ def conectar_banco():
         title="Layouts", rows="500", cols="7"
     )
     sheet_layouts.append_row(
-        ["Tipo", "CV", "Autor", "Link", "Descricao", "ImagemUrl", "Tag", "DataHora"]
+        ["Tipo", "CV", "Autor", "Link", "Descricao", "ImagemUrl", "DataHora", "Tag"]
     )
 
-  # v37 - migração segura: adiciona data de publicação dos layouts
+  # v38 - migração segura: adiciona data de publicação dos layouts
   try:
     headers_layouts = sheet_layouts.row_values(1)
     if "DataHora" not in headers_layouts:
@@ -1783,16 +1783,26 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
                 if erro_upload:
                   st.error(f"⚠️ {erro_upload}")
                 else:
-                  sheet_layouts.append_row([
-                      tipo_layout,
-                      cv_nome,
-                      st.session_state["admin_logado"],
-                      link_layout.strip(),
-                      "",
-                      imagem_final,
-                      "",
-                      data_hora_postagem(),
-                  ])
+                  # v38: gravação dos layouts baseada no cabeçalho real da planilha.
+                  # Evita deslocar DataHora caso novas colunas sejam adicionadas.
+                  novo_layout = {
+                      "Tipo": tipo_layout,
+                      "CV": cv_nome,
+                      "Autor": st.session_state["admin_logado"],
+                      "Link": link_layout.strip(),
+                      "Descricao": "",
+                      "ImagemUrl": imagem_final,
+                      "Tag": "",
+                      "DataHora": data_hora_postagem(),
+                  }
+
+                  cabecalho_layouts = sheet_layouts.row_values(1)
+                  linha_layout = [
+                      novo_layout.get(coluna, "")
+                      for coluna in cabecalho_layouts
+                  ]
+
+                  sheet_layouts.append_row(linha_layout)
                   registrar_log(
                       st.session_state["admin_logado"],
                       f"Adicionou layout {tipo_layout} para {cv_nome}",
