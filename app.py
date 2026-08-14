@@ -24,7 +24,7 @@ except ImportError:
   ImageOps = None
   PILLOW_DISPONIVEL = False
 
-# Winning Wars v38 - upload direto + otimização automática de imagens + feed aprimorado + horário Brasília.
+# Winning Wars v32 - upload direto + otimização automática de imagens + feed aprimorado + horário Brasília.
 # Não depende de streamlit-quill/streamlit-quill2.
 # Quando Components V2 estiver disponível, usa um editor contenteditable nativo;
 # caso contrário, há fallback para st.text_area sem derrubar o aplicativo.
@@ -198,7 +198,7 @@ def data_hora_postagem() -> str:
 
 
 # --- UPLOAD DIRETO DE IMAGENS (CLOUDINARY) ---
-# v38: antes do envio, as imagens são redimensionadas e convertidas para WEBP
+# v32: antes do envio, as imagens são redimensionadas e convertidas para WEBP
 # para reduzir armazenamento/tráfego sem perder qualidade visual dos layouts.
 IMAGEM_MAX_DIMENSAO = 1920
 IMAGEM_WEBP_QUALIDADE = 85
@@ -407,17 +407,8 @@ def conectar_banco():
         title="Layouts", rows="500", cols="7"
     )
     sheet_layouts.append_row(
-        ["Tipo", "CV", "Autor", "Link", "Descricao", "ImagemUrl", "Tag", "DataHora"]
+        ["Tipo", "CV", "Autor", "Link", "Descricao", "ImagemUrl", "Tag"]
     )
-
-  # Migração suave dos layouts: adiciona data de publicação para controle de validade
-  try:
-    headers_layouts = sheet_layouts.row_values(1)
-    if "DataHora" not in headers_layouts:
-      sheet_layouts.resize(cols=max(8, len(headers_layouts) + 1))
-      sheet_layouts.update_cell(1, len(headers_layouts) + 1, "DataHora")
-  except Exception:
-    pass
 
   # Aba de Logs
   try:
@@ -719,8 +710,6 @@ except Exception:
 # ESTADO DE NAVEGAÇÃO
 if "pagina_atual" not in st.session_state:
   st.session_state["pagina_atual"] = "principal"
-
-mostrar_atalho_admin_global()
 
 df_layouts = pd.DataFrame(obter_layouts_cached())
 df_fama = pd.DataFrame(obter_galeria_cached())
@@ -1703,42 +1692,6 @@ with col_admin_top:
 st.write("---")
 
 
-def remover_layouts_antigos(dias=30):
-  """Remove layouts antigos baseado na data de publicação."""
-  removidos = 0
-  try:
-    valores = sheet_layouts.get_all_records()
-    hoje = agora_winning_wars()
-    for idx, item in enumerate(valores[::-1], start=2):
-      data = str(item.get("DataHora", "")).strip()
-      try:
-        publicado = datetime.strptime(data, "%d/%m/%Y %H:%M").replace(tzinfo=FUSO_WINNING_WARS)
-      except Exception:
-        continue
-      if (hoje - publicado).days >= dias:
-        row_num = len(valores) + 1 - idx + 2
-        sheet_layouts.delete_rows(row_num)
-        removidos += 1
-    return removidos
-  except Exception:
-    return 0
-
-
-
-# ==============================================================================
-# V38 - ATALHO ADMIN GLOBAL
-# Permite abrir o painel administrativo de qualquer página sem voltar ao início.
-# ==============================================================================
-def mostrar_atalho_admin_global():
-  if "admin_logado" in st.session_state:
-    with st.container():
-      col1, col2 = st.columns([4, 1])
-      with col2:
-        if st.button("🔐 Admin", key="admin_global_btn", use_container_width=True):
-          st.session_state["pagina_atual"] = "principal"
-          st.session_state["abrir_admin_global"] = True
-          st.rerun()
-
 # ==============================================================================
 # FUNÇÃO PARA RENDERIZAR PÁGINAS DE LAYOUT
 # ==============================================================================
@@ -1751,17 +1704,6 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
       f"<h1 style='text-align: center;'>{titulo}</h1>", unsafe_allow_html=True
   )
   eh_admin = "admin_logado" in st.session_state
-
-  if eh_admin:
-    with st.expander("🧹 Manutenção de Layouts (Admin)"):
-      st.caption("Remove layouts antigos para manter a biblioteca atualizada.")
-      if st.button("🗑️ Excluir layouts com mais de 30 dias", use_container_width=True):
-        exigir_backup_automatico("Limpeza automática de layouts antigos", [("Layouts", sheet_layouts)])
-        qtd = remover_layouts_antigos(30)
-        registrar_log(st.session_state["admin_logado"], f"Removeu {qtd} layouts com mais de 30 dias")
-        st.cache_data.clear()
-        st.success(f"{qtd} layout(s) antigo(s) removido(s).")
-        st.rerun()
 
   cv_map = {
       "CV 18": "https://i.ibb.co/fGLhwj76/Town-Hall18.webp",
@@ -1822,24 +1764,15 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
                 if erro_upload:
                   st.error(f"⚠️ {erro_upload}")
                 else:
-                  # v38: gravação por nome de coluna para evitar deslocamento
-                  # quando novas colunas forem adicionadas na aba Layouts.
-                  novo_layout = {
-                      "Tipo": tipo_layout,
-                      "CV": cv_nome,
-                      "Autor": st.session_state["admin_logado"],
-                      "Link": link_layout.strip(),
-                      "Descricao": "",
-                      "ImagemUrl": imagem_final,
-                      "Tag": "",
-                      "DataHora": data_hora_postagem(),
-                  }
-                  cabecalho_layouts = sheet_layouts.row_values(1)
-                  linha_layout = [
-                      novo_layout.get(coluna, "")
-                      for coluna in cabecalho_layouts
-                  ]
-                  sheet_layouts.append_row(linha_layout)
+                  sheet_layouts.append_row([
+                      tipo_layout,
+                      cv_nome,
+                      st.session_state["admin_logado"],
+                      link_layout.strip(),
+                      "",
+                      imagem_final,
+                      "",
+                  ])
                   registrar_log(
                       st.session_state["admin_logado"],
                       f"Adicionou layout {tipo_layout} para {cv_nome}",
