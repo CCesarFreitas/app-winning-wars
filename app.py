@@ -24,7 +24,7 @@ except ImportError:
   ImageOps = None
   PILLOW_DISPONIVEL = False
 
-# Winning Wars v32 - upload direto + otimização automática de imagens + feed aprimorado + horário Brasília.
+# Winning Wars v37 - limpeza de layouts antigos - upload direto + otimização automática de imagens + feed aprimorado + horário Brasília.
 # Não depende de streamlit-quill/streamlit-quill2.
 # Quando Components V2 estiver disponível, usa um editor contenteditable nativo;
 # caso contrário, há fallback para st.text_area sem derrubar o aplicativo.
@@ -407,8 +407,17 @@ def conectar_banco():
         title="Layouts", rows="500", cols="7"
     )
     sheet_layouts.append_row(
-        ["Tipo", "CV", "Autor", "Link", "Descricao", "ImagemUrl", "Tag"]
+        ["Tipo", "CV", "Autor", "Link", "Descricao", "ImagemUrl", "Tag", "DataHora"]
     )
+
+  # v37 - migração segura: adiciona data de publicação dos layouts
+  try:
+    headers_layouts = sheet_layouts.row_values(1)
+    if "DataHora" not in headers_layouts:
+      sheet_layouts.add_cols(1) if len(headers_layouts) >= sheet_layouts.col_count else None
+      sheet_layouts.update_cell(1, len(headers_layouts) + 1, "DataHora")
+  except Exception:
+    pass
 
   # Aba de Logs
   try:
@@ -1733,6 +1742,16 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
       )
 
       if eh_admin:
+        with st.expander("🧹 Manutenção de Layouts (Admin)"):
+          st.caption("Remove layouts publicados há mais de 30 dias.")
+          if st.button("🗑️ Excluir layouts com mais de 30 dias", key=f"limpar_layouts_{tipo_layout}"):
+            exigir_backup_automatico("Limpeza de layouts antigos", [("Layouts", sheet_layouts)])
+            qtd = excluir_layouts_antigos_dias(30)
+            registrar_log(st.session_state["admin_logado"], f"Removeu {qtd} layouts antigos (+30 dias)")
+            st.cache_data.clear()
+            st.success(f"{qtd} layouts antigos removidos.")
+            st.rerun()
+
         with st.expander(
             f"➕ [ADMIN] Adicionar Novo Layout de {tipo_layout} ({cv_nome})"
         ):
@@ -1772,6 +1791,7 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
                       "",
                       imagem_final,
                       "",
+                      data_hora_postagem(),
                   ])
                   registrar_log(
                       st.session_state["admin_logado"],
@@ -2871,6 +2891,16 @@ def renderizar_pagina_novidades():
 
       # EDIÇÃO/EXCLUSÃO DIRETAMENTE NO CARD PARA ADMINS
       if eh_admin:
+        with st.expander("🧹 Manutenção de Layouts (Admin)"):
+          st.caption("Remove layouts publicados há mais de 30 dias.")
+          if st.button("🗑️ Excluir layouts com mais de 30 dias", key=f"limpar_layouts_{tipo_layout}"):
+            exigir_backup_automatico("Limpeza de layouts antigos", [("Layouts", sheet_layouts)])
+            qtd = excluir_layouts_antigos_dias(30)
+            registrar_log(st.session_state["admin_logado"], f"Removeu {qtd} layouts antigos (+30 dias)")
+            st.cache_data.clear()
+            st.success(f"{qtd} layouts antigos removidos.")
+            st.rerun()
+
         with st.expander(f"⚙️ [ADMIN] Gerenciar: {titulo or 'Sem título'}", expanded=False):
           with st.form(f"form_editar_novidade_{item_idx}", clear_on_submit=False):
             edit_titulo = st.text_input(
