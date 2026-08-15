@@ -24,7 +24,7 @@ except ImportError:
   ImageOps = None
   PILLOW_DISPONIVEL = False
 
-# Winning Wars v37 - limpeza de layouts antigos - upload direto + otimização automática de imagens + feed aprimorado + horário Brasília.
+# Winning Wars v37 - correção de quota do Google Sheets no Lançamento Rápido + otimizações anteriores.
 # Não depende de streamlit-quill/streamlit-quill2.
 # Quando Components V2 estiver disponível, usa um editor contenteditable nativo;
 # caso contrário, há fallback para st.text_area sem derrubar o aplicativo.
@@ -3152,28 +3152,128 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
       edit = st.data_editor(base, hide_index=True, use_container_width=True, disabled=["Nome"], key=f"quick_{atividade}")
       motivo = st.text_input("Motivo/observação (opcional)", key=chave_widget_resetavel("quick_motivo"))
       if st.button("💾 Salvar somente alterações", type="primary", use_container_width=True):
-        alteracoes = 0
-        headers = sheet_dados.row_values(1)
-        col_num = headers.index(atividade) + 1
+        # v37: salva as pontuações em lote para evitar estouro da quota da API
+        # do Google Sheets. A versão anterior fazia find + update_cell + auditoria
+        # + log para cada jogador alterado, multiplicando o número de requisições.
+        alteracoes_pendentes = []
         for idx, row_edit in edit.iterrows():
           antes = int(base.iloc[idx][atividade])
           depois = int(row_edit[atividade])
           if antes != depois:
-            nome_j = str(row_edit["Nome"])
-            cell_nome = sheet_dados.find(nome_j)
-            if cell_nome:
-              sheet_dados.update_cell(cell_nome.row, col_num, depois)
-              registrar_auditoria_ponto(nome_j, atividade, antes, depois, motivo)
-              registrar_log(st.session_state["admin_logado"], f"Alterou {nome_j} - {atividade}: {antes} → {depois}")
-              alteracoes += 1
-        if alteracoes:
-          snapshot_ranking_atual("alteracao", f"Lançamento rápido: {atividade}")
-          st.cache_data.clear()
-          resetar_widget("quick_motivo")
-          st.success(f"✅ {alteracoes} alteração(ões) salva(s).")
-          st.rerun()
-        else:
+            alteracoes_pendentes.append((str(row_edit["Nome"]), antes, depois))
+
+        if not alteracoes_pendentes:
           st.info("Nenhuma pontuação foi alterada.")
+        else:
+          try:
+            # Uma única leitura serve para descobrir cabeçalhos e linhas.
+            valores_planilha = sheet_dados.get_all_values()
+            if not valores_planilha:
+              st.error("⚠️ A planilha de dados está vazia.")
+              return
+
+            headers = valores_planilha[0]
+            if atividade not in headers:
+              st.error(f"⚠️ A atividade '{atividade}' não foi encontrada na planilha.")
+              return
+
+            col_num = headers.index(atividade) + 1
+            try:
+              nome_col_num = headers.index("Nome") + 1
+            except ValueError:
+              st.error("⚠️ A coluna 'Nome' não foi encontrada na planilha.")
+              return
+
+            # Mantém o mesmo comportamento do antigo sheet_dados.find():
+            # quando houver nome repetido, considera a primeira ocorrência.
+            linha_por_nome = {}
+            for numero_linha, linha in enumerate(valores_planilha[1:], start=2):
+              if len(linha) >= nome_col_num:
+                nome_planilha = str(linha[nome_col_num - 1]).strip()
+                if nome_planilha and nome_planilha not in linha_por_nome:
+                  linha_por_nome[nome_planilha] = numero_linha
+
+            atualizacoes = []
+            auditorias = []
+            logs = []
+            agora_lote = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            admin_lote = st.session_state.get("admin_logado", "sistema")
+            ignorados = []
+
+            for nome_j, antes, depois in alteracoes_pendentes:
+              numero_linha = linha_por_nome.get(nome_j.strip())
+              if not numero_linha:
+                ignorados.append(nome_j)
+                continue
+
+              celula_a1 = gspread.utils.rowcol_to_a1(numero_linha, col_num)
+              atualizacoes.append({"range": celula_a1, "values": [[depois]]})
+              auditorias.append([
+                  agora_lote, admin_lote, nome_j, atividade,
+                  antes, depois, motivo,
+              ])
+              logs.append([
+                  agora_lote,
+                  admin_lote,
+                  f"Alterou {nome_j} - {atividade}: {antes} → {depois}",
+              ])
+
+            if not atualizacoes:
+              st.error("⚠️ Nenhum dos jogadores alterados foi localizado na planilha.")
+              return
+
+            # 1 requisição de escrita para todas as pontuações alteradas.
+            sheet_dados.batch_update(
+                atualizacoes,
+                value_input_option="USER_ENTERED",
+            )
+
+            # Auditoria e logs também são enviados em lote (1 requisição cada).
+            if auditorias:
+              sheet_auditoria.append_rows(
+                  auditorias,
+                  value_input_option="USER_ENTERED",
+              )
+            if logs:
+              sheet_logs.append_rows(
+                  logs,
+                  value_input_option="USER_ENTERED",
+              )
+
+            alteracoes = len(atualizacoes)
+            snapshot_ranking_atual("alteracao", f"Lançamento rápido: {atividade}")
+            st.cache_data.clear()
+            resetar_widget("quick_motivo")
+
+            if ignorados:
+              st.warning(
+                  "⚠️ Algumas alterações não foram aplicadas porque o jogador não "
+                  "foi localizado na planilha: " + ", ".join(ignorados)
+              )
+            st.success(f"✅ {alteracoes} alteração(ões) salva(s) em lote.")
+            st.rerun()
+
+          except gspread.exceptions.APIError as exc:
+            # Evita que uma falha temporária da API derrube toda a página e deixa
+            # uma mensagem útil nos logs do Streamlit para diagnóstico.
+            status = getattr(getattr(exc, "response", None), "status_code", "?")
+            print(f"[Winning Wars v37] Google Sheets APIError no salvamento em lote: HTTP {status} - {exc}")
+            if str(status) == "429":
+              st.error(
+                  "⚠️ O Google Sheets atingiu temporariamente o limite de requisições. "
+                  "Aguarde alguns instantes e tente salvar novamente."
+              )
+            else:
+              st.error(
+                  "⚠️ O Google Sheets recusou a atualização. Verifique os logs do "
+                  "Streamlit para ver o código retornado pela API."
+              )
+          except Exception as exc:
+            print(f"[Winning Wars v37] Erro inesperado no salvamento em lote: {type(exc).__name__}: {exc}")
+            st.error(
+                "⚠️ Não foi possível salvar as alterações. Nenhuma nova tentativa "
+                "automática foi feita para evitar gravações duplicadas."
+            )
 
   with eventos_tab:
     with st.form("novo_evento_20", clear_on_submit=True):
