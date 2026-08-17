@@ -24,7 +24,7 @@ except ImportError:
   ImageOps = None
   PILLOW_DISPONIVEL = False
 
-# Winning Wars v37 - correção de quota do Google Sheets no Lançamento Rápido + otimizações anteriores.
+# Winning Wars v45 - otimização global de acesso ao Google Sheets, cache seletivo e proteção de quota.
 # Não depende de streamlit-quill/streamlit-quill2.
 # Quando Components V2 estiver disponível, usa um editor contenteditable nativo;
 # caso contrário, há fallback para st.text_area sem derrubar o aplicativo.
@@ -544,6 +544,10 @@ def registrar_log(admin: str, acao: str):
   try:
     data_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     sheet_logs.append_row([data_hora, admin, acao])
+    try:
+      obter_logs_cached.clear()
+    except NameError:
+      pass
   except Exception:
     pass
 
@@ -587,11 +591,37 @@ def exigir_backup_automatico(acao: str, planilhas):
     st.stop()
 
 
-# --- CARREGAR DADOS COM CACHE DE DESEMPENHO (120 SEGUNDOS) ---
+# --- CARREGAR DADOS COM CACHE DE DESEMPENHO ---
+# v45: leituras do Google Sheets passam por retry exponencial somente para erros
+# temporários (429/5xx) e ficam em caches separados por domínio. Isso evita que
+# reruns do Streamlit disparem leituras repetidas e reduz picos de quota.
+def _status_api_error(exc) -> int | None:
+  try:
+    return int(getattr(getattr(exc, "response", None), "status_code", 0) or 0)
+  except (TypeError, ValueError):
+    return None
+
+
+def _ler_sheets_com_retry(funcao, tentativas: int = 4):
+  ultimo_erro = None
+  for tentativa in range(tentativas):
+    try:
+      return funcao()
+    except gspread.exceptions.APIError as exc:
+      ultimo_erro = exc
+      status = _status_api_error(exc)
+      if status not in {429, 500, 502, 503, 504} or tentativa >= tentativas - 1:
+        raise
+      espera = min(8.0, 0.65 * (2 ** tentativa)) + random.uniform(0.05, 0.25)
+      time.sleep(espera)
+  if ultimo_erro:
+    raise ultimo_erro
+
+
 @st.cache_data(ttl=120)
 def obter_dados_cached():
   try:
-    return sheet_dados.get_all_records()
+    return _ler_sheets_com_retry(sheet_dados.get_all_records)
   except Exception:
     return []
 
@@ -599,7 +629,7 @@ def obter_dados_cached():
 @st.cache_data(ttl=120)
 def obter_layouts_cached():
   try:
-    return sheet_layouts.get_all_records()
+    return _ler_sheets_com_retry(sheet_layouts.get_all_records)
   except Exception:
     return []
 
@@ -607,7 +637,7 @@ def obter_layouts_cached():
 @st.cache_data(ttl=120)
 def obter_galeria_cached():
   try:
-    return sheet_fama.get_all_records()
+    return _ler_sheets_com_retry(sheet_fama.get_all_records)
   except Exception:
     return []
 
@@ -615,7 +645,7 @@ def obter_galeria_cached():
 @st.cache_data(ttl=120)
 def obter_novidades_cached():
   try:
-    return sheet_novidades.get_all_records()
+    return _ler_sheets_com_retry(sheet_novidades.get_all_records)
   except Exception:
     return []
 
@@ -623,15 +653,62 @@ def obter_novidades_cached():
 @st.cache_data(ttl=60)
 def obter_historico_cached():
   try:
-    return sheet_historico.get_all_records()
+    return _ler_sheets_com_retry(sheet_historico.get_all_records)
   except Exception:
     return []
 
 
 @st.cache_data(ttl=60)
 def obter_eventos_cached():
+  """Retorna eventos com a linha física da planilha sem fazer uma 2ª leitura."""
   try:
-    return sheet_eventos.get_all_records()
+    valores = _ler_sheets_com_retry(sheet_eventos.get_all_values)
+    if not valores:
+      return []
+    headers = valores[0]
+    registros = []
+    for numero_linha, row in enumerate(valores[1:], start=2):
+      if not any(str(v).strip() for v in row):
+        continue
+      registro = {
+          header: row[i] if i < len(row) else ""
+          for i, header in enumerate(headers)
+      }
+      registro["_linha_sheet"] = numero_linha
+      registros.append(registro)
+    return registros
+  except Exception:
+    return []
+
+
+@st.cache_data(ttl=120)
+def obter_admins_cached():
+  try:
+    return _ler_sheets_com_retry(sheet_admins.get_all_records)
+  except Exception:
+    return []
+
+
+@st.cache_data(ttl=60)
+def obter_estado_cached():
+  try:
+    return _ler_sheets_com_retry(sheet_estado.get_all_values)
+  except Exception:
+    return []
+
+
+@st.cache_data(ttl=60)
+def obter_auditoria_cached():
+  try:
+    return _ler_sheets_com_retry(sheet_auditoria.get_all_records)
+  except Exception:
+    return []
+
+
+@st.cache_data(ttl=60)
+def obter_logs_cached():
+  try:
+    return _ler_sheets_com_retry(sheet_logs.get_all_records)
   except Exception:
     return []
 
@@ -641,7 +718,7 @@ def nivel_admin_atual() -> str:
     return "Membro"
   usuario = st.session_state["admin_logado"]
   try:
-    atual = pd.DataFrame(sheet_admins.get_all_records())
+    atual = pd.DataFrame(obter_admins_cached())
     if not atual.empty and "Nivel" in atual.columns:
       linha = atual[atual["Usuario"] == usuario]
       if not linha.empty:
@@ -660,6 +737,10 @@ def registrar_auditoria_ponto(jogador, atividade, antes, depois, motivo=""):
     admin = st.session_state.get("admin_logado", "sistema")
     agora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     sheet_auditoria.append_row([agora, admin, jogador, atividade, antes, depois, motivo])
+    try:
+      obter_auditoria_cached.clear()
+    except NameError:
+      pass
   except Exception:
     pass
 
@@ -673,14 +754,22 @@ def salvar_snapshot_historico(df_rank_snapshot, temporada, tipo="snapshot", deta
     linhas.append([agora, temporada, str(row.get("Nome", "")), int(row.get("Total", 0)), pos, tipo, detalhe])
   try:
     sheet_historico.append_rows(linhas, value_input_option="USER_ENTERED")
+    try:
+      obter_historico_cached.clear()
+    except NameError:
+      pass
   except Exception:
     for linha in linhas:
       sheet_historico.append_row(linha)
+    try:
+      obter_historico_cached.clear()
+    except NameError:
+      pass
 
 
 def snapshot_ranking_atual(tipo="alteracao", detalhe=""):
   try:
-    atual = pd.DataFrame(sheet_dados.get_all_records())
+    atual = pd.DataFrame(_ler_sheets_com_retry(sheet_dados.get_all_records))
     if atual.empty or "Nome" not in atual.columns:
       return
     cols = [c for c in atual.columns if c in ["JogosCla", "Eventos"] or c.startswith(("Guerra_", "Liga_", "Raide_"))]
@@ -702,19 +791,12 @@ def temporada_atual_texto():
 dados = obter_dados_cached()
 df = pd.DataFrame(dados) if dados else pd.DataFrame()
 
-try:
-  dados_admins = sheet_admins.get_all_records()
-  df_admins = pd.DataFrame(dados_admins)
-except Exception:
-  df_admins = pd.DataFrame(columns=["Usuario", "SenhaHash", "Nivel"])
+dados_admins = obter_admins_cached()
+df_admins = pd.DataFrame(dados_admins) if dados_admins else pd.DataFrame(columns=["Usuario", "SenhaHash", "Nivel"])
 
-try:
-  dados_estado = dict(sheet_estado.get_all_values())
-  mes_finalizado = dados_estado.get("mes_finalizado", "FALSE") == "TRUE"
-  mural_recado = dados_estado.get("mural_recado", "")
-except Exception:
-  mes_finalizado = False
-  mural_recado = ""
+dados_estado = dict(obter_estado_cached())
+mes_finalizado = dados_estado.get("mes_finalizado", "FALSE") == "TRUE"
+mural_recado = dados_estado.get("mural_recado", "")
 
 # ESTADO DE NAVEGAÇÃO
 if "pagina_atual" not in st.session_state:
@@ -1748,7 +1830,7 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
             exigir_backup_automatico("Limpeza de layouts antigos", [("Layouts", sheet_layouts)])
             qtd = excluir_layouts_antigos_dias(30)
             registrar_log(st.session_state["admin_logado"], f"Removeu {qtd} layouts antigos (+30 dias)")
-            st.cache_data.clear()
+            obter_layouts_cached.clear()
             st.success(f"{qtd} layouts antigos removidos.")
             st.rerun()
 
@@ -1807,7 +1889,7 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
                       st.session_state["admin_logado"],
                       f"Adicionou layout {tipo_layout} para {cv_nome}",
                   )
-                  st.cache_data.clear()
+                  obter_layouts_cached.clear()
                   st.success("✅ Layout publicado com sucesso!")
                   st.rerun()
               else:
@@ -1874,7 +1956,7 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
                       st.session_state["admin_logado"],
                       f"Excluiu layout de {cv_nome}",
                   )
-                  st.cache_data.clear()
+                  obter_layouts_cached.clear()
                   st.success("Removido!")
                   st.rerun()
 
@@ -2566,7 +2648,7 @@ def renderizar_feed_novidades(limite=None, titulo="📰 Últimas Novidades"):
                 st.session_state["admin_logado"],
                 f"Publicou '{feed_novo_titulo.strip()}' diretamente no feed Últimas Novidades",
             )
-            st.cache_data.clear()
+            obter_novidades_cached.clear()
             resetar_widget("feed_novo_conteudo_v30")
             st.success("✅ Publicação enviada para o feed!")
             st.rerun()
@@ -2753,7 +2835,7 @@ def renderizar_feed_novidades(limite=None, titulo="📰 Últimas Novidades"):
                     st.session_state["admin_logado"],
                     f"Editou publicação '{titulo_item}' diretamente no feed Últimas Novidades",
                 )
-                st.cache_data.clear()
+                obter_novidades_cached.clear()
                 st.success("✅ Publicação atualizada com sucesso!")
                 st.rerun()
 
@@ -2769,7 +2851,7 @@ def renderizar_feed_novidades(limite=None, titulo="📰 Últimas Novidades"):
                   st.session_state["admin_logado"],
                   f"Excluiu publicação '{titulo_item}' diretamente no feed Últimas Novidades",
               )
-              st.cache_data.clear()
+              obter_novidades_cached.clear()
               st.success("🗑️ Publicação excluída com sucesso!")
               st.rerun()
 
@@ -2847,7 +2929,7 @@ def renderizar_pagina_novidades():
                 st.session_state["admin_logado"],
                 f"Publicou notícia '{noticia_titulo.strip()}' pela página Novidades",
             )
-            st.cache_data.clear()
+            obter_novidades_cached.clear()
             resetar_widget("nova_novidade_conteudo_pagina")
             st.success("✅ Notícia publicada com sucesso!")
             st.rerun()
@@ -2907,7 +2989,7 @@ def renderizar_pagina_novidades():
             exigir_backup_automatico("Limpeza de layouts antigos", [("Layouts", sheet_layouts)])
             qtd = excluir_layouts_antigos_dias(30)
             registrar_log(st.session_state["admin_logado"], f"Removeu {qtd} layouts antigos (+30 dias)")
-            st.cache_data.clear()
+            obter_layouts_cached.clear()
             st.success(f"{qtd} layouts antigos removidos.")
             st.rerun()
 
@@ -2971,7 +3053,7 @@ def renderizar_pagina_novidades():
                     st.session_state["admin_logado"],
                     f"Editou notícia '{titulo}' pela página Novidades",
                 )
-                st.cache_data.clear()
+                obter_novidades_cached.clear()
                 st.success("✅ Publicação atualizada!")
                 st.rerun()
 
@@ -2985,7 +3067,7 @@ def renderizar_pagina_novidades():
                   st.session_state["admin_logado"],
                   f"Excluiu notícia '{titulo}' pela página Novidades",
               )
-              st.cache_data.clear()
+              obter_novidades_cached.clear()
               st.success("🗑️ Publicação excluída!")
               st.rerun()
 
@@ -3152,7 +3234,7 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
       edit = st.data_editor(base, hide_index=True, use_container_width=True, disabled=["Nome"], key=f"quick_{atividade}")
       motivo = st.text_input("Motivo/observação (opcional)", key=chave_widget_resetavel("quick_motivo"))
       if st.button("💾 Salvar somente alterações", type="primary", use_container_width=True):
-        # v37: salva as pontuações em lote para evitar estouro da quota da API
+        # v45: salva as pontuações em lote para evitar estouro da quota da API
         # do Google Sheets. A versão anterior fazia find + update_cell + auditoria
         # + log para cada jogador alterado, multiplicando o número de requisições.
         alteracoes_pendentes = []
@@ -3241,8 +3323,10 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
               )
 
             alteracoes = len(atualizacoes)
+            obter_dados_cached.clear()
+            obter_auditoria_cached.clear()
+            obter_logs_cached.clear()
             snapshot_ranking_atual("alteracao", f"Lançamento rápido: {atividade}")
-            st.cache_data.clear()
             resetar_widget("quick_motivo")
 
             if ignorados:
@@ -3257,7 +3341,7 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
             # Evita que uma falha temporária da API derrube toda a página e deixa
             # uma mensagem útil nos logs do Streamlit para diagnóstico.
             status = getattr(getattr(exc, "response", None), "status_code", "?")
-            print(f"[Winning Wars v37] Google Sheets APIError no salvamento em lote: HTTP {status} - {exc}")
+            print(f"[Winning Wars v45] Google Sheets APIError no salvamento em lote: HTTP {status} - {exc}")
             if str(status) == "429":
               st.error(
                   "⚠️ O Google Sheets atingiu temporariamente o limite de requisições. "
@@ -3269,7 +3353,7 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
                   "Streamlit para ver o código retornado pela API."
               )
           except Exception as exc:
-            print(f"[Winning Wars v37] Erro inesperado no salvamento em lote: {type(exc).__name__}: {exc}")
+            print(f"[Winning Wars v45] Erro inesperado no salvamento em lote: {type(exc).__name__}: {exc}")
             st.error(
                 "⚠️ Não foi possível salvar as alterações. Nenhuma nova tentativa "
                 "automática foi feita para evitar gravações duplicadas."
@@ -3284,32 +3368,28 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
       desc_ev = st.text_area("Descrição")
       if st.form_submit_button("➕ Adicionar à agenda"):
         if titulo_ev.strip():
-          valores = sheet_eventos.get_all_values()
-          ids=[]
-          for r in valores[1:]:
-            try: ids.append(int(r[0]))
-            except: pass
-          novo_id = max(ids, default=0)+1
+          ids = pd.to_numeric(df_eventos.get("ID", pd.Series(dtype=float)), errors="coerce").dropna().astype(int).tolist() if not df_eventos.empty else []
+          novo_id = max(ids, default=0) + 1
           sheet_eventos.append_row([novo_id, data_ev.strftime("%d/%m/%Y"), tipo_ev, titulo_ev.strip(), desc_ev.strip(), "Ativo", st.session_state["admin_logado"]])
-          st.cache_data.clear(); st.success("Evento cadastrado!"); st.rerun()
+          obter_eventos_cached.clear()
+          st.success("Evento cadastrado!"); st.rerun()
     if not df_eventos.empty:
-      st.dataframe(df_eventos, hide_index=True, use_container_width=True)
+      st.dataframe(df_eventos.drop(columns=["_linha_sheet"], errors="ignore"), hide_index=True, use_container_width=True)
       ids_ev = df_eventos.get("ID", pd.Series(dtype=str)).astype(str).tolist()
       if ids_ev:
         id_manage = st.selectbox("Gerenciar evento ID", ids_ev, key="ev_manage_id")
 
-        # Localiza a linha pelo ID exclusivamente na primeira coluna.
-        valores_eventos = sheet_eventos.get_all_values()
-        linha_evento = None
-        for numero_linha, valores_linha in enumerate(valores_eventos[1:], start=2):
-          if valores_linha and str(valores_linha[0]).strip() == str(id_manage).strip():
-            linha_evento = numero_linha
-            break
-
+        # v45: a linha física já veio junto da leitura cacheada de EventosCla.
+        # Assim, selecionar/editar um evento não dispara get_all_values() a cada rerun.
         evento_sel = df_eventos[
             df_eventos["ID"].astype(str).str.strip() == str(id_manage).strip()
         ]
         evento_atual = evento_sel.iloc[0] if not evento_sel.empty else None
+        linha_evento = (
+            int(evento_atual.get("_linha_sheet"))
+            if evento_atual is not None and pd.notna(evento_atual.get("_linha_sheet"))
+            else None
+        )
 
         if evento_atual is not None:
           st.markdown("#### ✏️ Editar evento publicado")
@@ -3375,7 +3455,7 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
               elif linha_evento is None:
                 st.error("⚠️ Não foi possível localizar o evento na planilha.")
               else:
-                headers_ev = sheet_eventos.row_values(1)
+                headers_ev = [c for c in df_eventos.columns if c != "_linha_sheet"]
                 dados_atualizados = {
                     "Data": edit_data_ev.strftime("%d/%m/%Y"),
                     "Tipo": edit_tipo_ev,
@@ -3384,18 +3464,19 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
                     "Status": edit_status_ev,
                     "Autor": st.session_state["admin_logado"],
                 }
-
+                atualizacoes_evento = []
                 for coluna, valor in dados_atualizados.items():
                   if coluna in headers_ev:
-                    sheet_eventos.update_cell(
-                        linha_evento, headers_ev.index(coluna) + 1, valor
-                    )
+                    celula = gspread.utils.rowcol_to_a1(linha_evento, headers_ev.index(coluna) + 1)
+                    atualizacoes_evento.append({"range": celula, "values": [[valor]]})
+                if atualizacoes_evento:
+                  sheet_eventos.batch_update(atualizacoes_evento, value_input_option="USER_ENTERED")
 
                 registrar_log(
                     st.session_state["admin_logado"],
                     f"Editou evento ID {id_manage}: '{edit_titulo_ev.strip()}'",
                 )
-                st.cache_data.clear()
+                obter_eventos_cached.clear()
                 st.success("✅ Evento atualizado com sucesso!")
                 st.rerun()
 
@@ -3407,7 +3488,7 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
             use_container_width=True,
             key=f"encerrar_evento_{id_manage}",
         ):
-          headers_ev = sheet_eventos.row_values(1)
+          headers_ev = [c for c in df_eventos.columns if c != "_linha_sheet"]
           if linha_evento and "Status" in headers_ev:
             sheet_eventos.update_cell(
                 linha_evento, headers_ev.index("Status") + 1, "Encerrado"
@@ -3416,7 +3497,7 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
                 st.session_state["admin_logado"],
                 f"Encerrou evento ID {id_manage}",
             )
-            st.cache_data.clear()
+            obter_eventos_cached.clear()
             st.success("✅ Evento marcado como encerrado.")
             st.rerun()
 
@@ -3448,7 +3529,7 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
                   st.session_state["admin_logado"],
                   f"Excluiu evento ID {id_manage}: '{titulo_excluido}'",
               )
-              st.cache_data.clear()
+              obter_eventos_cached.clear()
               st.success("🗑️ Evento excluído com sucesso!")
               st.rerun()
 
@@ -3467,14 +3548,14 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
         if titulo_c.strip() and conteudo_c.strip():
           exp_txt = exp_c.strftime("%d/%m/%Y") if usar_exp else ""
           imagem_final, erro_upload = resolver_imagem_upload(
-              imagem_c, img_c, "novidades/comunicados"
+              None, img_c, "novidades/comunicados"
           )
           if erro_upload:
             st.error(f"⚠️ {erro_upload}")
             st.stop()
           sheet_novidades.append_row([data_hora_postagem(), titulo_c.strip(), conteudo_c.strip(), imagem_final, tag_c, st.session_state["admin_logado"], "SIM" if fixada_c else "NAO", exp_txt, "Ativa", link_c.strip()])
           registrar_log(st.session_state["admin_logado"], f"Publicou comunicado avançado '{titulo_c.strip()}'")
-          st.cache_data.clear(); st.success("Comunicado publicado!"); st.rerun()
+          obter_novidades_cached.clear(); st.success("Comunicado publicado!"); st.rerun()
 
   with temporada_tab:
     st.markdown("#### 🏆 Encerramento seguro da temporada")
@@ -3494,12 +3575,12 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
         if cell: sheet_estado.update_cell(cell.row, 2, "TRUE")
         else: sheet_estado.append_row(["mes_finalizado", "TRUE"])
         registrar_log(st.session_state["admin_logado"], f"Finalizou temporada {temporada} e arquivou ranking")
-        st.cache_data.clear(); st.success("🏆 Temporada finalizada e arquivada!"); st.rerun()
+        obter_estado_cached.clear(); obter_galeria_cached.clear(); obter_historico_cached.clear(); st.success("🏆 Temporada finalizada e arquivada!"); st.rerun()
     if c2.button("🔓 REABRIR TEMPORADA", use_container_width=True):
       cell = sheet_estado.find("mes_finalizado")
       if cell: sheet_estado.update_cell(cell.row, 2, "FALSE")
       registrar_log(st.session_state["admin_logado"], "Reabriu a temporada para edição")
-      st.cache_data.clear(); st.success("Temporada aberta."); st.rerun()
+      obter_estado_cached.clear(); st.success("Temporada aberta."); st.rerun()
 
     st.divider()
     st.markdown("#### 🌅 Iniciar nova temporada")
@@ -3510,23 +3591,30 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
           [("Dados", sheet_dados), ("EstadoMes", sheet_estado)],
       )
       snapshot_ranking_atual("pre_reset", "Snapshot antes de zerar pontuações")
-      headers = sheet_dados.row_values(1)
+      valores_dados = _ler_sheets_com_retry(sheet_dados.get_all_values)
+      headers = valores_dados[0] if valores_dados else []
       atividades = [c for c in headers if c in ["JogosCla", "Eventos"] or c.startswith(("Guerra_", "Liga_", "Raide_"))]
-      total_linhas = len(sheet_dados.get_all_values())
-      for atividade in atividades:
-        col_n = headers.index(atividade)+1
-        if total_linhas >= 2:
+      total_linhas = len(valores_dados)
+      atualizacoes_reset = []
+      if total_linhas >= 2:
+        for atividade in atividades:
+          col_n = headers.index(atividade) + 1
           inicio = gspread.utils.rowcol_to_a1(2, col_n)
           fim = gspread.utils.rowcol_to_a1(total_linhas, col_n)
-          sheet_dados.update(f"{inicio}:{fim}", [[0] for _ in range(total_linhas-1)])
+          atualizacoes_reset.append({
+              "range": f"{inicio}:{fim}",
+              "values": [[0] for _ in range(total_linhas - 1)],
+          })
+      if atualizacoes_reset:
+        sheet_dados.batch_update(atualizacoes_reset, value_input_option="USER_ENTERED")
       cell = sheet_estado.find("mes_finalizado")
       if cell: sheet_estado.update_cell(cell.row, 2, "FALSE")
       registrar_log(st.session_state["admin_logado"], "Iniciou nova temporada e zerou pontuações")
-      st.cache_data.clear(); st.success("🌅 Nova temporada iniciada com pontuações zeradas."); st.rerun()
+      obter_dados_cached.clear(); obter_estado_cached.clear(); obter_historico_cached.clear(); st.success("🌅 Nova temporada iniciada com pontuações zeradas."); st.rerun()
 
   with auditoria_tab:
     try:
-      aud = pd.DataFrame(sheet_auditoria.get_all_records())
+      aud = pd.DataFrame(obter_auditoria_cached())
     except Exception:
       aud = pd.DataFrame()
     if aud.empty:
@@ -3546,13 +3634,13 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
           registrar_auditoria_ponto(jogador, atividade, atual_val, antes, "DESFAZER última alteração")
           registrar_log(st.session_state["admin_logado"], f"Desfez alteração de {jogador}/{atividade}")
           snapshot_ranking_atual("desfazer", f"Reversão {jogador}/{atividade}")
-          st.cache_data.clear(); st.success("Alteração desfeita."); st.rerun()
+          obter_dados_cached.clear(); obter_auditoria_cached.clear(); st.success("Alteração desfeita."); st.rerun()
 
   with permissoes_tab:
     if not tem_permissao("Dono"):
       st.warning("Somente o nível Dono pode alterar permissões.")
     else:
-      admins = pd.DataFrame(sheet_admins.get_all_records())
+      admins = pd.DataFrame(obter_admins_cached())
       if not admins.empty:
         usuario_p = st.selectbox("Administrador", admins["Usuario"].astype(str).tolist())
         nivel_p = st.selectbox("Novo nível", ["Dono", "Lider", "Co-lider", "Editor"])
@@ -3562,6 +3650,7 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
           if cell and "Nivel" in headers:
             sheet_admins.update_cell(cell.row, headers.index("Nivel")+1, nivel_p)
             registrar_log(st.session_state["admin_logado"], f"Alterou permissão de {usuario_p} para {nivel_p}")
+            obter_admins_cached.clear()
             st.success("Permissão atualizada."); st.rerun()
 
 # ==============================================================================
@@ -4093,7 +4182,7 @@ else:
                   st.session_state["admin_logado"],
                   f"Cadastrou player {novo_nome}",
               )
-              st.cache_data.clear()
+              obter_dados_cached.clear()
               resetar_widget("novo_player_nome")
               st.success("Adicionado!")
               st.rerun()
@@ -4114,7 +4203,7 @@ else:
                     st.session_state["admin_logado"],
                     f"Removeu player {player_rem}",
                 )
-                st.cache_data.clear()
+                obter_dados_cached.clear()
                 st.success("Removido com sucesso!")
                 st.rerun()
               else:
@@ -4145,7 +4234,7 @@ else:
             elif pwd_limpo != novo_admin_pwd_conf.strip():
               st.error("⚠️ As senhas informadas não coincidem.")
             else:
-              df_admins_atual = pd.DataFrame(sheet_admins.get_all_records())
+              df_admins_atual = pd.DataFrame(obter_admins_cached())
               if (
                   not df_admins_atual.empty
                   and usr_limpo.lower()
@@ -4160,7 +4249,7 @@ else:
                     st.session_state["admin_logado"],
                     f"Cadastrou o novo admin '{usr_limpo}'",
                 )
-                st.cache_data.clear()
+                obter_admins_cached.clear()
                 st.success(
                     f"✅ Administrador **{usr_limpo}** cadastrado com sucesso!"
                 )
@@ -4181,7 +4270,7 @@ else:
               st.error("⚠️ A nova senha e a confirmação não coincidem.")
             else:
               admin_atual = st.session_state["admin_logado"]
-              df_admins_atual = pd.DataFrame(sheet_admins.get_all_records())
+              df_admins_atual = pd.DataFrame(obter_admins_cached())
               
               if not df_admins_atual.empty:
                 candidatos = df_admins_atual[df_admins_atual["Usuario"] == admin_atual]
@@ -4195,7 +4284,7 @@ else:
                   if cell:
                     sheet_admins.update_cell(cell.row, 2, gerar_hash_seguro(nova_senha))
                     registrar_log(admin_atual, "Alterou a própria senha de acesso")
-                    st.cache_data.clear()
+                    obter_admins_cached.clear()
                     st.success("✅ Senha alterada com sucesso!")
                     st.rerun()
 
@@ -4235,7 +4324,7 @@ else:
                   st.session_state["admin_logado"],
                   f"Criou a coluna de Guerra Normal '{proxima_guerra}'",
               )
-              st.cache_data.clear()
+              obter_dados_cached.clear()
               st.success(
                   f"✅ Coluna **{proxima_guerra}** adicionada com sucesso!"
               )
@@ -4271,7 +4360,7 @@ else:
                     st.session_state["admin_logado"],
                     f"Criou a coluna de Guerra de Liga '{proxima_liga}'",
                 )
-                st.cache_data.clear()
+                obter_dados_cached.clear()
                 st.success(
                     f"✅ Coluna **{proxima_liga}** adicionada com sucesso!"
                 )
@@ -4303,7 +4392,7 @@ else:
                   st.session_state["admin_logado"],
                   f"Criou a coluna de Raide '{proxima_raide}'",
               )
-              st.cache_data.clear()
+              obter_dados_cached.clear()
               st.success(
                   f"✅ Coluna **{proxima_raide}** adicionada com sucesso!"
               )
@@ -4321,24 +4410,48 @@ else:
           )
           if st.button("💾 Salvar Alterações em Lote", type="primary"):
             alteracoes = []
-            headers = sheet_dados.row_values(1)
+            valores_planilha = _ler_sheets_com_retry(sheet_dados.get_all_values)
+            headers = valores_planilha[0] if valores_planilha else []
+            nome_col_num = headers.index("Nome") + 1 if "Nome" in headers else None
+            linha_por_nome = {}
+            if nome_col_num:
+              for numero_linha, linha in enumerate(valores_planilha[1:], start=2):
+                if len(linha) >= nome_col_num:
+                  nome_planilha = str(linha[nome_col_num - 1]).strip()
+                  if nome_planilha and nome_planilha not in linha_por_nome:
+                    linha_por_nome[nome_planilha] = numero_linha
+
+            atualizacoes_lote = []
+            auditorias_lote = []
+            agora_lote = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            admin_lote = st.session_state.get("admin_logado", "sistema")
+
             for idx_row in range(len(df_editado)):
-              nome_j = str(df_editado.iloc[idx_row].get("Nome", ""))
+              nome_original = str(df_editavel.iloc[idx_row].get("Nome", "")).strip()
+              numero_linha = linha_por_nome.get(nome_original)
+              if not numero_linha:
+                continue
               for col in df_editado.columns:
                 antes = df_editavel.iloc[idx_row].get(col)
                 depois = df_editado.iloc[idx_row].get(col)
-                if str(antes) != str(depois):
-                  try:
-                    cell_nome = sheet_dados.find(nome_j)
-                    if cell_nome and col in headers:
-                      sheet_dados.update_cell(cell_nome.row, headers.index(col)+1, depois)
-                      if col != "Nome": registrar_auditoria_ponto(nome_j, col, antes, depois, "Edição em lote")
-                      alteracoes.append(f"{nome_j}/{col}: {antes}→{depois}")
-                  except Exception:
-                    pass
+                if str(antes) != str(depois) and col in headers:
+                  celula = gspread.utils.rowcol_to_a1(numero_linha, headers.index(col) + 1)
+                  atualizacoes_lote.append({"range": celula, "values": [[depois]]})
+                  if col != "Nome":
+                    auditorias_lote.append([
+                        agora_lote, admin_lote, nome_original, col, antes, depois, "Edição em lote"
+                    ])
+                  alteracoes.append(f"{nome_original}/{col}: {antes}→{depois}")
+
+            if atualizacoes_lote:
+              sheet_dados.batch_update(atualizacoes_lote, value_input_option="USER_ENTERED")
+            if auditorias_lote:
+              sheet_auditoria.append_rows(auditorias_lote, value_input_option="USER_ENTERED")
             registrar_log(st.session_state["admin_logado"], f"Atualizou {len(alteracoes)} campo(s) em lote")
-            if alteracoes: snapshot_ranking_atual("alteracao", "Edição em lote")
-            st.cache_data.clear()
+            if alteracoes:
+              obter_dados_cached.clear()
+              snapshot_ranking_atual("alteracao", "Edição em lote")
+            obter_dados_cached.clear(); obter_auditoria_cached.clear()
             st.success(f"✅ {len(alteracoes)} alteração(ões) salva(s) sem apagar a planilha.")
             st.rerun()
 
@@ -4364,7 +4477,7 @@ else:
             registrar_log(
                 st.session_state["admin_logado"], "Atualizou mural de recados"
             )
-            st.cache_data.clear()
+            obter_estado_cached.clear()
             resetar_widget("novo_recado_mural")
             st.success("Recado publicado!")
             st.rerun()
@@ -4376,7 +4489,7 @@ else:
             registrar_log(
                 st.session_state["admin_logado"], "Excluiu mural de recados"
             )
-            st.cache_data.clear()
+            obter_estado_cached.clear()
             st.success("Recado removido do mural!")
             st.rerun()
 
@@ -4400,7 +4513,7 @@ else:
                   st.session_state["admin_logado"],
                   f"Arquivou campeões do mês {mes_ano_ref}",
               )
-              st.cache_data.clear()
+              obter_galeria_cached.clear()
               resetar_widget("mes_ano_galeria")
               st.success("Registrado na Galeria da Fama com sucesso!")
               st.rerun()
@@ -4427,7 +4540,7 @@ else:
                     st.session_state["admin_logado"],
                     f"Adicionou manual na Galeria da Fama: {fama_titulo}",
                 )
-                st.cache_data.clear()
+                obter_galeria_cached.clear()
                 st.success("Adicionado à Galeria da Fama!")
                 st.rerun()
               else:
@@ -4482,7 +4595,7 @@ else:
                   st.session_state["admin_logado"],
                   f"Publicou notícia '{noticia_titulo}'",
               )
-              st.cache_data.clear()
+              obter_novidades_cached.clear()
               resetar_widget("nova_noticia_conteudo_painel")
               st.success("✅ Notícia publicada no painel de Novidades!")
               st.rerun()
@@ -4508,7 +4621,7 @@ else:
                     st.session_state["admin_logado"],
                     f"Excluiu notícia '{row_n['Titulo']}'",
                 )
-                st.cache_data.clear()
+                obter_novidades_cached.clear()
                 st.success("Notícia removida!")
                 st.rerun()
         else:
@@ -4517,7 +4630,7 @@ else:
       with sub_tab5:
         st.markdown("#### 🛡️ Registro de Atividades dos Admins")
         try:
-          df_logs_exib = pd.DataFrame(sheet_logs.get_all_records())
+          df_logs_exib = pd.DataFrame(obter_logs_cached())
           st.dataframe(
               df_logs_exib.tail(20), use_container_width=True, hide_index=True
           )
