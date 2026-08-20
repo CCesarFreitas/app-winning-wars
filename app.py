@@ -3018,7 +3018,7 @@ def renderizar_pagina_novidades():
       )
 
       # EDIÇÃO/EXCLUSÃO DIRETAMENTE NO CARD PARA ADMINS
-        with st.expander(f"⚙️ [ADMIN] Gerenciar: {titulo or 'Sem título'}", expanded=False):
+      with st.expander(f"⚙️ [ADMIN] Gerenciar: {titulo or 'Sem título'}", expanded=False):
           with st.form(f"form_editar_novidade_{item_idx}", clear_on_submit=False):
             edit_titulo = st.text_input(
                 "Título", value=titulo, key=f"edit_titulo_{item_idx}"
