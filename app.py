@@ -3018,17 +3018,6 @@ def renderizar_pagina_novidades():
       )
 
       # EDIÇÃO/EXCLUSÃO DIRETAMENTE NO CARD PARA ADMINS
-      if eh_admin:
-        with st.expander("🧹 Manutenção de Layouts (Admin)"):
-          st.caption("Remove layouts publicados há mais de 30 dias.")
-          if st.button("🗑️ Excluir layouts com mais de 30 dias", key=f"limpar_layouts_{tipo_layout}"):
-            exigir_backup_automatico("Limpeza de layouts antigos", [("Layouts", sheet_layouts)])
-            qtd = excluir_layouts_antigos_dias(30)
-            registrar_log(st.session_state["admin_logado"], f"Removeu {qtd} layouts antigos (+30 dias)")
-            obter_layouts_cached.clear()
-            st.success(f"{qtd} layouts antigos removidos.")
-            st.rerun()
-
         with st.expander(f"⚙️ [ADMIN] Gerenciar: {titulo or 'Sem título'}", expanded=False):
           with st.form(f"form_editar_novidade_{item_idx}", clear_on_submit=False):
             edit_titulo = st.text_input(
