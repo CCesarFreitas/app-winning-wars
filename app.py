@@ -1862,7 +1862,7 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
       if eh_admin:
         with st.expander("🧹 Manutenção de Layouts (Admin)"):
           st.caption("Remove layouts publicados há mais de 30 dias.")
-          if st.button("🗑️ Excluir layouts com mais de 30 dias", key=f"limpar_layouts_{tipo_layout}"):
+          if st.button("🗑️ Excluir layouts com mais de 30 dias", key=f"limpar_layouts_{tipo_layout}_{titulo.replace(" ", "_")}"):
             exigir_backup_automatico("Limpeza de layouts antigos", [("Layouts", sheet_layouts)])
             qtd = excluir_layouts_antigos_dias(30)
             registrar_log(st.session_state["admin_logado"], f"Removeu {qtd} layouts antigos (+30 dias)")
