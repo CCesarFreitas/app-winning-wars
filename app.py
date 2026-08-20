@@ -197,6 +197,42 @@ def data_hora_postagem() -> str:
   return agora_winning_wars().strftime("%d/%m/%Y %H:%M")
 
 
+def valor_json_seguro(valor):
+  """Converte escalares pandas/numpy em valores seguros para JSON/Google Sheets.
+
+  O gspread serializa os lotes com json.dumps(..., allow_nan=False). Valores
+  como numpy.int64, numpy.float64, pandas.NA, NaN e Timestamp podem causar
+  TypeError/ValueError antes mesmo de a requisição chegar ao Google Sheets.
+  """
+  if valor is None:
+    return ""
+
+  try:
+    if pd.isna(valor):
+      return ""
+  except (TypeError, ValueError):
+    # Alguns objetos não escalares não podem ser avaliados diretamente por pd.isna.
+    pass
+
+  # Escalares numpy/pandas normalmente expõem .item(), que devolve o tipo Python nativo.
+  if hasattr(valor, "item"):
+    try:
+      convertido = valor.item()
+      if convertido is not valor:
+        return valor_json_seguro(convertido)
+    except (ValueError, TypeError, AttributeError):
+      pass
+
+  if isinstance(valor, datetime):
+    return valor.strftime("%Y-%m-%d %H:%M:%S")
+
+  if isinstance(valor, (str, int, float, bool)):
+    return valor
+
+  # Fallback final: impede que objetos inesperados derrubem a serialização JSON.
+  return str(valor)
+
+
 # --- UPLOAD DIRETO DE IMAGENS (CLOUDINARY) ---
 # v32: antes do envio, as imagens são redimensionadas e convertidas para WEBP
 # para reduzir armazenamento/tráfego sem perder qualidade visual dos layouts.
@@ -4436,12 +4472,21 @@ else:
                 depois = df_editado.iloc[idx_row].get(col)
                 if str(antes) != str(depois) and col in headers:
                   celula = gspread.utils.rowcol_to_a1(numero_linha, headers.index(col) + 1)
-                  atualizacoes_lote.append({"range": celula, "values": [[depois]]})
+                  antes_seguro = valor_json_seguro(antes)
+                  depois_seguro = valor_json_seguro(depois)
+
+                  atualizacoes_lote.append({
+                      "range": celula,
+                      "values": [[depois_seguro]],
+                  })
                   if col != "Nome":
                     auditorias_lote.append([
-                        agora_lote, admin_lote, nome_original, col, antes, depois, "Edição em lote"
+                        agora_lote, admin_lote, nome_original, col,
+                        antes_seguro, depois_seguro, "Edição em lote"
                     ])
-                  alteracoes.append(f"{nome_original}/{col}: {antes}→{depois}")
+                  alteracoes.append(
+                      f"{nome_original}/{col}: {antes_seguro}→{depois_seguro}"
+                  )
 
             if atualizacoes_lote:
               sheet_dados.batch_update(atualizacoes_lote, value_input_option="USER_ENTERED")
