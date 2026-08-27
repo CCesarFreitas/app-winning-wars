@@ -4258,6 +4258,13 @@ else:
               st.error(f"⚠️ A coluna {proxima_guerra} já existe!")
             else:
               proxima_col_num = len(headers) + 1
+
+              # Garante que a coluna exista fisicamente na grade do Google Sheets
+              # antes de tentar escrever nela. Sem isso, o Google retorna
+              # APIError 400 quando proxima_col_num ultrapassa sheet_dados.col_count.
+              if proxima_col_num > sheet_dados.col_count:
+                sheet_dados.add_cols(proxima_col_num - sheet_dados.col_count)
+
               sheet_dados.update_cell(1, proxima_col_num, proxima_guerra)
 
               if not df.empty:
@@ -4294,6 +4301,11 @@ else:
                 st.error(f"⚠️ A coluna {proxima_liga} já existe!")
               else:
                 proxima_col_num = len(headers) + 1
+
+                # Garante espaço físico para a nova coluna antes da escrita.
+                if proxima_col_num > sheet_dados.col_count:
+                  sheet_dados.add_cols(proxima_col_num - sheet_dados.col_count)
+
                 sheet_dados.update_cell(1, proxima_col_num, proxima_liga)
 
                 if not df.empty:
@@ -4326,6 +4338,11 @@ else:
               st.error(f"⚠️ A coluna {proxima_raide} já existe!")
             else:
               proxima_col_num = len(headers) + 1
+
+              # Garante espaço físico para a nova coluna antes da escrita.
+              if proxima_col_num > sheet_dados.col_count:
+                sheet_dados.add_cols(proxima_col_num - sheet_dados.col_count)
+
               sheet_dados.update_cell(1, proxima_col_num, proxima_raide)
 
               if not df.empty:
