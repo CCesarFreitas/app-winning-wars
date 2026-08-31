@@ -24,7 +24,7 @@ except ImportError:
   ImageOps = None
   PILLOW_DISPONIVEL = False
 
-# Winning Wars v45 - otimização global de acesso ao Google Sheets, cache seletivo e proteção de quota.
+# Winning Wars v46 - fechamento mensal persistente, histórico detalhado por temporada e proteção de quota.
 # Não depende de streamlit-quill/streamlit-quill2.
 # Quando Components V2 estiver disponível, usa um editor contenteditable nativo;
 # caso contrário, há fallback para st.text_area sem derrubar o aplicativo.
@@ -435,6 +435,34 @@ def conectar_banco():
         ["mural_recado", "Bem-vindos ao aplicativo oficial do clã Winning Wars!"]
     )
 
+  # Winning Wars v46 - estado persistente da temporada.
+  # A temporada deixa de depender somente da data do servidor: ela passa a ter
+  # um ID próprio no banco, permitindo fechar Agosto e só abrir Setembro quando
+  # a liderança realmente iniciar o novo ciclo.
+  try:
+    estado_atual = dict(sheet_estado.get_all_values()[1:])
+  except Exception:
+    estado_atual = {}
+
+  agora_estado = agora_winning_wars()
+  meses_estado = [
+      "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+      "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+  ]
+  temporada_id_padrao = agora_estado.strftime("%Y-%m")
+  temporada_nome_padrao = f"{meses_estado[agora_estado.month - 1]}/{agora_estado.year}"
+  defaults_estado = {
+      "mes_finalizado": "FALSE",
+      "temporada_atual_id": temporada_id_padrao,
+      "temporada_atual_nome": temporada_nome_padrao,
+      "ultima_temporada_fechada_id": "",
+      "ultima_temporada_fechada_nome": "",
+      "ultimo_fechamento": "",
+  }
+  for chave_estado, valor_estado in defaults_estado.items():
+    if chave_estado not in estado_atual:
+      sheet_estado.append_row([chave_estado, valor_estado])
+
   # Aba de Layouts
   try:
     sheet_layouts = spreadsheet.worksheet("Layouts")
@@ -516,6 +544,34 @@ def conectar_banco():
     sheet_auditoria = spreadsheet.add_worksheet(title="AuditoriaPontos", rows="5000", cols="7")
     sheet_auditoria.append_row(["DataHora", "Admin", "Jogador", "Atividade", "Antes", "Depois", "Motivo"])
 
+  # Winning Wars v46 - arquivo mensal imutável.
+  # Cada jogador recebe uma linha por temporada e o JSON preserva TODAS as
+  # colunas dinâmicas daquele mês (Guerra_*, Liga_*, Raide_*).
+  try:
+    sheet_historico_mensal = spreadsheet.worksheet("HistoricoMensal")
+  except gspread.WorksheetNotFound:
+    sheet_historico_mensal = spreadsheet.add_worksheet(
+        title="HistoricoMensal", rows="10000", cols="13"
+    )
+    sheet_historico_mensal.append_row([
+        "TemporadaID", "MesAno", "FechadoEm", "JogadorID", "Jogador",
+        "Posicao", "JogosCla", "Eventos", "GuerraTotal", "LigaTotal",
+        "RaideTotal", "Total", "DetalhesJSON",
+    ])
+
+  # Índice das temporadas para saber qual ciclo está aberto/fechado.
+  try:
+    sheet_temporadas = spreadsheet.worksheet("Temporadas")
+  except gspread.WorksheetNotFound:
+    sheet_temporadas = spreadsheet.add_worksheet(
+        title="Temporadas", rows="500", cols="11"
+    )
+    sheet_temporadas.append_row([
+        "TemporadaID", "MesAno", "Status", "AbertaEm", "FechadaEm",
+        "AdminFechamento", "Primeiro", "Segundo", "Terceiro",
+        "QtdJogadores", "Observacao",
+    ])
+
   # Winning Wars 3.1 - backups automáticos antes de ações destrutivas
   try:
     sheet_backups = spreadsheet.worksheet("BackupsSeguranca")
@@ -550,6 +606,8 @@ def conectar_banco():
       sheet_historico,
       sheet_eventos,
       sheet_auditoria,
+      sheet_historico_mensal,
+      sheet_temporadas,
       sheet_backups,
   )
 
@@ -566,6 +624,8 @@ try:
       sheet_historico,
       sheet_eventos,
       sheet_auditoria,
+      sheet_historico_mensal,
+      sheet_temporadas,
       sheet_backups,
   ) = conectar_banco()
 except Exception:
@@ -695,6 +755,22 @@ def obter_historico_cached():
 
 
 @st.cache_data(ttl=60)
+def obter_historico_mensal_cached():
+  try:
+    return _ler_sheets_com_retry(sheet_historico_mensal.get_all_records)
+  except Exception:
+    return []
+
+
+@st.cache_data(ttl=60)
+def obter_temporadas_cached():
+  try:
+    return _ler_sheets_com_retry(sheet_temporadas.get_all_records)
+  except Exception:
+    return []
+
+
+@st.cache_data(ttl=60)
 def obter_eventos_cached():
   """Retorna eventos com a linha física da planilha sem fazer uma 2ª leitura."""
   try:
@@ -818,10 +894,320 @@ def snapshot_ranking_atual(tipo="alteracao", detalhe=""):
     pass
 
 
-def temporada_atual_texto():
-  meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
-  agora = datetime.now()
-  return f"{meses[agora.month-1]}/{agora.year}"
+MESES_PT = [
+    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+]
+
+
+def temporada_nome_por_id(temporada_id: str) -> str:
+  try:
+    ano, mes = [int(p) for p in str(temporada_id).split("-", 1)]
+    if 1 <= mes <= 12:
+      return f"{MESES_PT[mes - 1]}/{ano}"
+  except Exception:
+    pass
+  agora = agora_winning_wars()
+  return f"{MESES_PT[agora.month - 1]}/{agora.year}"
+
+
+def temporada_id_atual() -> str:
+  try:
+    valor = str(globals().get("dados_estado", {}).get("temporada_atual_id", "")).strip()
+    if re.fullmatch(r"\d{4}-\d{2}", valor):
+      return valor
+  except Exception:
+    pass
+  return agora_winning_wars().strftime("%Y-%m")
+
+
+def temporada_atual_texto() -> str:
+  try:
+    nome = str(globals().get("dados_estado", {}).get("temporada_atual_nome", "")).strip()
+    if nome:
+      return nome
+  except Exception:
+    pass
+  return temporada_nome_por_id(temporada_id_atual())
+
+
+def proxima_temporada_id(temporada_id: str) -> str:
+  ano, mes = [int(p) for p in str(temporada_id).split("-", 1)]
+  if mes == 12:
+    return f"{ano + 1:04d}-01"
+  return f"{ano:04d}-{mes + 1:02d}"
+
+
+def definir_estado(chave: str, valor: str):
+  cell = sheet_estado.find(chave)
+  if cell:
+    sheet_estado.update_cell(cell.row, 2, str(valor))
+  else:
+    sheet_estado.append_row([chave, str(valor)])
+
+
+def _colunas_atividade(colunas):
+  return [
+      c for c in colunas
+      if c in ["JogosCla", "Eventos"] or str(c).startswith(("Guerra_", "Liga_", "Raide_"))
+  ]
+
+
+def _valor_inteiro(valor) -> int:
+  try:
+    return int(float(valor or 0))
+  except (TypeError, ValueError):
+    return 0
+
+
+def calcular_ranking_df(df_origem: pd.DataFrame) -> pd.DataFrame:
+  if df_origem is None or df_origem.empty or "Nome" not in df_origem.columns:
+    return pd.DataFrame()
+  rank = df_origem.copy()
+  atividades = _colunas_atividade(rank.columns)
+  for col in atividades:
+    rank[col] = pd.to_numeric(rank[col], errors="coerce").fillna(0)
+  rank["Total"] = rank[atividades].sum(axis=1) if atividades else 0
+  # Empates preservam a ordem já apresentada no ranking, evitando escolher
+  # vencedor alfabeticamente sem que a liderança tenha decidido o desempate.
+  return rank.sort_values("Total", ascending=False, kind="mergesort").reset_index(drop=True)
+
+
+def temporada_ja_arquivada(temporada_id: str) -> bool:
+  try:
+    registros = obter_historico_mensal_cached()
+    return any(str(r.get("TemporadaID", "")).strip() == temporada_id for r in registros)
+  except Exception:
+    return False
+
+
+def arquivar_dados_mensais(df_origem: pd.DataFrame, temporada_id: str, mes_ano: str):
+  """Grava uma fotografia detalhada e idempotente da temporada."""
+  if temporada_ja_arquivada(temporada_id):
+    return calcular_ranking_df(df_origem)
+
+  rank = calcular_ranking_df(df_origem)
+  if rank.empty:
+    raise ValueError("Não há jogadores/pontuações para arquivar.")
+
+  fechado_em = agora_winning_wars().strftime("%Y-%m-%d %H:%M:%S")
+  col_guerra = [c for c in rank.columns if str(c).startswith("Guerra_")]
+  col_liga = [c for c in rank.columns if str(c).startswith("Liga_")]
+  col_raide = [c for c in rank.columns if str(c).startswith("Raide_")]
+  atividades = _colunas_atividade(rank.columns)
+  campos_snapshot = [
+      c for c in rank.columns
+      if c not in ("Total", "Posição", "WarTotal")
+  ]
+  linhas = []
+
+  for posicao, (_, row) in enumerate(rank.iterrows(), start=1):
+    # O JSON guarda a linha completa daquele ciclo (inclusive campos cadastrais
+    # adicionais que possam surgir no futuro), permitindo recuperação fiel.
+    detalhes = {c: valor_json_seguro(row.get(c, "")) for c in campos_snapshot}
+    linhas.append([
+        temporada_id, mes_ano, fechado_em, valor_json_seguro(row.get("ID", "")),
+        str(row.get("Nome", "")), posicao, _valor_inteiro(row.get("JogosCla", 0)),
+        _valor_inteiro(row.get("Eventos", 0)),
+        sum(_valor_inteiro(row.get(c, 0)) for c in col_guerra),
+        sum(_valor_inteiro(row.get(c, 0)) for c in col_liga),
+        sum(_valor_inteiro(row.get(c, 0)) for c in col_raide),
+        _valor_inteiro(row.get("Total", 0)),
+        json.dumps(detalhes, ensure_ascii=False, separators=(",", ":")),
+    ])
+
+  sheet_historico_mensal.append_rows(linhas, value_input_option="USER_ENTERED")
+  obter_historico_mensal_cached.clear()
+  return rank
+
+
+def registrar_campeoes_sem_duplicar(mes_ano: str, rank: pd.DataFrame):
+  atuais = obter_galeria_cached()
+  if any(str(r.get("MesAno", "")).strip() == mes_ano for r in atuais):
+    return
+  nomes = [str(rank.iloc[i].get("Nome", "-")) if len(rank) > i else "-" for i in range(3)]
+  sheet_fama.append_row([mes_ano] + nomes)
+  obter_galeria_cached.clear()
+
+
+def upsert_temporada(temporada_id: str, mes_ano: str, status: str, *,
+                      aberta_em="", fechada_em="", admin="", rank=None, observacao=""):
+  valores = _ler_sheets_com_retry(sheet_temporadas.get_all_values)
+  headers = valores[0] if valores else [
+      "TemporadaID", "MesAno", "Status", "AbertaEm", "FechadaEm",
+      "AdminFechamento", "Primeiro", "Segundo", "Terceiro",
+      "QtdJogadores", "Observacao",
+  ]
+  nomes = [str(rank.iloc[i].get("Nome", "-")) if rank is not None and len(rank) > i else "-" for i in range(3)]
+  qtd = len(rank) if rank is not None else 0
+  registro = [temporada_id, mes_ano, status, aberta_em, fechada_em, admin] + nomes + [qtd, observacao]
+
+  linha_existente = None
+  registro_existente = None
+  for n_linha, linha in enumerate(valores[1:], start=2):
+    if linha and str(linha[0]).strip() == temporada_id:
+      linha_existente = n_linha
+      registro_existente = list(linha) + [""] * max(0, len(headers) - len(linha))
+      break
+
+  if linha_existente:
+    # Não apaga metadados já conhecidos quando um fechamento atualiza uma
+    # temporada que antes estava registrada como "Aberta".
+    if not aberta_em:
+      registro[3] = registro_existente[3] if len(registro_existente) > 3 else ""
+    if not fechada_em:
+      registro[4] = registro_existente[4] if len(registro_existente) > 4 else ""
+    if not admin:
+      registro[5] = registro_existente[5] if len(registro_existente) > 5 else ""
+    fim = gspread.utils.rowcol_to_a1(linha_existente, len(headers))
+    sheet_temporadas.update(f"A{linha_existente}:{fim}", [registro])
+  else:
+    sheet_temporadas.append_row(registro)
+  obter_temporadas_cached.clear()
+
+
+def finalizar_temporada_mensal(df_origem: pd.DataFrame):
+  estado_fresco = dict(_ler_sheets_com_retry(sheet_estado.get_all_values))
+  if str(estado_fresco.get("mes_finalizado", "FALSE")).upper() == "TRUE":
+    raise ValueError("Esta temporada já está finalizada. Inicie a próxima temporada para continuar.")
+
+  temporada_id = str(estado_fresco.get("temporada_atual_id", "") or temporada_id_atual()).strip()
+  mes_ano = str(estado_fresco.get("temporada_atual_nome", "") or temporada_nome_por_id(temporada_id)).strip()
+  rank = calcular_ranking_df(df_origem)
+  if rank.empty:
+    raise ValueError("Não há ranking para finalizar.")
+
+  exigir_backup_automatico(
+      f"Fechamento mensal {mes_ano}",
+      [
+          ("Dados", sheet_dados), ("EstadoMes", sheet_estado),
+          ("GaleriaFama", sheet_fama), ("HistoricoMensal", sheet_historico_mensal),
+          ("Temporadas", sheet_temporadas),
+      ],
+  )
+
+  rank = arquivar_dados_mensais(df_origem, temporada_id, mes_ano)
+  salvar_snapshot_historico(rank, mes_ano, "fechamento", "Ranking final mensal")
+  registrar_campeoes_sem_duplicar(mes_ano, rank)
+  fechado_em = agora_winning_wars().strftime("%Y-%m-%d %H:%M:%S")
+  admin = st.session_state.get("admin_logado", "sistema")
+  upsert_temporada(
+      temporada_id, mes_ano, "Fechada", fechada_em=fechado_em, admin=admin,
+      rank=rank, observacao="Fechamento mensal pelo painel administrativo",
+  )
+  definir_estado("mes_finalizado", "TRUE")
+  definir_estado("ultima_temporada_fechada_id", temporada_id)
+  definir_estado("ultima_temporada_fechada_nome", mes_ano)
+  definir_estado("ultimo_fechamento", fechado_em)
+  registrar_log(admin, f"Finalizou o mês {mes_ano}, arquivou dados e registrou campeões")
+
+  obter_estado_cached.clear()
+  obter_dados_cached.clear()
+  obter_galeria_cached.clear()
+  obter_historico_cached.clear()
+  obter_historico_mensal_cached.clear()
+  obter_temporadas_cached.clear()
+  return rank, temporada_id, mes_ano
+
+
+def iniciar_proxima_temporada():
+  estado_fresco = dict(_ler_sheets_com_retry(sheet_estado.get_all_values))
+  if str(estado_fresco.get("mes_finalizado", "FALSE")).upper() != "TRUE":
+    raise ValueError("Finalize e arquive o mês atual antes de iniciar o próximo.")
+
+  temporada_id = str(estado_fresco.get("temporada_atual_id", "") or temporada_id_atual()).strip()
+  mes_ano = str(estado_fresco.get("temporada_atual_nome", "") or temporada_nome_por_id(temporada_id)).strip()
+  if not temporada_ja_arquivada(temporada_id):
+    raise ValueError("O arquivo histórico deste mês não foi encontrado. O reset foi bloqueado por segurança.")
+
+  exigir_backup_automatico(
+      f"Iniciar temporada após {mes_ano}",
+      [("Dados", sheet_dados), ("EstadoMes", sheet_estado)],
+  )
+
+  # Reconstrói somente a área de trabalho atual. ID/Nome e quaisquer campos
+  # cadastrais são preservados; atividades do mês são zeradas e as colunas
+  # dinâmicas antigas são removidas para que a nova temporada volte a Guerra_1,
+  # Liga_1 e Raide_1 sem colidir com o histórico arquivado.
+  valores = _ler_sheets_com_retry(sheet_dados.get_all_values)
+  if not valores:
+    raise ValueError("A planilha de dados está vazia.")
+  headers = valores[0]
+  dinamicas = [c for c in headers if str(c).startswith(("Guerra_", "Liga_", "Raide_"))]
+  manter_idx = [i for i, c in enumerate(headers) if c not in dinamicas]
+  novos_headers = [headers[i] for i in manter_idx]
+  novas_linhas = [novos_headers]
+  for linha in valores[1:]:
+    nova = []
+    for i in manter_idx:
+      col = headers[i]
+      valor = linha[i] if i < len(linha) else ""
+      if col in ("JogosCla", "Eventos"):
+        valor = 0
+      nova.append(valor)
+    novas_linhas.append(nova)
+
+  sheet_dados.clear()
+  sheet_dados.resize(
+      rows=max(100, len(novas_linhas) + 20),
+      cols=max(4, len(novos_headers) + 5),
+  )
+  fim = gspread.utils.rowcol_to_a1(len(novas_linhas), len(novos_headers))
+  sheet_dados.update(f"A1:{fim}", novas_linhas, value_input_option="USER_ENTERED")
+
+  nova_id = proxima_temporada_id(temporada_id)
+  novo_nome = temporada_nome_por_id(nova_id)
+  aberta_em = agora_winning_wars().strftime("%Y-%m-%d %H:%M:%S")
+  definir_estado("temporada_atual_id", nova_id)
+  definir_estado("temporada_atual_nome", novo_nome)
+  definir_estado("mes_finalizado", "FALSE")
+  upsert_temporada(
+      nova_id, novo_nome, "Aberta", aberta_em=aberta_em,
+      observacao=f"Iniciada após o fechamento de {mes_ano}",
+  )
+  registrar_log(
+      st.session_state.get("admin_logado", "sistema"),
+      f"Iniciou a nova temporada {novo_nome}; área de pontuação foi renovada",
+  )
+  obter_dados_cached.clear()
+  obter_estado_cached.clear()
+  obter_temporadas_cached.clear()
+  return nova_id, novo_nome
+
+
+def reconstruir_tabela_historica(registros: list[dict]) -> pd.DataFrame:
+  linhas = []
+  colunas_dinamicas = set()
+  for reg in registros:
+    try:
+      detalhes = json.loads(str(reg.get("DetalhesJSON", "{}") or "{}"))
+      if not isinstance(detalhes, dict):
+        detalhes = {}
+    except Exception:
+      detalhes = {}
+    detalhes_atividades = {
+        k: v for k, v in detalhes.items()
+        if k in ("JogosCla", "Eventos") or str(k).startswith(("Guerra_", "Liga_", "Raide_"))
+    }
+    colunas_dinamicas.update(detalhes_atividades.keys())
+    linha = {"Posição": _valor_inteiro(reg.get("Posicao", 0)), "Jogador": str(reg.get("Jogador", ""))}
+    linha.update({k: _valor_inteiro(v) for k, v in detalhes_atividades.items()})
+    linha["Total"] = _valor_inteiro(reg.get("Total", 0))
+    linhas.append(linha)
+
+  def chave_coluna(c):
+    if c == "JogosCla": return (0, 0)
+    if c == "Eventos": return (1, 0)
+    for ordem, pref in enumerate(("Guerra_", "Liga_", "Raide_"), start=2):
+      if str(c).startswith(pref):
+        try: num = int(str(c).split("_")[-1])
+        except Exception: num = 9999
+        return (ordem, num)
+    return (9, str(c))
+
+  ordem_dinamica = sorted(colunas_dinamicas, key=chave_coluna)
+  cols = ["Posição", "Jogador"] + ordem_dinamica + ["Total"]
+  return pd.DataFrame(linhas).reindex(columns=cols).sort_values("Posição") if linhas else pd.DataFrame(columns=cols)
 
 
 dados = obter_dados_cached()
@@ -842,6 +1228,8 @@ df_layouts = pd.DataFrame(obter_layouts_cached())
 df_fama = pd.DataFrame(obter_galeria_cached())
 df_novidades = pd.DataFrame(obter_novidades_cached())
 df_historico = pd.DataFrame(obter_historico_cached())
+df_historico_mensal = pd.DataFrame(obter_historico_mensal_cached())
+df_temporadas = pd.DataFrame(obter_temporadas_cached())
 df_eventos = pd.DataFrame(obter_eventos_cached())
 
 
@@ -3166,15 +3554,20 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
     st.warning("Seu nível permite comunicação, mas não alteração de pontuações.")
     return
 
-  quick, eventos_tab, comunicacao_tab, temporada_tab, auditoria_tab, permissoes_tab = st.tabs([
-      "⚡ Lançamento rápido", "📅 Eventos", "📢 Comunicação", "🏆 Temporada", "↩️ Auditoria", "🛡️ Permissões"
+  quick, eventos_tab, comunicacao_tab, auditoria_tab, permissoes_tab = st.tabs([
+      "⚡ Lançamento rápido", "📅 Eventos", "📢 Comunicação", "↩️ Auditoria", "🛡️ Permissões"
   ])
 
   with quick:
-    atividades = [c for c in df.columns if c in ["JogosCla", "Eventos"] or c.startswith(("Guerra_", "Liga_", "Raide_"))]
-    if df.empty or not atividades:
-      st.info("Cadastre jogadores e atividades antes de lançar pontos.")
+    if mes_finalizado:
+      st.warning("🔒 A temporada está finalizada. Pontuações estão bloqueadas até a abertura do próximo mês.")
+      st.info("Use a aba **🏆 Fechamento Mensal** do Painel Admin para iniciar a próxima temporada.")
+      atividades = []
     else:
+      atividades = [c for c in df.columns if c in ["JogosCla", "Eventos"] or c.startswith(("Guerra_", "Liga_", "Raide_"))]
+    if (df.empty or not atividades) and not mes_finalizado:
+      st.info("Cadastre jogadores e atividades antes de lançar pontos.")
+    elif not mes_finalizado:
       atividade = st.selectbox("Atividade", atividades, key="ww20_atividade")
       base = df[["Nome", atividade]].copy()
       base[atividade] = pd.to_numeric(base[atividade], errors="coerce").fillna(0).astype(int)
@@ -3504,60 +3897,7 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
           registrar_log(st.session_state["admin_logado"], f"Publicou comunicado avançado '{titulo_c.strip()}'")
           obter_novidades_cached.clear(); st.success("Comunicado publicado!"); st.rerun()
 
-  with temporada_tab:
-    st.markdown("#### 🏆 Encerramento seguro da temporada")
-    st.write(f"Temporada sugerida: **{temporada_atual_texto()}**")
-    if not df_rank.empty:
-      st.write("Top 3 atual:")
-      st.write(" · ".join([f"{i+1}º {df_rank.iloc[i]['Nome']} ({int(df_rank.iloc[i]['Total'])} pts)" for i in range(min(3,len(df_rank)))]))
-    confirm = st.checkbox("Confirmo que revisei as pontuações e quero finalizar a temporada", key="confirm_finaliza_20")
-    c1,c2 = st.columns(2)
-    if c1.button("🔒 FINALIZAR TEMPORADA", type="primary", use_container_width=True, disabled=not confirm):
-      if not df_rank.empty:
-        temporada = temporada_atual_texto()
-        salvar_snapshot_historico(df_rank, temporada, "fechamento", "Ranking final")
-        if len(df_rank) >= 3:
-          sheet_fama.append_row([temporada, df_rank.iloc[0]["Nome"], df_rank.iloc[1]["Nome"], df_rank.iloc[2]["Nome"]])
-        cell = sheet_estado.find("mes_finalizado")
-        if cell: sheet_estado.update_cell(cell.row, 2, "TRUE")
-        else: sheet_estado.append_row(["mes_finalizado", "TRUE"])
-        registrar_log(st.session_state["admin_logado"], f"Finalizou temporada {temporada} e arquivou ranking")
-        obter_estado_cached.clear(); obter_galeria_cached.clear(); obter_historico_cached.clear(); st.success("🏆 Temporada finalizada e arquivada!"); st.rerun()
-    if c2.button("🔓 REABRIR TEMPORADA", use_container_width=True):
-      cell = sheet_estado.find("mes_finalizado")
-      if cell: sheet_estado.update_cell(cell.row, 2, "FALSE")
-      registrar_log(st.session_state["admin_logado"], "Reabriu a temporada para edição")
-      obter_estado_cached.clear(); st.success("Temporada aberta."); st.rerun()
 
-    st.divider()
-    st.markdown("#### 🌅 Iniciar nova temporada")
-    confirma_reset = st.checkbox("Confirmo que quero zerar as pontuações das atividades após arquivar o ranking atual", key="reset_temporada_20")
-    if st.button("🌅 ARQUIVAR E ZERAR PONTUAÇÕES", disabled=not confirma_reset, use_container_width=True):
-      exigir_backup_automatico(
-          "Arquivar e zerar pontuações para iniciar nova temporada",
-          [("Dados", sheet_dados), ("EstadoMes", sheet_estado)],
-      )
-      snapshot_ranking_atual("pre_reset", "Snapshot antes de zerar pontuações")
-      valores_dados = _ler_sheets_com_retry(sheet_dados.get_all_values)
-      headers = valores_dados[0] if valores_dados else []
-      atividades = [c for c in headers if c in ["JogosCla", "Eventos"] or c.startswith(("Guerra_", "Liga_", "Raide_"))]
-      total_linhas = len(valores_dados)
-      atualizacoes_reset = []
-      if total_linhas >= 2:
-        for atividade in atividades:
-          col_n = headers.index(atividade) + 1
-          inicio = gspread.utils.rowcol_to_a1(2, col_n)
-          fim = gspread.utils.rowcol_to_a1(total_linhas, col_n)
-          atualizacoes_reset.append({
-              "range": f"{inicio}:{fim}",
-              "values": [[0] for _ in range(total_linhas - 1)],
-          })
-      if atualizacoes_reset:
-        sheet_dados.batch_update(atualizacoes_reset, value_input_option="USER_ENTERED")
-      cell = sheet_estado.find("mes_finalizado")
-      if cell: sheet_estado.update_cell(cell.row, 2, "FALSE")
-      registrar_log(st.session_state["admin_logado"], "Iniciou nova temporada e zerou pontuações")
-      obter_dados_cached.clear(); obter_estado_cached.clear(); obter_historico_cached.clear(); st.success("🌅 Nova temporada iniciada com pontuações zeradas."); st.rerun()
 
   with auditoria_tab:
     try:
@@ -3572,7 +3912,7 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
       st.caption("A auditoria registra quem alterou, jogador, atividade e valor antes/depois.")
       ultima = aud.iloc[-1]
       st.warning(f"Última alteração: {ultima.get('Jogador')} / {ultima.get('Atividade')} — {ultima.get('Antes')} → {ultima.get('Depois')}")
-      if st.button("↩️ Desfazer última alteração", use_container_width=True):
+      if st.button("↩️ Desfazer última alteração", use_container_width=True, disabled=mes_finalizado):
         jogador = str(ultima.get("Jogador", "")); atividade = str(ultima.get("Atividade", "")); antes = ultima.get("Antes", 0)
         headers = sheet_dados.row_values(1); cell_nome = sheet_dados.find(jogador) if jogador else None
         if cell_nome and atividade in headers:
@@ -3599,6 +3939,187 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
             registrar_log(st.session_state["admin_logado"], f"Alterou permissão de {usuario_p} para {nivel_p}")
             obter_admins_cached.clear()
             st.success("Permissão atualizada."); st.rerun()
+
+
+def renderizar_fechamento_mensal(df_rank_atual):
+  st.markdown("### 🏆 Fechamento Mensal e Nova Temporada")
+  st.caption("Fluxo seguro: fechar → arquivar → registrar campeões → iniciar próximo mês.")
+
+  temporada_id = temporada_id_atual()
+  mes_ano = temporada_atual_texto()
+  status = "🔒 FINALIZADA" if mes_finalizado else "⚔️ EM DISPUTA"
+  c1, c2, c3 = st.columns(3)
+  c1.metric("Temporada atual", mes_ano)
+  c2.metric("ID do ciclo", temporada_id)
+  c3.metric("Status", status)
+
+  if not df_rank_atual.empty:
+    rank_limpo = calcular_ranking_df(df_rank_atual.drop(columns=["Posição"], errors="ignore"))
+    st.markdown("#### 🥇 Pódio atual")
+    if not rank_limpo.empty:
+      st.write(" · ".join([
+          f"{i + 1}º **{rank_limpo.iloc[i]['Nome']}** ({int(rank_limpo.iloc[i]['Total'])} pts)"
+          for i in range(min(3, len(rank_limpo)))
+      ]))
+  else:
+    rank_limpo = pd.DataFrame()
+    st.warning("Não há ranking disponível para fechar.")
+
+  st.divider()
+  if not mes_finalizado:
+    st.markdown("#### 1️⃣ Finalizar e arquivar o mês")
+    st.write(
+        "Ao finalizar, o sistema grava uma fotografia completa do mês em **HistoricoMensal**, "
+        "salva o ranking final, inclui os vencedores no Hall dos Campeões e bloqueia alterações."
+    )
+    confirma = st.checkbox(
+        f"Confirmo que revisei as pontuações de {mes_ano} e quero encerrar este mês",
+        key="confirmar_fechamento_v46",
+    )
+    if st.button(
+        "🔒 FINALIZAR MÊS E ARQUIVAR", type="primary", use_container_width=True,
+        disabled=(not confirma or rank_limpo.empty), key="btn_finalizar_mes_v46",
+    ):
+      try:
+        base_fechamento = df_rank_atual.drop(columns=["Posição"], errors="ignore")
+        _, _, nome_fechado = finalizar_temporada_mensal(base_fechamento)
+        st.success(f"🏆 {nome_fechado} foi finalizado, arquivado e enviado ao Hall dos Campeões.")
+        st.rerun()
+      except ValueError as exc:
+        st.error(f"⚠️ {exc}")
+      except Exception as exc:
+        registrar_log(st.session_state.get("admin_logado", "sistema"), f"Falha no fechamento mensal: {type(exc).__name__}")
+        st.error(f"⚠️ Não foi possível concluir o fechamento ({type(exc).__name__}). Nenhum reset foi executado.")
+  else:
+    st.success(
+        f"✅ **{mes_ano} está fechado.** Os dados históricos estão preservados e as pontuações atuais permanecem bloqueadas."
+    )
+    ultimo = str(dados_estado.get("ultimo_fechamento", "")).strip()
+    if ultimo:
+      st.caption(f"Fechamento registrado em: {ultimo}")
+
+    st.markdown("#### 2️⃣ Abrir o próximo mês")
+    proxima_id = proxima_temporada_id(temporada_id)
+    proximo_nome = temporada_nome_por_id(proxima_id)
+    st.write(
+        f"O próximo ciclo será **{proximo_nome}**. O histórico de {mes_ano} não será alterado. "
+        "A área atual será renovada: Jogos/Eventos voltam a zero e as colunas Guerra/Liga/Raide "
+        "do mês encerrado saem da área ativa para que a nova temporada comece limpa."
+    )
+    confirma_nova = st.checkbox(
+        f"Confirmo que quero abrir {proximo_nome} com uma nova área de pontuação",
+        key="confirmar_nova_temporada_v46",
+    )
+    if st.button(
+        f"🌅 INICIAR {proximo_nome.upper()}", use_container_width=True, type="primary",
+        disabled=not confirma_nova, key="btn_nova_temporada_v46",
+    ):
+      try:
+        _, nome_novo = iniciar_proxima_temporada()
+        st.success(f"🌅 {nome_novo} iniciado com área de pontuação limpa e independente.")
+        st.rerun()
+      except ValueError as exc:
+        st.error(f"⚠️ {exc}")
+      except Exception as exc:
+        registrar_log(st.session_state.get("admin_logado", "sistema"), f"Falha ao iniciar nova temporada: {type(exc).__name__}")
+        st.error(f"⚠️ Não foi possível abrir o próximo mês ({type(exc).__name__}).")
+
+  st.divider()
+  st.markdown("#### 🗃️ Verificação do arquivo")
+  if temporada_ja_arquivada(temporada_id):
+    st.success("Arquivo detalhado desta temporada encontrado em HistoricoMensal.")
+  elif mes_finalizado:
+    st.error("Arquivo detalhado não encontrado. O início do próximo mês ficará bloqueado por segurança.")
+  else:
+    st.info("O arquivo detalhado será criado automaticamente no fechamento.")
+
+
+def renderizar_historico_mensal():
+  st.markdown("### 🗂️ Meses Anteriores")
+  st.caption("Consulte rankings e pontuações arquivadas sem alterar a temporada atual.")
+  registros = obter_historico_mensal_cached()
+
+  if registros:
+    pares = {}
+    for r in registros:
+      tid = str(r.get("TemporadaID", "")).strip()
+      nome = str(r.get("MesAno", "")).strip() or temporada_nome_por_id(tid)
+      if tid:
+        pares[tid] = nome
+    ids = sorted(pares.keys(), reverse=True)
+    escolhido = st.selectbox(
+        "Escolha o mês arquivado", ids,
+        format_func=lambda x: pares.get(x, x), key="historico_mes_v46"
+    )
+    selecionados = [
+        r for r in registros
+        if str(r.get("TemporadaID", "")).strip() == escolhido
+    ]
+    selecionados.sort(key=lambda r: _valor_inteiro(r.get("Posicao", 9999)))
+
+    if selecionados:
+      c1, c2, c3 = st.columns(3)
+      podium = selecionados[:3]
+      for i, col in enumerate((c1, c2, c3)):
+        if i < len(podium):
+          medalha = ["🥇", "🥈", "🥉"][i]
+          col.metric(
+              f"{medalha} {i + 1}º lugar",
+              str(podium[i].get("Jogador", "-")),
+              f"{_valor_inteiro(podium[i].get('Total', 0))} pts",
+          )
+
+    tabela = reconstruir_tabela_historica(selecionados)
+    if not tabela.empty:
+      st.dataframe(tabela, use_container_width=True, hide_index=True)
+    else:
+      st.warning("O mês foi localizado, mas não há linhas detalhadas para exibir.")
+  else:
+    st.info(
+        "Ainda não existem meses fechados no novo arquivo detalhado. "
+        "Os próximos fechamentos passarão a aparecer aqui automaticamente."
+    )
+
+  # Compatibilidade: aproveita os snapshots que já existiam antes da v46.
+  # Eles não têm o detalhamento de cada Guerra/Liga/Raide, mas permitem
+  # recuperar ranking, posição e pontuação dos ciclos antigos quando disponíveis.
+  if not df_historico.empty and "Temporada" in df_historico.columns:
+    st.divider()
+    with st.expander("📜 Histórico legado (temporadas registradas antes deste sistema)"):
+      legado = df_historico.copy()
+      temporadas_legado = [
+          x for x in legado["Temporada"].astype(str).str.strip().unique().tolist() if x
+      ]
+      if temporadas_legado:
+        temporada_legado = st.selectbox(
+            "Temporada antiga", temporadas_legado[::-1], key="historico_legado_v46"
+        )
+        hist = legado[legado["Temporada"].astype(str).str.strip() == temporada_legado].copy()
+        if not hist.empty:
+          if "Tipo" in hist.columns:
+            fechamento = hist[hist["Tipo"].astype(str).str.lower() == "fechamento"]
+            if not fechamento.empty:
+              hist = fechamento
+          if "DataHora" in hist.columns and not hist.empty:
+            datas = hist["DataHora"].astype(str)
+            ultima_data = datas.max()
+            recorte = hist[datas == ultima_data]
+            if not recorte.empty:
+              hist = recorte
+          if "Posicao" in hist.columns:
+            hist["Posicao"] = pd.to_numeric(hist["Posicao"], errors="coerce")
+            hist = hist.sort_values("Posicao")
+          cols = [c for c in ["Posicao", "Jogador", "Pontos", "Tipo", "Detalhe"] if c in hist.columns]
+          st.dataframe(hist[cols], use_container_width=True, hide_index=True)
+          st.caption(
+              "Este é o histórico antigo disponível no app. O detalhamento completo por atividade "
+              "só passa a ser preservado automaticamente nos fechamentos feitos pela nova mecânica."
+          )
+      else:
+        st.info("Não há snapshots antigos registrados na aba Historico.")
+  elif not df_fama.empty:
+    st.caption("A Galeria da Fama antiga continua preservada abaixo na página.")
+
 
 # ==============================================================================
 # SELEÇÃO DE PÁGINAS
@@ -3778,8 +4299,8 @@ else:
   # ABAS DESTACADAS DA PÁGINA PRINCIPAL
   st.write("")
 
-  tab_ranking, tab_tabela, tab_perfil, tab_agenda, tab_admin = st.tabs(
-      ["🏆 Ranking ao Vivo", "📋 Tabela Detalhada", "👤 Meu Perfil", "📅 Agenda", "🔐 Painel Admin"]
+  tab_ranking, tab_tabela, tab_historico_mes, tab_perfil, tab_agenda, tab_admin = st.tabs(
+      ["🏆 Ranking ao Vivo", "📋 Tabela Detalhada", "🗂️ Meses Anteriores", "👤 Meu Perfil", "📅 Agenda", "🔐 Painel Admin"]
   )
 
   # ABA 1: RANKING AO VIVO
@@ -4074,7 +4595,11 @@ else:
       altura = min(900, max(300, 150 + len(df_tabela_mobile) * 40))
       components.html(html_tabela, height=altura, scrolling=False)
 
-  # ABA 3: PERFIL INDIVIDUAL / CONQUISTAS
+  # ABA 3: HISTÓRICO MENSAL ARQUIVADO
+  with tab_historico_mes:
+    renderizar_historico_mensal()
+
+  # ABA 4: PERFIL INDIVIDUAL / CONQUISTAS
   with tab_perfil:
     renderizar_perfil_membro(df_rank, colunas_guerras, colunas_liga, colunas_raides)
 
@@ -4097,7 +4622,8 @@ else:
           " Liberado)"
       )
 
-      sub_tab20, sub_tab1, sub_tab2, sub_tab_pass, sub_tab3, sub_tab4, sub_tab_news, sub_tab5, sub_tab6, sub_tab7 = st.tabs([
+      sub_tab_month, sub_tab20, sub_tab1, sub_tab2, sub_tab_pass, sub_tab3, sub_tab4, sub_tab_news, sub_tab5, sub_tab6, sub_tab7 = st.tabs([
+          "🏆 Fechamento Mensal",
           "🚀 Gestão 2.0",
           "➕ Players",
           "👤 Novo Admin",
@@ -4110,14 +4636,19 @@ else:
           "🎲 Sorteio de Desempate",
       ])
 
+      with sub_tab_month:
+        renderizar_fechamento_mensal(df_rank)
+
       with sub_tab20:
         renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
 
       with sub_tab1:
+        if mes_finalizado:
+          st.warning("🔒 O mês está finalizado. Cadastro/remoção de players fica bloqueado até iniciar a próxima temporada.")
         c1, c2 = st.columns(2)
         with c1:
           novo_nome = st.text_input("Nome do Player", key=chave_widget_resetavel("novo_player_nome"))
-          if st.button("Cadastrar Player"):
+          if st.button("Cadastrar Player", disabled=mes_finalizado):
             if novo_nome.strip() != "":
               ids_existentes = pd.to_numeric(df.get("ID", pd.Series(dtype=float)), errors="coerce").dropna() if not df.empty else pd.Series(dtype=float)
               novo_id = int(ids_existentes.max()) + 1 if not ids_existentes.empty else 1
@@ -4139,7 +4670,7 @@ else:
             confirmar_rem = st.checkbox(
                 "⚠️ Confirmar exclusão permanente deste jogador"
             )
-            if st.button("Remover Player", type="primary"):
+            if st.button("Remover Player", type="primary", disabled=mes_finalizado):
               if confirmar_rem:
                 cell = sheet_dados.find(player_rem)
                 exigir_backup_automatico(
@@ -4237,6 +4768,8 @@ else:
 
       sub_tab3_col1, sub_tab3_col2 = sub_tab3.columns([1, 1])
       with sub_tab3:
+        if mes_finalizado:
+          st.warning("🔒 Tabelas de pontuação fechadas. Inicie a próxima temporada para editar ou criar novas atividades.")
         st.markdown("#### ➕ Criar Novas Colunas de Guerras, Liga ou Raides")
         st.markdown(
             "Clique nos botões abaixo para criar automaticamente as próximas"
@@ -4251,7 +4784,7 @@ else:
           )
           if st.button(
               f"⚔️ Criar Guerra ({proxima_guerra})",
-              use_container_width=True,
+              use_container_width=True, disabled=mes_finalizado,
           ):
             headers = sheet_dados.row_values(1)
             if proxima_guerra in headers:
@@ -4294,7 +4827,7 @@ else:
             proxima_liga = f"Liga_{qtd_liga + 1}"
             if st.button(
                 f"🏆 Criar Liga ({proxima_liga}) [{qtd_liga + 1}/7]",
-                use_container_width=True,
+                use_container_width=True, disabled=mes_finalizado,
             ):
               headers = sheet_dados.row_values(1)
               if proxima_liga in headers:
@@ -4331,7 +4864,7 @@ else:
           )
           if st.button(
               f"🏰 Criar Raide ({proxima_raide})",
-              use_container_width=True,
+              use_container_width=True, disabled=mes_finalizado,
           ):
             headers = sheet_dados.row_values(1)
             if proxima_raide in headers:
@@ -4372,7 +4905,7 @@ else:
           df_editado = st.data_editor(
               df_editavel, use_container_width=True, hide_index=True
           )
-          if st.button("💾 Salvar Alterações em Lote", type="primary"):
+          if st.button("💾 Salvar Alterações em Lote", type="primary", disabled=mes_finalizado):
             alteracoes = []
             valores_planilha = _ler_sheets_com_retry(sheet_dados.get_all_values)
             headers = valores_planilha[0] if valores_planilha else []
