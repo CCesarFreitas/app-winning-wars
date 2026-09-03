@@ -2259,65 +2259,162 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
             st.rerun()
 
         with st.expander(
-            f"➕ [ADMIN] Adicionar Novo Layout de {tipo_layout} ({cv_nome})"
+            f"➕ [ADMIN] Adicionar Layout(s) de {tipo_layout} ({cv_nome})"
         ):
+          st.caption(
+              "Cadastre um ou vários layouts de uma vez. Informe um link oficial por linha "
+              "e, se usar arquivos, selecione as imagens na mesma ordem dos links."
+          )
+
           with st.form(
-              key=f"form_{tipo_layout}_{cv_nome}", clear_on_submit=True
+              key=f"form_{tipo_layout}_{cv_nome}_lote_v47", clear_on_submit=True
           ):
-            link_layout = st.text_input("Link Oficial do Layout (URL)")
-            imagem_layout = st.file_uploader(
-                "📷 Foto do Layout",
-                type=["png", "jpg", "jpeg", "webp"],
-                key=f"upload_layout_{tipo_layout}_{cv_nome}_v31",
-                help="Selecione a imagem direto do celular ou computador. Máximo: 10 MB. O app redimensiona para até 1920 px e converte automaticamente para WEBP otimizado.",
-            )
-            if imagem_layout is not None:
-              st.image(imagem_layout, caption="Prévia da imagem que será publicada", use_container_width=True)
-              st.caption("⚡ Otimização automática: até 1920 px • WEBP • qualidade 85%")
-            img_url = st.text_input(
-                "Ou use um link direto de imagem (opcional)",
-                help="Compatibilidade com layouts antigos. Se uma imagem for selecionada acima, ela terá prioridade.",
+            links_layout_texto = st.text_area(
+                "Link(s) Oficial(is) do Layout — um por linha",
+                height=110,
+                placeholder="https://link-do-layout-1...\nhttps://link-do-layout-2...",
+                help="Para publicar vários layouts, coloque um link em cada linha.",
             )
 
-            btn_enviar = st.form_submit_button("Publicar Layout")
+            imagens_layout = st.file_uploader(
+                "📷 Foto(s) do(s) Layout(s)",
+                type=["png", "jpg", "jpeg", "webp"],
+                accept_multiple_files=True,
+                key=f"upload_layout_{tipo_layout}_{cv_nome}_lote_v47",
+                help=(
+                    "Selecione uma ou várias imagens. Elas serão associadas aos links pela ordem. "
+                    "Máximo: 10 MB por imagem. O app redimensiona para até 1920 px e converte "
+                    "automaticamente para WEBP otimizado."
+                ),
+            )
+
+            # A prévia grande foi removida de propósito: a imagem já será exibida no card
+            # do layout imediatamente após a publicação. Isso deixa o cadastro muito mais compacto.
+            if imagens_layout:
+              st.caption(
+                  f"📎 {len(imagens_layout)} imagem(ns) selecionada(s) • "
+                  "prévia removida para agilizar publicações em sequência."
+              )
+
+            urls_imagem_texto = st.text_area(
+                "Links diretos de imagem (opcional — um por linha)",
+                height=80,
+                placeholder="Use apenas se não for enviar o arquivo da imagem.",
+                help=(
+                    "Compatibilidade com layouts antigos. Cada linha corresponde ao mesmo número "
+                    "do link oficial. Se houver arquivo selecionado para aquele item, o arquivo terá prioridade."
+                ),
+            )
+
+            btn_enviar = st.form_submit_button(
+                "📤 Publicar Layout(s)", use_container_width=True, type="primary"
+            )
 
             if btn_enviar:
-              if link_layout.strip():
-                imagem_final, erro_upload = resolver_imagem_upload(
-                    imagem_layout, img_url, f"layouts/{tipo_layout.lower()}/{cv_nome.lower()}"
+              links_layout = [
+                  linha.strip()
+                  for linha in str(links_layout_texto or "").splitlines()
+                  if linha.strip()
+              ]
+
+              # Mantém as linhas vazias intermediárias para não deslocar a correspondência
+              # entre link oficial e URL manual de imagem.
+              urls_imagem = [
+                  linha.strip()
+                  for linha in str(urls_imagem_texto or "").splitlines()
+              ]
+              while urls_imagem and not urls_imagem[-1]:
+                urls_imagem.pop()
+
+              imagens_layout = list(imagens_layout or [])
+
+              if not links_layout:
+                st.error("⚠️ Insira pelo menos um link de layout antes de publicar.")
+              elif len(imagens_layout) > len(links_layout):
+                st.error(
+                    "⚠️ Há mais imagens selecionadas do que links de layout. "
+                    "Remova as imagens extras ou adicione os links correspondentes."
                 )
-                if erro_upload:
-                  st.error(f"⚠️ {erro_upload}")
-                else:
-                  # v38: gravação dos layouts baseada no cabeçalho real da planilha.
-                  # Evita deslocar DataHora caso novas colunas sejam adicionadas.
+              elif len(urls_imagem) > len(links_layout):
+                st.error(
+                    "⚠️ Há mais links diretos de imagem do que links de layout. "
+                    "Remova as linhas extras antes de publicar."
+                )
+              else:
+                cabecalho_layouts = sheet_layouts.row_values(1)
+                linhas_layouts = []
+                erros_upload = []
+
+                for posicao, link_layout in enumerate(links_layout):
+                  imagem_layout = (
+                      imagens_layout[posicao]
+                      if posicao < len(imagens_layout)
+                      else None
+                  )
+                  img_url = (
+                      urls_imagem[posicao]
+                      if posicao < len(urls_imagem)
+                      else ""
+                  )
+
+                  imagem_final, erro_upload = resolver_imagem_upload(
+                      imagem_layout,
+                      img_url,
+                      f"layouts/{tipo_layout.lower()}/{cv_nome.lower()}",
+                  )
+
+                  if erro_upload:
+                    erros_upload.append(
+                        f"Layout {posicao + 1}: {erro_upload}"
+                    )
+                    continue
+
+                  # Mantém exatamente a mesma estrutura já usada pela planilha Layouts.
                   novo_layout = {
                       "Tipo": tipo_layout,
                       "CV": cv_nome,
                       "Autor": st.session_state["admin_logado"],
-                      "Link": link_layout.strip(),
+                      "Link": link_layout,
                       "Descricao": "",
                       "ImagemUrl": imagem_final,
                       "Tag": "",
                       "DataHora": data_hora_postagem(),
                   }
-
-                  cabecalho_layouts = sheet_layouts.row_values(1)
-                  linha_layout = [
+                  linhas_layouts.append([
                       novo_layout.get(coluna, "")
                       for coluna in cabecalho_layouts
-                  ]
+                  ])
 
-                  sheet_layouts.append_row(linha_layout)
-                  registrar_log(
-                      st.session_state["admin_logado"],
-                      f"Adicionou layout {tipo_layout} para {cv_nome}",
+                if erros_upload:
+                  st.error(
+                      "⚠️ Nenhum layout foi gravado porque houve falha em um ou mais uploads:\n\n"
+                      + "\n".join(f"• {erro}" for erro in erros_upload)
                   )
+                elif linhas_layouts:
+                  # Uma única escrita em lote reduz chamadas à API do Google Sheets e permite
+                  # publicar vários layouts consecutivos sem alterar a estrutura do banco.
+                  try:
+                    sheet_layouts.append_rows(
+                        linhas_layouts, value_input_option="USER_ENTERED"
+                    )
+                  except Exception:
+                    # Fallback compatível com o comportamento anterior, caso append_rows
+                    # não esteja disponível na versão de gspread em uso.
+                    for linha_layout in linhas_layouts:
+                      sheet_layouts.append_row(linha_layout)
+
+                  for _ in linhas_layouts:
+                    registrar_log(
+                        st.session_state["admin_logado"],
+                        f"Adicionou layout {tipo_layout} para {cv_nome}",
+                    )
+
                   obter_layouts_cached.clear()
-                  st.success("✅ Layout publicado com sucesso!")
+                  qtd_publicada = len(linhas_layouts)
+                  st.success(
+                      f"✅ {qtd_publicada} layout(s) publicado(s) com sucesso!"
+                  )
                   st.rerun()
-              else:
-                st.error("⚠️ Insira o link do layout antes de publicar.")
 
       if not df_layouts.empty:
         layouts_filtrados = df_layouts[
