@@ -609,6 +609,7 @@ def conectar_banco():
       sheet_historico_mensal,
       sheet_temporadas,
       sheet_backups,
+      spreadsheet,
   )
 
 
@@ -627,6 +628,7 @@ try:
       sheet_historico_mensal,
       sheet_temporadas,
       sheet_backups,
+      spreadsheet_inscricoes,
   ) = conectar_banco()
 except Exception:
   st.error(
@@ -4740,6 +4742,23 @@ else:
         renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
 
       with sub_tab1:
+        # Recurso preparatorio desligado por padrao; nao altera o cadastro atual.
+        if st.secrets.get("habilitar_preparacao_outubro", False) is True:
+          try:
+            inscricoes_admin_autorizado = any(
+                str(r.get("Usuario", "")) == str(st.session_state.get("admin_logado", ""))
+                and r.get("Nivel") in ("Dono", "Lider", "Co-lider")
+                for r in obter_admins_cached()
+            )
+          except Exception:
+            inscricoes_admin_autorizado = False
+          if inscricoes_admin_autorizado:
+            with st.expander("Inscricoes por temporada - preparar outubro", expanded=False):
+              try:
+                from inscricoes_temporada import renderizar_painel
+                renderizar_painel(st, spreadsheet_inscricoes, sheet_dados, sheet_estado)
+              except Exception:
+                st.error("Painel preparatorio indisponivel. Confira o arquivo inscricoes_temporada.py.")
         if mes_finalizado:
           st.warning("🔒 O mês está finalizado. Cadastro/remoção de players fica bloqueado até iniciar a próxima temporada.")
         c1, c2 = st.columns(2)
