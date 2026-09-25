@@ -3877,6 +3877,49 @@ def vc_confirmar(estado, linha):
 
 
 # Incorporado no app de teste, abaixo das funcoes compartilhadas.
+# Cache somente para exibicao. Salvamentos continuam lendo dados atuais.
+@st.cache_resource(ttl=300)
+def ww_aba_painel(planilha_id, titulo):
+  if planilha_competicao.id != planilha_id:
+    raise ValueError("Planilha diferente da esperada")
+  return planilha_competicao.worksheet(titulo)
+
+@st.cache_data(ttl=30)
+def ww_admins_exibicao(planilha_id):
+  if planilha_competicao.id != planilha_id:
+    raise ValueError("Planilha diferente da esperada")
+  return sheet_admins.get_all_values()
+
+def ww_foto_vinculos_atual():
+  fontes = [sheet_dados,
+      ww_aba_painel(planilha_competicao.id, "InscricoesTemporada"),
+      ww_aba_painel(planilha_competicao.id, VC_ABA),
+      ww_aba_painel(planilha_competicao.id, PC_ABA)]
+  valores = []
+  for indice, fonte in enumerate(fontes):
+    linhas = fonte.get_all_values(value_render_option="FORMATTED_VALUE")
+    if indice in (2, 3) and linhas != fonte.get_all_values(value_render_option="FORMULA"):
+      raise ValueError("O cadastro de vínculos ou de participação contém fórmulas; requer revisão.")
+    valores.append(linhas)
+  return valores
+
+@st.cache_data(ttl=30)
+def ww_foto_vinculos_exibicao(planilha_id):
+  if planilha_competicao.id != planilha_id:
+    raise ValueError("Planilha diferente da esperada")
+  return ww_foto_vinculos_atual()
+
+@st.cache_data(ttl=30)
+def ww_controle_exibicao(planilha_id):
+  return ww_aba_painel(planilha_id, PC_ABA).get_all_values(value_render_option="FORMATTED_VALUE")
+
+def ww_limpar_painel():
+  ww_admins_exibicao.clear()
+  ww_foto_vinculos_exibicao.clear()
+  ww_controle_exibicao.clear()
+  carregar_nomes_vinculados.clear()
+
+
 def renderizar_vinculos_competicao():
   etapa_vinculo = "permissao"
   def mostrar_falha_vinculo(erro):
@@ -3901,12 +3944,12 @@ def renderizar_vinculos_competicao():
   st.markdown("### Vincular participantes antigos")
   st.caption("Escolha a conta principal de cada participante pelo nome e pela tag. O vínculo não altera pontos, inscrições ou a permissão de participar.")
   try:
-    pc_validar_admin(sheet_admins.get_all_values(), st.session_state.get("admin_logado"))
+    pc_validar_admin(ww_admins_exibicao(planilha_competicao.id), st.session_state.get("admin_logado"))
     if planilha_competicao.id != "1vlQYrFA3EeuL7dalVnAtdB01L__CTFyQeExBYDVAORM":
       raise ValueError("Este painel de vínculos está disponível somente na planilha de teste.")
     etapa_vinculo = "abrir cadastro"
     try:
-      aba = planilha_competicao.worksheet(VC_ABA)
+      aba = ww_aba_painel(planilha_competicao.id, VC_ABA)
     except gspread.WorksheetNotFound:
       st.info("Prepare o cadastro de vínculos para começar. Os vínculos já existentes de Valdeir e Rafael serão reconhecidos pelas inscrições.")
       if st.button("Preparar cadastro de vínculos", key="ww_vc_criar"):
@@ -3928,29 +3971,22 @@ def renderizar_vinculos_competicao():
       return
 
     def fotografar_vinculos():
-      fontes = [sheet_dados, planilha_competicao.worksheet("InscricoesTemporada"), aba,
-                planilha_competicao.worksheet(PC_ABA)]
-      valores = []
-      for indice, fonte in enumerate(fontes):
-        linhas = fonte.get_all_values(value_render_option="FORMATTED_VALUE")
-        if indice in (2, 3) and linhas != fonte.get_all_values(value_render_option="FORMULA"):
-          raise ValueError("O cadastro de vínculos ou de participação contém fórmulas; requer revisão.")
-        valores.append(linhas)
-      return valores
+      return ww_foto_vinculos_atual()
 
     etapa_vinculo = "ler cadastros"
-    foto = fotografar_vinculos()
+    foto = ww_foto_vinculos_exibicao(planilha_competicao.id)
     etapa_vinculo = "validar cadastros"
     estado = vc_estado(*foto)
     for tag_conta, conta in estado["contas"].items():
       conta["Nome"] = nome_conta(tag_conta, conta["Nome"])
     pendente = st.session_state.get("ww_vc_pendente")
     if pendente:
+      estado = vc_estado(*fotografar_vinculos())
       if pendente["planilha"] != planilha_competicao.id:
         raise ValueError("Há um vínculo sem confirmação em outra planilha.")
       if vc_confirmar(estado, pendente["linha"]):
         del st.session_state["ww_vc_pendente"]
-        carregar_nomes_vinculados.clear()
+        ww_limpar_painel()
         st.success("Vínculo registrado e conferido. Atualize a página para ver o nome da API no ranking.")
       else:
         st.warning("O último envio ainda não foi confirmado. Consulte novamente antes de fazer outro vínculo.")
@@ -3961,7 +3997,7 @@ def renderizar_vinculos_competicao():
 
     etapa_vinculo = "montar tela"
     if st.button("Atualizar vínculos", key="ww_vc_atualizar"):
-      carregar_nomes_vinculados.clear()
+      ww_limpar_painel()
       st.rerun()
     participantes = estado["participantes"]
     pendentes = [identidade for identidade in participantes if identidade not in estado["por_id"]]
@@ -4005,6 +4041,7 @@ def renderizar_vinculos_competicao():
         depois = vc_estado(*fotografar_vinculos())
         if not vc_confirmar(depois, linha):
           raise ValueError("Vínculo ainda não localizado.")
+        ww_limpar_painel()
       except Exception as erro:
         st.warning("Envio sem confirmação ou com conflito. Atualize os vínculos para conferir; não repita o envio.")
         mostrar_falha_vinculo(erro)
@@ -4017,10 +4054,11 @@ def renderizar_vinculos_competicao():
 
 
 def renderizar_participacao_competicao():
-  vinculos, permissoes = st.tabs(["Vincular participantes", "Habilitar ou desabilitar contas"])
-  with vinculos:
+  opcao = st.radio("Gerenciar", ["Vincular participantes", "Habilitar ou desabilitar contas"],
+      horizontal=True, key="ww_painel_opcao")
+  if opcao == "Vincular participantes":
     renderizar_vinculos_competicao()
-  with permissoes:
+  else:
     renderizar_permissoes_competicao()
 
 
@@ -4028,7 +4066,7 @@ def renderizar_permissoes_competicao():
   st.markdown("### 👥 Participação na competição")
   try:
     usuario = pc_validar_admin(
-        sheet_admins.get_all_values(), st.session_state.get("admin_logado")
+        ww_admins_exibicao(planilha_competicao.id), st.session_state.get("admin_logado")
     )
   except PermissionError as erro:
     st.warning(str(erro))
@@ -4042,8 +4080,8 @@ def renderizar_permissoes_competicao():
       "Desabilitar registra um bloqueio; nenhuma pontuação histórica é apagada por este painel."
   )
   try:
-    aba = planilha_competicao.worksheet(PC_ABA)
-    linhas = aba.get_all_values(value_render_option="FORMATTED_VALUE")
+    aba = ww_aba_painel(planilha_competicao.id, PC_ABA)
+    linhas = ww_controle_exibicao(planilha_competicao.id)
     eventos = pc_ler_eventos(linhas)
     contas = pc_estado(eventos)
     for conta in contas.values():
@@ -4061,6 +4099,7 @@ def renderizar_permissoes_competicao():
   pendencia_chave = "ww_participacao_envio_pendente"
   pendente = st.session_state.get(pendencia_chave)
   if pendente:
+    linhas = aba.get_all_values(value_render_option="FORMATTED_VALUE")
     if pendente["planilha_id"] != planilha_competicao.id:
       st.error("Há uma alteração sem confirmação em outra planilha. Confira-a antes de continuar.")
       return
@@ -4083,6 +4122,7 @@ def renderizar_permissoes_competicao():
       return
 
   if st.button("Atualizar lista", key="ww_pc_atualizar"):
+    ww_limpar_painel()
     st.rerun()
   if not contas:
     st.info("Nenhuma conta importada ainda.")
@@ -4166,6 +4206,7 @@ def renderizar_permissoes_competicao():
       st.warning("A alteração ainda não apareceu na leitura. Atualize a lista para conferir.")
       return
     del st.session_state[pendencia_chave]
+    ww_limpar_painel()
     st.session_state["ww_pc_sucesso"] = "Participação registrada e conferida."
     st.rerun()
 
@@ -4814,18 +4855,13 @@ def nv_linhas_ids(linhas):
 # Nomes de exibicao; o dataframe original continua sendo a referencia do legado.
 @st.cache_data(ttl=60)
 def carregar_nomes_vinculados():
-  linhas_nomes = planilha_competicao.worksheet(NV_ABA).get_all_values(value_render_option="FORMULA")
+  linhas_nomes = ww_aba_painel(planilha_competicao.id, NV_ABA).get_all_values(value_render_option="FORMULA")
   nomes = nv_ler(linhas_nomes)
   try:
-    vinculos = planilha_competicao.worksheet(VC_ABA).get_all_values(value_render_option="FORMULA")
+    foto = ww_foto_vinculos_exibicao(planilha_competicao.id)
   except gspread.WorksheetNotFound:
-    vinculos = [VC_HEADER]
-  estado = vc_estado(
-      sheet_dados.get_all_values(value_render_option="FORMATTED_VALUE"),
-      planilha_competicao.worksheet("InscricoesTemporada").get_all_values(value_render_option="FORMATTED_VALUE"),
-      vinculos,
-      planilha_competicao.worksheet(PC_ABA).get_all_values(value_render_option="FORMULA"),
-  )
+    return {}, nomes
+  estado = vc_estado(*foto)
   return estado["por_id"], nomes
 
 try:
