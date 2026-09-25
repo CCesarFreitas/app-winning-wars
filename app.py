@@ -3878,12 +3878,33 @@ def vc_confirmar(estado, linha):
 
 # Incorporado no app de teste, abaixo das funcoes compartilhadas.
 def renderizar_vinculos_competicao():
+  etapa_vinculo = "permissao"
+  def mostrar_falha_vinculo(erro):
+    resposta = getattr(erro, "response", None)
+    status = getattr(resposta, "status_code", None)
+    tipo = type(erro).__name__
+    if status == 429:
+      st.warning("O Google limitou temporariamente as consultas. Aguarde cerca de um minuto e atualize a página uma vez. Não repita a confirmação do vínculo.")
+    elif status in (401, 403):
+      st.error("O Google recusou o acesso ao cadastro. Precisamos conferir a permissão da planilha.")
+    elif status is not None and type(status) is int and status >= 500:
+      st.warning("O Google está temporariamente indisponível. Aguarde e atualize a página para conferir o registro.")
+    else:
+      st.error("Não foi possível concluir a conferência. Copie o diagnóstico abaixo para verificarmos a causa.")
+    # Apenas classe, etapa e posicao do erro; nunca resposta, credenciais ou dados da conta.
+    import traceback
+    quadros = traceback.extract_tb(erro.__traceback__)
+    quadro = quadros[-1] if quadros else None
+    local = f" | {quadro.name}:{quadro.lineno}" if quadro else ""
+    http = f" | HTTP {status}" if type(status) is int else ""
+    st.caption(f"Diagnóstico: VINCULOS | {etapa_vinculo} | {tipo}{http}{local}")
   st.markdown("### Vincular participantes antigos")
   st.caption("Escolha a conta principal de cada participante pelo nome e pela tag. O vínculo não altera pontos, inscrições ou a permissão de participar.")
   try:
     pc_validar_admin(sheet_admins.get_all_values(), st.session_state.get("admin_logado"))
     if planilha_competicao.id != "1vlQYrFA3EeuL7dalVnAtdB01L__CTFyQeExBYDVAORM":
       raise ValueError("Este painel de vínculos está disponível somente na planilha de teste.")
+    etapa_vinculo = "abrir cadastro"
     try:
       aba = planilha_competicao.worksheet(VC_ABA)
     except gspread.WorksheetNotFound:
@@ -3917,7 +3938,9 @@ def renderizar_vinculos_competicao():
         valores.append(linhas)
       return valores
 
+    etapa_vinculo = "ler cadastros"
     foto = fotografar_vinculos()
+    etapa_vinculo = "validar cadastros"
     estado = vc_estado(*foto)
     for tag_conta, conta in estado["contas"].items():
       conta["Nome"] = nome_conta(tag_conta, conta["Nome"])
@@ -3936,6 +3959,7 @@ def renderizar_vinculos_competicao():
           st.rerun()
         return
 
+    etapa_vinculo = "montar tela"
     if st.button("Atualizar vínculos", key="ww_vc_atualizar"):
       carregar_nomes_vinculados.clear()
       st.rerun()
@@ -3966,6 +3990,7 @@ def renderizar_vinculos_competicao():
     st.info(f"Vincular {participantes[identidade]} (ID {identidade}) à conta {estado['contas'][tag]['Nome']} ({tag}).")
     confirmado = st.checkbox("Confirmo que esta é a conta principal deste participante", key="ww_vc_confirmo_" + identidade + tag)
     if st.button("Confirmar vínculo", disabled=not confirmado, key="ww_vc_salvar"):
+      etapa_vinculo = "conferir antes de salvar"
       import uuid
       atuais = fotografar_vinculos()
       if atuais != foto:
@@ -3974,18 +3999,21 @@ def renderizar_vinculos_competicao():
           identidade, tag, str(uuid.uuid4()), agora_winning_wars().isoformat())
       st.session_state["ww_vc_pendente"] = {"planilha": planilha_competicao.id, "linha": linha}
       try:
+        etapa_vinculo = "enviar vinculo"
         aba.append_row(linha, value_input_option="RAW")
+        etapa_vinculo = "confirmar envio"
         depois = vc_estado(*fotografar_vinculos())
         if not vc_confirmar(depois, linha):
           raise ValueError("Vínculo ainda não localizado.")
-      except Exception:
+      except Exception as erro:
         st.warning("Envio sem confirmação ou com conflito. Atualize os vínculos para conferir; não repita o envio.")
+        mostrar_falha_vinculo(erro)
         return
       st.rerun()
   except (ValueError, PermissionError) as erro:
     st.error(str(erro))
-  except Exception:
-    st.error("Não foi possível conferir os cadastros. Atualize a página e tente novamente.")
+  except Exception as erro:
+    mostrar_falha_vinculo(erro)
 
 
 def renderizar_participacao_competicao():
