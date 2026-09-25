@@ -31,7 +31,12 @@ except ImportError:
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
-    page_title="Winning Wars APP", page_icon=str(Path(__file__).parent / "static" / "favicon.png"), layout="wide"
+    page_title="Winning Wars — TESTE", page_icon=str(Path(__file__).parent / "static" / "favicon.png"), layout="wide"
+)
+
+st.warning(
+    "AMBIENTE DE TESTE — alterações são salvas somente na planilha "
+    "WinningWars_TESTE_Outubro_2026."
 )
 
 # --- PWA / ÍCONE PARA IPHONE, IPAD E ANDROID ---
@@ -405,7 +410,11 @@ def conectar_banco():
   creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
   client = gspread.authorize(creds)
 
-  spreadsheet = client.open_by_key("1vlQYrFA3EeuL7dalVnAtdB01L__CTFyQeExBYDVAORM")
+  spreadsheet = client.open_by_key(
+      "1vlQYrFA3EeuL7dalVnAtdB01L__CTFyQeExBYDVAORM"
+  )
+  if spreadsheet.title != "WinningWars_TESTE_Outubro_2026":
+    raise RuntimeError("Planilha diferente do ambiente de teste previsto.")
   sheet_dados = spreadsheet.sheet1
 
   # Aba de Admins
@@ -628,12 +637,12 @@ try:
       sheet_historico_mensal,
       sheet_temporadas,
       sheet_backups,
-      spreadsheet_inscricoes,
+      planilha_competicao,
   ) = conectar_banco()
 except Exception:
   st.error(
       "⚠️ **Erro na Conexão:** Não foi possível acessar a planilha"
-      " 'WinningWars_DB'. Verifique suas permissões."
+      " 'WinningWars_TESTE_Outubro_2026'. Verifique suas permissões."
   )
   st.stop()
 
@@ -836,10 +845,10 @@ def nivel_admin_atual() -> str:
     if not atual.empty and "Nivel" in atual.columns:
       linha = atual[atual["Usuario"] == usuario]
       if not linha.empty:
-        return str(linha.iloc[0].get("Nivel", "Lider") or "Lider")
+        return str(linha.iloc[0].get("Nivel", "Membro") or "Membro")
   except Exception:
     pass
-  return "Lider"
+  return "Membro"
 
 
 def tem_permissao(*niveis) -> bool:
@@ -3646,6 +3655,303 @@ def renderizar_agenda_membros():
     st.divider()
 
 
+# INICIO CONTROLE PARTICIPACAO
+"""Contrato compartilhado entre o app e a futura integracao do motor.
+
+A aba e um historico de eventos acrescentados ao final, nunca uma tabela
+reescrita pela sincronizacao. CADASTRO cria o padrao; ADMIN sempre prevalece.
+A ordem das linhas define a ordem das decisoes administrativas.
+"""
+import re
+import unicodedata
+from datetime import datetime
+
+PC_ABA = "ParticipacaoCompeticao"
+PC_CABECALHO = [
+    "EventoID", "PlayerTag", "Nome", "Habilitada", "Administrador",
+    "Motivo", "RegistradoEm", "Origem",
+]
+
+
+def pc_tag(valor):
+    if not isinstance(valor, str):
+        raise ValueError("Tag ausente.")
+    tag = valor.strip().upper()
+    if not re.fullmatch(r"#[0289PYLQGRJCUV]+", tag):
+        raise ValueError("Tag invalida.")
+    return tag
+
+
+def pc_validar_admin(linhas, usuario):
+    if not isinstance(usuario, str) or not usuario.strip():
+        raise PermissionError("Entre com uma conta administrativa autorizada.")
+    if not linhas or len(set(linhas[0])) != len(linhas[0]):
+        raise PermissionError("Nao foi possivel confirmar as permissoes.")
+    cabecalho = linhas[0]
+    if "Usuario" not in cabecalho or "Nivel" not in cabecalho:
+        raise PermissionError("Cadastro de administradores incompleto.")
+    encontrados = []
+    for linha in linhas[1:]:
+        dados = dict(zip(cabecalho, linha))
+        if str(dados.get("Usuario", "")).strip().casefold() == usuario.strip().casefold():
+            encontrados.append(dados)
+    if len(encontrados) != 1:
+        raise PermissionError("Administrador ausente ou cadastro duplicado.")
+    nivel = str(encontrados[0].get("Nivel", "")).strip()
+    nivel = "".join(
+        c for c in unicodedata.normalize("NFKD", nivel)
+        if not unicodedata.combining(c)
+    ).casefold()
+    if nivel not in {"dono", "lider", "co-lider", "colider"}:
+        raise PermissionError("Somente dono, lider e colider podem gerir a participacao.")
+    return str(encontrados[0]["Usuario"]).strip()
+
+
+def pc_ler_eventos(linhas):
+    if not linhas or linhas[0] != PC_CABECALHO:
+        raise ValueError("Controle de participacao ausente ou com cabecalho diferente.")
+    eventos = []
+    ids = {}
+    for numero, linha in enumerate(linhas[1:], 2):
+        if not any(str(v).strip() for v in linha):
+            continue
+        if len(linha) != len(PC_CABECALHO) or not all(isinstance(v, str) for v in linha):
+            raise ValueError(f"Linha {numero}: registro de participacao incompleto.")
+        registro = dict(zip(PC_CABECALHO, linha))
+        if any(not valor.strip() for valor in registro.values()):
+            raise ValueError(f"Linha {numero}: campos obrigatorios ausentes.")
+        if registro["PlayerTag"] != pc_tag(registro["PlayerTag"]):
+            raise ValueError(f"Linha {numero}: tag fora do formato padrao.")
+        if registro["Habilitada"] not in {"TRUE", "FALSE"}:
+            raise ValueError(f"Linha {numero}: permissao invalida.")
+        if registro["Origem"] not in {"CADASTRO", "ADMIN"}:
+            raise ValueError(f"Linha {numero}: origem invalida.")
+        data = datetime.fromisoformat(registro["RegistradoEm"])
+        if data.tzinfo is None or data.utcoffset() is None:
+            raise ValueError(f"Linha {numero}: data sem fuso.")
+        identidade = registro["EventoID"]
+        if identidade in ids:
+            if ids[identidade] != registro:
+                raise ValueError(f"Linha {numero}: identificador reutilizado com dados diferentes.")
+            continue
+        ids[identidade] = registro
+        eventos.append(registro)
+    return eventos
+
+
+def pc_estado(eventos):
+    contas = {}
+    for evento in eventos:
+        tag = evento["PlayerTag"]
+        atual = contas.get(tag)
+        if evento["Origem"] == "ADMIN" or atual is None:
+            contas[tag] = dict(evento)
+        # Repetir/importar o cadastro nunca altera uma decisao ja registrada.
+    return contas
+
+
+def pc_habilitada(linhas, tag):
+    """Ausencia de cadastro nao significa permissao implicita para pontuar."""
+    conta = pc_estado(pc_ler_eventos(linhas)).get(pc_tag(tag))
+    if conta is None:
+        raise ValueError("Conta ainda nao registrada no controle de participacao.")
+    return conta["Habilitada"] == "TRUE"
+
+
+def pc_preparar_alteracao(linhas, admins, usuario, tag, habilitada,
+                         motivo, evento_anterior, evento_id, registrado_em):
+    autor = pc_validar_admin(admins, usuario)
+    if type(habilitada) is not bool:
+        raise ValueError("A participacao deve ser habilitada ou desabilitada.")
+    if not isinstance(motivo, str) or not 3 <= len(motivo.strip()) <= 500:
+        raise ValueError("Informe um motivo de 3 a 500 caracteres.")
+    tag = pc_tag(tag)
+    eventos = pc_ler_eventos(linhas)
+    atual = pc_estado(eventos).get(tag)
+    if atual is None:
+        raise ValueError("Conta nao encontrada no controle de participacao.")
+    if atual["EventoID"] != evento_anterior:
+        raise ValueError("Esta conta foi alterada por outro administrador. Atualize o painel.")
+    if any(evento["EventoID"] == evento_id for evento in eventos):
+        raise ValueError("Identificador de alteracao ja utilizado.")
+    valor = "TRUE" if habilitada else "FALSE"
+    if atual["Habilitada"] == valor:
+        raise ValueError("A conta ja possui a participacao selecionada.")
+    linha = [evento_id, tag, atual["Nome"], valor, autor, motivo.strip(), registrado_em, "ADMIN"]
+    pc_ler_eventos([PC_CABECALHO, linha])
+    return linha
+
+
+def pc_confirmar_evento(linhas, linha_enviada):
+    esperado = dict(zip(PC_CABECALHO, linha_enviada))
+    for evento in pc_ler_eventos(linhas):
+        if evento["EventoID"] == esperado["EventoID"]:
+            if evento != esperado:
+                raise ValueError("Alteracao registrada com dados divergentes.")
+            return True
+    return False
+
+
+# Este fragmento e incorporado ao app; nao e executado isoladamente.
+
+def renderizar_participacao_competicao():
+  st.markdown("### 👥 Participação na competição")
+  try:
+    usuario = pc_validar_admin(
+        sheet_admins.get_all_values(), st.session_state.get("admin_logado")
+    )
+  except PermissionError as erro:
+    st.warning(str(erro))
+    return
+  except Exception:
+    st.error("Não foi possível confirmar sua permissão. Tente novamente mais tarde.")
+    return
+
+  st.caption(
+      "Habilitar uma conta permite sua participação após obter pontuação válida. "
+      "Desabilitar registra um bloqueio; nenhuma pontuação histórica é apagada por este painel."
+  )
+  try:
+    aba = planilha_competicao.worksheet(PC_ABA)
+    linhas = aba.get_all_values(value_render_option="FORMATTED_VALUE")
+    eventos = pc_ler_eventos(linhas)
+    contas = pc_estado(eventos)
+  except gspread.WorksheetNotFound:
+    st.info("O controle de participação está aguardando a importação inicial das contas do clã.")
+    return
+  except ValueError as erro:
+    st.error(str(erro))
+    return
+  except Exception:
+    st.error("Não foi possível consultar as contas. Nenhuma alteração foi enviada.")
+    return
+
+  pendencia_chave = "ww_participacao_envio_pendente"
+  pendente = st.session_state.get(pendencia_chave)
+  if pendente:
+    if pendente["planilha_id"] != planilha_competicao.id:
+      st.error("Há uma alteração sem confirmação em outra planilha. Confira-a antes de continuar.")
+      return
+    try:
+      confirmado = pc_confirmar_evento(linhas, pendente["linha"])
+    except ValueError as erro:
+      st.error(str(erro))
+      return
+    if confirmado:
+      del st.session_state[pendencia_chave]
+      st.success("A alteração anterior foi localizada no histórico. Ela não foi enviada novamente.")
+    else:
+      st.warning(
+          "A última tentativa ainda não foi confirmada. Não enviaremos outra alteração "
+          "nesta sessão até conferir o registro."
+      )
+      st.caption("Identificador para conferência: " + pendente["linha"][0])
+      if st.button("Consultar confirmação novamente", key="ww_pc_conferir"):
+        st.rerun()
+      return
+
+  if st.button("Atualizar lista", key="ww_pc_atualizar"):
+    st.rerun()
+  if not contas:
+    st.info("Nenhuma conta importada ainda.")
+    return
+
+  habilitadas = sum(conta["Habilitada"] == "TRUE" for conta in contas.values())
+  st.caption(
+      f"{len(contas)} contas · {habilitadas} habilitadas · "
+      f"{len(contas) - habilitadas} desabilitadas"
+  )
+  busca = st.text_input("Buscar por nome ou tag", key="ww_pc_busca").strip().casefold()
+  filtro = st.selectbox(
+      "Mostrar", ["Todas", "Habilitadas", "Desabilitadas"], key="ww_pc_filtro"
+  )
+  visiveis = [
+      conta for conta in contas.values()
+      if (not busca or busca in conta["Nome"].casefold() or busca in conta["PlayerTag"].casefold())
+      and (filtro == "Todas" or (conta["Habilitada"] == "TRUE") == (filtro == "Habilitadas"))
+  ]
+  visiveis.sort(key=lambda conta: (conta["Nome"].casefold(), conta["PlayerTag"]))
+  if not visiveis:
+    st.info("Nenhuma conta corresponde à busca.")
+    return
+
+  st.dataframe(pd.DataFrame([
+      {"Nome": conta["Nome"], "Tag": conta["PlayerTag"],
+       "Participação permitida": "Sim" if conta["Habilitada"] == "TRUE" else "Não",
+       "Atualizado por": conta["Administrador"], "Data": conta["RegistradoEm"]}
+      for conta in visiveis
+  ]), hide_index=True, use_container_width=True)
+
+  tag = st.selectbox(
+      "Conta", [conta["PlayerTag"] for conta in visiveis],
+      format_func=lambda valor: f"{contas[valor]['Nome']} — {valor}",
+      key="ww_pc_conta",
+  )
+  conta = contas[tag]
+  chave = tag + "_" + conta["EventoID"]
+  with st.form("ww_pc_form_" + chave):
+    escolha = st.radio(
+        "Participação", ["Habilitada", "Desabilitada"],
+        index=0 if conta["Habilitada"] == "TRUE" else 1,
+        key="ww_pc_escolha_" + chave,
+    )
+    motivo = st.text_input(
+        "Motivo da alteração", max_chars=500, key="ww_pc_motivo_" + chave,
+        placeholder="Ex.: conta secundária ou liberação para participar",
+    )
+    salvar = st.form_submit_button("Salvar participação", type="primary")
+
+  if salvar:
+    import uuid
+    try:
+      atuais = aba.get_all_values(value_render_option="FORMATTED_VALUE")
+      admins_atuais = sheet_admins.get_all_values()
+      linha = pc_preparar_alteracao(
+          atuais, admins_atuais, st.session_state.get("admin_logado"), tag,
+          escolha == "Habilitada", motivo, conta["EventoID"],
+          str(uuid.uuid4()), agora_winning_wars().isoformat(),
+      )
+    except (ValueError, PermissionError) as erro:
+      st.error(str(erro))
+      return
+    except Exception:
+      st.error("Não foi possível validar a alteração. Nenhum envio foi iniciado.")
+      return
+
+    st.session_state[pendencia_chave] = {
+        "linha": linha, "planilha_id": planilha_competicao.id,
+    }
+    try:
+      # Uma unica inclusao registra a decisao e sua auditoria. Nao repetir em falhas.
+      aba.append_row(linha, value_input_option="RAW")
+      confirmado = pc_confirmar_evento(
+          aba.get_all_values(value_render_option="FORMATTED_VALUE"), linha
+      )
+    except Exception:
+      st.warning("Envio sem confirmação. Use Atualizar lista para conferir antes de tentar outra alteração.")
+      return
+    if not confirmado:
+      st.warning("A alteração ainda não apareceu na leitura. Atualize a lista para conferir.")
+      return
+    del st.session_state[pendencia_chave]
+    st.session_state["ww_pc_sucesso"] = "Participação registrada e conferida."
+    st.rerun()
+
+  mensagem = st.session_state.pop("ww_pc_sucesso", None)
+  if mensagem:
+    st.success(mensagem)
+  with st.expander("Histórico desta conta"):
+    historico = [evento for evento in eventos if evento["PlayerTag"] == tag]
+    st.dataframe(pd.DataFrame([
+        {"Data": evento["RegistradoEm"], "Administrador": evento["Administrador"],
+         "Participação": "Habilitada" if evento["Habilitada"] == "TRUE" else "Desabilitada",
+         "Motivo": evento["Motivo"], "Origem": evento["Origem"]}
+        for evento in reversed(historico)
+    ]), hide_index=True, use_container_width=True)
+
+# FIM CONTROLE PARTICIPACAO
+
+
 def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides):
   st.markdown("### 🚀 Central de Gestão 2.0")
   st.caption(f"Nível de acesso: **{nivel_admin_atual()}**")
@@ -4721,9 +5027,10 @@ else:
           " Liberado)"
       )
 
-      sub_tab_month, sub_tab20, sub_tab1, sub_tab2, sub_tab_pass, sub_tab3, sub_tab4, sub_tab_news, sub_tab5, sub_tab6, sub_tab7 = st.tabs([
+      sub_tab_month, sub_tab20, sub_tab_participacao, sub_tab1, sub_tab2, sub_tab_pass, sub_tab3, sub_tab4, sub_tab_news, sub_tab5, sub_tab6, sub_tab7 = st.tabs([
           "🏆 Fechamento Mensal",
           "🚀 Gestão 2.0",
+          "👥 Participação",
           "➕ Players",
           "👤 Novo Admin",
           "🔑 Alterar Senha",
@@ -4741,24 +5048,10 @@ else:
       with sub_tab20:
         renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
 
+      with sub_tab_participacao:
+        renderizar_participacao_competicao()
+
       with sub_tab1:
-        # Recurso preparatorio desligado por padrao; nao altera o cadastro atual.
-        if st.secrets.get("habilitar_preparacao_outubro", False) is True:
-          try:
-            inscricoes_admin_autorizado = any(
-                str(r.get("Usuario", "")) == str(st.session_state.get("admin_logado", ""))
-                and r.get("Nivel") in ("Dono", "Lider", "Co-lider")
-                for r in obter_admins_cached()
-            )
-          except Exception:
-            inscricoes_admin_autorizado = False
-          if inscricoes_admin_autorizado:
-            with st.expander("Inscricoes por temporada - preparar outubro", expanded=False):
-              try:
-                from inscricoes_temporada import renderizar_painel
-                renderizar_painel(st, spreadsheet_inscricoes, sheet_dados, sheet_estado)
-              except Exception:
-                st.error("Painel preparatorio indisponivel. Confira o arquivo inscricoes_temporada.py.")
         if mes_finalizado:
           st.warning("🔒 O mês está finalizado. Cadastro/remoção de players fica bloqueado até iniciar a próxima temporada.")
         c1, c2 = st.columns(2)
