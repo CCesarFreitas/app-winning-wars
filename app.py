@@ -3891,16 +3891,18 @@ def ww_admins_exibicao(planilha_id):
   return sheet_admins.get_all_values()
 
 def ww_foto_vinculos_atual():
-  fontes = [sheet_dados,
-      ww_aba_painel(planilha_competicao.id, "InscricoesTemporada"),
-      ww_aba_painel(planilha_competicao.id, VC_ABA),
-      ww_aba_painel(planilha_competicao.id, PC_ABA)]
-  valores = []
-  for indice, fonte in enumerate(fontes):
-    linhas = fonte.get_all_values(value_render_option="FORMATTED_VALUE")
-    if indice in (2, 3) and linhas != fonte.get_all_values(value_render_option="FORMULA"):
-      raise ValueError("O cadastro de vínculos ou de participação contém fórmulas; requer revisão.")
-    valores.append(linhas)
+  titulos = [sheet_dados.title, "InscricoesTemporada", VC_ABA, PC_ABA]
+  ranges = ["'" + titulo.replace("'", "''") + "'" for titulo in titulos]
+  def consultar(intervalos, modo):
+    resposta = planilha_competicao.values_batch_get(intervalos, params={"valueRenderOption": modo})
+    partes = resposta.get("valueRanges", [])
+    if len(partes) != len(intervalos):
+      raise ValueError("Leitura em lote incompleta.")
+    return [parte.get("values", []) for parte in partes]
+  valores = consultar(ranges, "FORMATTED_VALUE")
+  formulas = consultar(ranges[2:], "FORMULA")
+  if valores[2:] != formulas:
+    raise ValueError("Fórmulas no cadastro de vínculos ou de participação; requer revisão.")
   return valores
 
 @st.cache_data(ttl=30)
@@ -3920,137 +3922,128 @@ def ww_limpar_painel():
   carregar_nomes_vinculados.clear()
 
 
-def renderizar_vinculos_competicao():
-  etapa_vinculo = "permissao"
-  def mostrar_falha_vinculo(erro):
-    resposta = getattr(erro, "response", None)
-    status = getattr(resposta, "status_code", None)
-    tipo = type(erro).__name__
-    if status == 429:
-      st.warning("O Google limitou temporariamente as consultas. Aguarde cerca de um minuto e atualize a página uma vez. Não repita a confirmação do vínculo.")
-    elif status in (401, 403):
-      st.error("O Google recusou o acesso ao cadastro. Precisamos conferir a permissão da planilha.")
-    elif status is not None and type(status) is int and status >= 500:
-      st.warning("O Google está temporariamente indisponível. Aguarde e atualize a página para conferir o registro.")
-    else:
-      st.error("Não foi possível concluir a conferência. Copie o diagnóstico abaixo para verificarmos a causa.")
-    # Apenas classe, etapa e posicao do erro; nunca resposta, credenciais ou dados da conta.
-    import traceback
-    quadros = traceback.extract_tb(erro.__traceback__)
-    quadro = quadros[-1] if quadros else None
-    local = f" | {quadro.name}:{quadro.lineno}" if quadro else ""
-    http = f" | HTTP {status}" if type(status) is int else ""
-    st.caption(f"Diagnóstico: VINCULOS | {etapa_vinculo} | {tipo}{http}{local}")
-  st.markdown("### Vincular participantes antigos")
-  st.caption("Escolha a conta principal de cada participante pelo nome e pela tag. O vínculo não altera pontos, inscrições ou a permissão de participar.")
-  try:
-    pc_validar_admin(ww_admins_exibicao(planilha_competicao.id), st.session_state.get("admin_logado"))
-    if planilha_competicao.id != "1vlQYrFA3EeuL7dalVnAtdB01L__CTFyQeExBYDVAORM":
-      raise ValueError("Este painel de vínculos está disponível somente na planilha de teste.")
-    etapa_vinculo = "abrir cadastro"
-    try:
-      aba = ww_aba_painel(planilha_competicao.id, VC_ABA)
-    except gspread.WorksheetNotFound:
-      st.info("Prepare o cadastro de vínculos para começar. Os vínculos já existentes de Valdeir e Rafael serão reconhecidos pelas inscrições.")
-      if st.button("Preparar cadastro de vínculos", key="ww_vc_criar"):
-        pc_validar_admin(sheet_admins.get_all_values(), st.session_state.get("admin_logado"))
-        import secrets
-        sheet_id = secrets.randbelow(2**30)
-        try:
-          planilha_competicao.batch_update({"requests": [
-              {"addSheet": {"properties": {"sheetId": sheet_id, "title": VC_ABA,
-                  "gridProperties": {"rowCount": 1000, "columnCount": len(VC_HEADER)}}}},
-              {"updateCells": {"start": {"sheetId": sheet_id, "rowIndex": 0, "columnIndex": 0},
-                  "rows": [{"values": [{"userEnteredValue": {"stringValue": v}} for v in VC_HEADER]}],
-                  "fields": "userEnteredValue"}},
-          ]})
-        except Exception:
-          st.warning("Preparação sem confirmação. Atualize a página para conferir se o cadastro foi criado.")
-          return
-        st.rerun()
-      return
+"""Preparo do lote sem efeitos externos; todo o lote valido ou nenhum envio."""
 
-    def fotografar_vinculos():
-      return ww_foto_vinculos_atual()
+def vl_preparar(foto, admins, usuario, escolhas, lote_id, data):
+    import uuid
+    if not escolhas:
+        raise ValueError("Selecione pelo menos uma conta.")
+    ids, tags, linhas = set(), set(), []
+    for identidade, tag in escolhas:
+        if identidade in ids or tag in tags:
+            raise ValueError("Participante ou conta selecionado mais de uma vez no lote.")
+        ids.add(identidade)
+        tags.add(tag)
+        evento_id = str(uuid.uuid5(uuid.UUID(lote_id), identidade))
+        linhas.append(vc_preparar(*foto, admins, usuario, identidade, tag, evento_id, data))
+    vc_estado(foto[0], foto[1], foto[2] + linhas, foto[3])
+    return linhas
 
-    etapa_vinculo = "ler cadastros"
-    foto = ww_foto_vinculos_exibicao(planilha_competicao.id)
-    etapa_vinculo = "validar cadastros"
+def vl_conferir(foto, linhas):
     estado = vc_estado(*foto)
-    for tag_conta, conta in estado["contas"].items():
-      conta["Nome"] = nome_conta(tag_conta, conta["Nome"])
-    pendente = st.session_state.get("ww_vc_pendente")
+    return all(vc_confirmar(estado, linha) for linha in linhas)
+
+
+def renderizar_vinculos_competicao():
+  import time
+  import uuid
+  st.markdown("### Vincular participantes em lote")
+  st.caption("Escolha as contas que reconhecer e confira o lote antes de salvar. Deixe as demais sem seleção. Pontos e permissões não serão alterados.")
+  if time.time() < st.session_state.get("ww_vl_aguardar_ate", 0):
+    st.warning("O Google limitou as consultas. Aguarde cerca de um minuto antes de atualizar esta tela. Nenhum lote será reenviado automaticamente.")
+    return
+  etapa = "ler cadastros"
+  try:
+    if planilha_competicao.id != "1vlQYrFA3EeuL7dalVnAtdB01L__CTFyQeExBYDVAORM":
+      raise ValueError("Disponível somente no aplicativo de teste.")
+    pc_validar_admin(ww_admins_exibicao(planilha_competicao.id), st.session_state.get("admin_logado"))
+    foto = ww_foto_vinculos_exibicao(planilha_competicao.id)
+    estado = vc_estado(*foto)
+    # Recupera tambem uma tentativa pendente feita na tela individual anterior.
+    pendente = st.session_state.get("ww_vl_pendente")
+    antigo = st.session_state.get("ww_vc_pendente")
+    if not pendente and antigo:
+      pendente = {"planilha": antigo["planilha"], "linhas": [antigo["linha"]]}
+      st.session_state["ww_vl_pendente"] = pendente
     if pendente:
-      estado = vc_estado(*fotografar_vinculos())
       if pendente["planilha"] != planilha_competicao.id:
-        raise ValueError("Há um vínculo sem confirmação em outra planilha.")
-      if vc_confirmar(estado, pendente["linha"]):
-        del st.session_state["ww_vc_pendente"]
-        ww_limpar_painel()
-        st.success("Vínculo registrado e conferido. Atualize a página para ver o nome da API no ranking.")
-      else:
-        st.warning("O último envio ainda não foi confirmado. Consulte novamente antes de fazer outro vínculo.")
-        st.caption("Identificador: " + pendente["linha"][0])
-        if st.button("Consultar confirmação", key="ww_vc_pendente_atualizar"):
+        raise ValueError("Envio pendente em outra planilha.")
+      atual = ww_foto_vinculos_atual()
+      if not vl_conferir(atual, pendente["linhas"]):
+        st.warning("O último envio ainda não foi confirmado por completo. Não envie outro lote antes da conferência.")
+        st.caption("Referência: " + pendente["linhas"][0][0])
+        if st.button("Conferir envio anterior", key="ww_vl_conferir"):
           st.rerun()
         return
-
-    etapa_vinculo = "montar tela"
-    if st.button("Atualizar vínculos", key="ww_vc_atualizar"):
+      st.session_state.pop("ww_vl_pendente", None)
+      st.session_state.pop("ww_vc_pendente", None)
+      st.session_state.pop("ww_vl_proposta", None)
       ww_limpar_painel()
-      st.rerun()
+      foto = atual
+      estado = vc_estado(*foto)
+      st.success("Lote registrado e conferido. Atualize a página para ver os nomes no ranking.")
     participantes = estado["participantes"]
-    pendentes = [identidade for identidade in participantes if identidade not in estado["por_id"]]
-    st.caption(f"{len(participantes)} participantes · {len(participantes) - len(pendentes)} vinculados · {len(pendentes)} pendentes")
+    pendentes = [i for i in participantes if i not in estado["por_id"]]
+    st.caption(f"{len(participantes)} participantes · {len(participantes)-len(pendentes)} vinculados · {len(pendentes)} pendentes")
     with st.expander("Ver vínculos existentes"):
-      st.dataframe(pd.DataFrame([
-          {"ID": identidade, "Participante": nome, "Tag": estado["por_id"].get(identidade, "Pendente")}
-          for identidade, nome in participantes.items()
-      ]), hide_index=True, use_container_width=True)
-    if not pendentes:
-      st.success("Todos os participantes atuais estão vinculados.")
-      return
-    disponiveis = sorted(
-        [tag for tag in estado["contas"] if tag not in estado["por_tag"]],
-        key=lambda tag: (estado["contas"][tag]["Nome"].casefold(), tag),
-    )
-    identidade = st.selectbox("Participante antigo", [None] + pendentes,
-        format_func=lambda v: "Selecione um participante" if v is None else f"{participantes[v]} — ID {v}", key="ww_vc_id")
-    tag = st.selectbox("Conta principal no clã", [None] + disponiveis,
-        format_func=lambda v: "Selecione uma conta" if v is None else
-            f"{estado['contas'][v]['Nome']} — {v}" + (" · participação bloqueada" if estado['contas'][v]['Habilitada'] == "FALSE" else ""),
-        key="ww_vc_tag_" + str(identidade))
-    if identidade is None or tag is None:
-      st.info("Se não reconhecer uma conta, deixe o participante pendente e continue com outro.")
-      return
-    st.info(f"Vincular {participantes[identidade]} (ID {identidade}) à conta {estado['contas'][tag]['Nome']} ({tag}).")
-    confirmado = st.checkbox("Confirmo que esta é a conta principal deste participante", key="ww_vc_confirmo_" + identidade + tag)
-    if st.button("Confirmar vínculo", disabled=not confirmado, key="ww_vc_salvar"):
-      etapa_vinculo = "conferir antes de salvar"
-      import uuid
-      atuais = fotografar_vinculos()
-      if atuais != foto:
-        raise ValueError("Os cadastros mudaram. Atualize a lista antes de confirmar.")
-      linha = vc_preparar(*atuais, sheet_admins.get_all_values(), st.session_state.get("admin_logado"),
-          identidade, tag, str(uuid.uuid4()), agora_winning_wars().isoformat())
-      st.session_state["ww_vc_pendente"] = {"planilha": planilha_competicao.id, "linha": linha}
-      try:
-        etapa_vinculo = "enviar vinculo"
-        aba.append_row(linha, value_input_option="RAW")
-        etapa_vinculo = "confirmar envio"
-        depois = vc_estado(*fotografar_vinculos())
-        if not vc_confirmar(depois, linha):
-          raise ValueError("Vínculo ainda não localizado.")
+      st.dataframe(pd.DataFrame([{"ID": i, "Participante": nome, "Tag": estado["por_id"].get(i, "Pendente")} for i, nome in participantes.items()]), hide_index=True, use_container_width=True)
+    proposta = st.session_state.get("ww_vl_proposta")
+    if proposta:
+      st.markdown("#### Confira antes de salvar")
+      st.dataframe(pd.DataFrame(proposta["resumo"]), hide_index=True, use_container_width=True)
+      if st.button("Descartar seleção e começar de novo", key="ww_vl_descartar"):
+        del st.session_state["ww_vl_proposta"]
+        st.rerun()
+      if st.button("Confirmar e salvar lote", key="ww_vl_salvar", type="primary"):
+        etapa = "conferir antes de enviar"
+        if proposta["planilha"] != planilha_competicao.id:
+          raise ValueError("Seleção pertence a outra planilha.")
+        atual = ww_foto_vinculos_atual()
+        # Qualquer alteracao de fonte exige nova revisao visual, sem apagar a proposta.
+        if atual != proposta["foto"]:
+          raise ValueError("Os cadastros mudaram. Descarte a seleção e confira um novo lote.")
+        admins = sheet_admins.get_all_values()
+        linhas = vl_preparar(atual, admins, st.session_state.get("admin_logado"), proposta["escolhas"], proposta["lote_id"], proposta["data"])
+        aba = ww_aba_painel(planilha_competicao.id, VC_ABA)
+        st.session_state["ww_vl_pendente"] = {"planilha": planilha_competicao.id, "linhas": linhas}
+        etapa = "envio iniciado; nao repetir"
+        aba.append_rows(linhas, value_input_option="RAW")
+        if not vl_conferir(ww_foto_vinculos_atual(), linhas):
+          raise ValueError("Envio sem confirmação completa. Consulte novamente; não repita o lote.")
         ww_limpar_painel()
-      except Exception as erro:
-        st.warning("Envio sem confirmação ou com conflito. Atualize os vínculos para conferir; não repita o envio.")
-        mostrar_falha_vinculo(erro)
-        return
+        st.rerun()
+      return
+    if not pendentes:
+      st.success("Todos os participantes estão vinculados.")
+      return
+    disponiveis = {tag: conta for tag, conta in estado["contas"].items() if tag not in estado["por_tag"]}
+    opcoes = {f"{nome_conta(tag, conta['Nome'])} — {tag}": tag for tag, conta in disponiveis.items()}
+    with st.form("ww_vl_formulario"):
+      selecionados = []
+      for identidade in pendentes:
+        opcao = st.selectbox(f"{participantes[identidade]} — ID {identidade}", ["Deixar pendente"] + sorted(opcoes), key="ww_vl_conta_" + identidade)
+        if opcao != "Deixar pendente":
+          if opcao not in opcoes:
+            raise ValueError("Opções mudaram; atualize a página.")
+          selecionados.append((identidade, opcoes[opcao]))
+      preparar = st.form_submit_button("Conferir lote")
+    if preparar:
+      lote_id = str(uuid.uuid4())
+      data = agora_winning_wars().isoformat()
+      vl_preparar(foto, ww_admins_exibicao(planilha_competicao.id), st.session_state.get("admin_logado"), selecionados, lote_id, data)
+      st.session_state["ww_vl_proposta"] = {"planilha": planilha_competicao.id, "foto": foto, "escolhas": selecionados, "lote_id": lote_id, "data": data,
+          "resumo": [{"Participante": participantes[i], "ID": i, "Conta": nome_conta(tag, disponiveis[tag]["Nome"]), "Tag": tag} for i, tag in selecionados]}
       st.rerun()
   except (ValueError, PermissionError) as erro:
     st.error(str(erro))
   except Exception as erro:
-    mostrar_falha_vinculo(erro)
+    status = getattr(getattr(erro, "response", None), "status_code", None)
+    if status == 429:
+      st.session_state["ww_vl_aguardar_ate"] = time.time() + 70
+      st.warning("O Google limitou as consultas. Aguarde cerca de um minuto. Sua seleção permanece nesta sessão; nenhum envio será repetido automaticamente.")
+    else:
+      st.error("Não foi possível concluir a operação. Preserve esta sessão e envie o diagnóstico.")
+    st.caption(f"Diagnóstico: VINCULOS_LOTE | {etapa} | {type(erro).__name__} | HTTP {status if type(status) is int else '-'}")
 
 
 def renderizar_participacao_competicao():
