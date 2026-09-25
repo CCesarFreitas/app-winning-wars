@@ -3588,7 +3588,7 @@ def calcular_medalhas(row, colunas_guerras, colunas_liga, colunas_raides, df_ran
   if colunas_guerras and sum(float(row.get(c, 0) or 0) for c in colunas_guerras) >= 20: medalhas.append("⚔️ Senhor da Guerra")
   if colunas_raides and sum(float(row.get(c, 0) or 0) for c in colunas_raides) >= 20: medalhas.append("🏰 Mestre dos Raides")
   if colunas_liga and all(float(row.get(c, 0) or 0) > 0 for c in colunas_liga): medalhas.append("🏆 Veterano da Liga")
-  if not df_rank.empty and str(df_rank.iloc[0].get("Nome")) == nome: medalhas.append("👑 Líder Atual")
+  if not df_rank.empty and str(df_rank.iloc[0].get("ID")) == str(row.get("ID")): medalhas.append("👑 Líder Atual")
   if not df_fama.empty and any(nome in [str(r.get("Primeiro","")), str(r.get("Segundo","")), str(r.get("Terceiro",""))] for _, r in df_fama.iterrows()):
     medalhas.append("🎟️ Hall da Fama")
   return medalhas
@@ -3599,10 +3599,11 @@ def renderizar_perfil_membro(df_rank, colunas_guerras, colunas_liga, colunas_rai
   if df_rank is None or df_rank.empty:
     st.info("Ainda não existem dados para montar perfis.")
     return
-  nomes = df_rank["Nome"].astype(str).tolist()
-  nome = st.selectbox("Escolha seu nome", nomes, key="perfil_membro_nome")
-  pos = nomes.index(nome)
+  pos = st.selectbox("Escolha sua vila", list(range(len(df_rank))),
+      format_func=lambda i: nome_exibicao(df_rank.iloc[i]) + " — " + nomes_vinculos.get(str(df_rank.iloc[i].get("ID", "")), "ID " + str(df_rank.iloc[i].get("ID", ""))),
+      key="perfil_membro_id")
   row = df_rank.iloc[pos]
+  nome = str(row.get("Nome", ""))
   total = int(row.get("Total", 0))
   acima = df_rank.iloc[pos-1] if pos > 0 else None
   terceiro = df_rank.iloc[2] if len(df_rank) >= 3 else None
@@ -3918,13 +3919,16 @@ def renderizar_vinculos_competicao():
 
     foto = fotografar_vinculos()
     estado = vc_estado(*foto)
+    for tag_conta, conta in estado["contas"].items():
+      conta["Nome"] = nome_conta(tag_conta, conta["Nome"])
     pendente = st.session_state.get("ww_vc_pendente")
     if pendente:
       if pendente["planilha"] != planilha_competicao.id:
         raise ValueError("Há um vínculo sem confirmação em outra planilha.")
       if vc_confirmar(estado, pendente["linha"]):
         del st.session_state["ww_vc_pendente"]
-        st.success("Vínculo registrado e conferido.")
+        carregar_nomes_vinculados.clear()
+        st.success("Vínculo registrado e conferido. Atualize a página para ver o nome da API no ranking.")
       else:
         st.warning("O último envio ainda não foi confirmado. Consulte novamente antes de fazer outro vínculo.")
         st.caption("Identificador: " + pendente["linha"][0])
@@ -3933,6 +3937,7 @@ def renderizar_vinculos_competicao():
         return
 
     if st.button("Atualizar vínculos", key="ww_vc_atualizar"):
+      carregar_nomes_vinculados.clear()
       st.rerun()
     participantes = estado["participantes"]
     pendentes = [identidade for identidade in participantes if identidade not in estado["por_id"]]
@@ -4013,6 +4018,8 @@ def renderizar_permissoes_competicao():
     linhas = aba.get_all_values(value_render_option="FORMATTED_VALUE")
     eventos = pc_ler_eventos(linhas)
     contas = pc_estado(eventos)
+    for conta in contas.values():
+      conta["Nome"] = nome_conta(conta["PlayerTag"], conta["Nome"])
   except gspread.WorksheetNotFound:
     st.info("O controle de participação está aguardando a importação inicial das contas do clã.")
     return
@@ -4171,7 +4178,7 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
       st.info("Cadastre jogadores e atividades antes de lançar pontos.")
     elif not mes_finalizado:
       atividade = st.selectbox("Atividade", atividades, key="ww20_atividade")
-      base = df[["Nome", atividade]].copy()
+      base = tabela_com_nomes(df)[["Nome", atividade]].copy()
       base[atividade] = pd.to_numeric(base[atividade], errors="coerce").fillna(0).astype(int)
       edit = st.data_editor(base, hide_index=True, use_container_width=True, disabled=["Nome"], key=f"quick_{atividade}")
       motivo = st.text_input("Motivo/observação (opcional)", key=chave_widget_resetavel("quick_motivo"))
@@ -4184,7 +4191,7 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
           antes = int(base.iloc[idx][atividade])
           depois = int(row_edit[atividade])
           if antes != depois:
-            alteracoes_pendentes.append((str(row_edit["Nome"]), antes, depois))
+            alteracoes_pendentes.append((str(df.iloc[idx]["ID"]), str(df.iloc[idx]["Nome"]), antes, depois))
 
         if not alteracoes_pendentes:
           st.info("Nenhuma pontuação foi alterada.")
@@ -4208,14 +4215,7 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
               st.error("⚠️ A coluna 'Nome' não foi encontrada na planilha.")
               return
 
-            # Mantém o mesmo comportamento do antigo sheet_dados.find():
-            # quando houver nome repetido, considera a primeira ocorrência.
-            linha_por_nome = {}
-            for numero_linha, linha in enumerate(valores_planilha[1:], start=2):
-              if len(linha) >= nome_col_num:
-                nome_planilha = str(linha[nome_col_num - 1]).strip()
-                if nome_planilha and nome_planilha not in linha_por_nome:
-                  linha_por_nome[nome_planilha] = numero_linha
+            linha_por_id = nv_linhas_ids(valores_planilha)
 
             atualizacoes = []
             auditorias = []
@@ -4224,8 +4224,8 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
             admin_lote = st.session_state.get("admin_logado", "sistema")
             ignorados = []
 
-            for nome_j, antes, depois in alteracoes_pendentes:
-              numero_linha = linha_por_nome.get(nome_j.strip())
+            for id_j, nome_j, antes, depois in alteracoes_pendentes:
+              numero_linha = linha_por_id.get(id_j)
               if not numero_linha:
                 ignorados.append(nome_j)
                 continue
@@ -4725,6 +4725,105 @@ def renderizar_historico_mensal():
 
 # ==============================================================================
 # SELEÇÃO DE PÁGINAS
+"""Nomes Unicode da API, separados das decisoes administrativas."""
+from datetime import datetime
+
+NV_ABA = "NomesVilas"
+NV_HEADER = ["PlayerTag", "NomeAPI", "ConsultadoEm"]
+
+def nv_ler(linhas):
+    if not linhas or linhas[0] != NV_HEADER:
+        raise ValueError("Cabecalho de nomes inesperado")
+    nomes = {}
+    for linha in linhas[1:]:
+        if not any(str(v).strip() for v in linha):
+            continue
+        if len(linha) != 3 or not all(isinstance(v, str) and v.strip() for v in linha):
+            raise ValueError("Registro de nome incompleto")
+        tag, nome, data = linha
+        if pc_tag(tag) != tag or tag in nomes:
+            raise ValueError("Tag invalida ou repetida nos nomes")
+        momento = datetime.fromisoformat(data)
+        if momento.utcoffset() is None:
+            raise ValueError("Data de consulta sem fuso")
+        nomes[tag] = {"nome": nome, "consultado_em": data}
+    return nomes
+
+def nv_atualizar(linhas, clan, data):
+    anteriores = nv_ler(linhas)
+    if not isinstance(clan, dict) or clan.get("tag") != "#YVLGUJQY":
+        raise ValueError("Cla inesperado na resposta")
+    membros = clan.get("memberList")
+    if not isinstance(membros, list) or not membros:
+        raise ValueError("Lista de membros ausente")
+    if type(clan.get("members")) is not int or clan["members"] != len(membros):
+        raise ValueError("Lista de membros incompleta")
+    novas = []
+    for membro in membros:
+        novas.append([membro.get("tag"), membro.get("name"), data])
+    atuais = nv_ler([NV_HEADER] + novas)
+    anteriores.update(atuais)
+    return [NV_HEADER] + [[tag, r["nome"], r["consultado_em"]] for tag, r in sorted(anteriores.items())]
+
+def nv_nome(identidade, nome_antigo, vinculos, nomes):
+    tag = vinculos.get(str(identidade).strip())
+    return nomes.get(tag, {}).get("nome", str(nome_antigo))
+
+def nv_linhas_ids(linhas):
+    if not linhas or "ID" not in linhas[0]:
+        raise ValueError("Ranking sem ID")
+    coluna = linhas[0].index("ID")
+    saida = {}
+    for numero, linha in enumerate(linhas[1:], 2):
+        if not any(str(v).strip() for v in linha):
+            continue
+        identidade = str(linha[coluna]).strip() if len(linha) > coluna else ""
+        if not identidade or identidade in saida:
+            raise ValueError("ID ausente ou repetido no ranking")
+        saida[identidade] = numero
+    return saida
+
+# Nomes de exibicao; o dataframe original continua sendo a referencia do legado.
+@st.cache_data(ttl=60)
+def carregar_nomes_vinculados():
+  linhas_nomes = planilha_competicao.worksheet(NV_ABA).get_all_values(value_render_option="FORMULA")
+  nomes = nv_ler(linhas_nomes)
+  try:
+    vinculos = planilha_competicao.worksheet(VC_ABA).get_all_values(value_render_option="FORMULA")
+  except gspread.WorksheetNotFound:
+    vinculos = [VC_HEADER]
+  estado = vc_estado(
+      sheet_dados.get_all_values(value_render_option="FORMATTED_VALUE"),
+      planilha_competicao.worksheet("InscricoesTemporada").get_all_values(value_render_option="FORMATTED_VALUE"),
+      vinculos,
+      planilha_competicao.worksheet(PC_ABA).get_all_values(value_render_option="FORMULA"),
+  )
+  return estado["por_id"], nomes
+
+try:
+  nomes_vinculos, nomes_api = carregar_nomes_vinculados()
+  nomes_aviso = ""
+except gspread.WorksheetNotFound:
+  nomes_vinculos, nomes_api = {}, {}
+  nomes_aviso = "Os nomes da Supercell aguardam a primeira sincronização."
+except Exception:
+  nomes_vinculos, nomes_api = {}, {}
+  nomes_aviso = "Não foi possível conferir os nomes da Supercell. Os nomes anteriores serão exibidos nesta consulta."
+
+def nome_exibicao(row):
+  return nv_nome(row.get("ID", ""), row.get("Nome", ""), nomes_vinculos, nomes_api)
+
+def tabela_com_nomes(tabela):
+  copia = tabela.copy()
+  if not copia.empty and "Nome" in copia.columns:
+    copia["Nome"] = [nome_exibicao(row) for _, row in copia.iterrows()]
+  return copia
+
+def nome_conta(tag, nome_anterior):
+  return nomes_api.get(tag, {}).get("nome", nome_anterior)
+
+from html import escape as nome_html
+
 # ==============================================================================
 if st.session_state["pagina_atual"] == "layouts_guerra":
   renderizar_pagina_layouts("Guerra", "🛡️ Layouts Oficiais de Guerra")
@@ -4919,7 +5018,7 @@ else:
                 f'<div class="podium-card gold"><img'
                 ' src="https://i.ibb.co/mkC43vT/goldenpass.png" width="55"><div'
                 ' class="podium-title">🥇 1º LUGAR</div><div'
-                f' class="podium-name">{df_rank.iloc[0]["Nome"]}</div><div'
+                f' class="podium-name">{nome_html(nome_exibicao(df_rank.iloc[0]))}</div><div'
                 ' class="podium-score">'
                 f'{int(df_rank.iloc[0]["Total"])} pts</div><small>Garantidor do'
                 " Passe Dourado 🎟️</small></div>",
@@ -4931,7 +5030,7 @@ else:
                 f'<div class="podium-card silver"><img'
                 ' src="https://i.ibb.co/mkC43vT/goldenpass.png" width="55"><div'
                 ' class="podium-title">🥈 2º LUGAR</div><div'
-                f' class="podium-name">{df_rank.iloc[1]["Nome"]}</div><div'
+                f' class="podium-name">{nome_html(nome_exibicao(df_rank.iloc[1]))}</div><div'
                 ' class="podium-score">'
                 f'{int(df_rank.iloc[1]["Total"])} pts</div><small>Garantidor do'
                 " Passe Dourado 🎟️</small></div>",
@@ -4943,7 +5042,7 @@ else:
                 f'<div class="podium-card bronze"><img'
                 ' src="https://i.ibb.co/mkC43vT/goldenpass.png" width="55"><div'
                 ' class="podium-title">🥉 3º LUGAR</div><div'
-                f' class="podium-name">{df_rank.iloc[2]["Nome"]}</div><div'
+                f' class="podium-name">{nome_html(nome_exibicao(df_rank.iloc[2]))}</div><div'
                 ' class="podium-score">'
                 f'{int(df_rank.iloc[2]["Total"])} pts</div><small>Garantidor do'
                 " Passe Dourado 🎟️</small></div>",
@@ -4958,7 +5057,9 @@ else:
             placeholder="Digite o nome do membro...",
         )
 
-      df_exibicao = df_rank[["Posição", "Nome", "Total"]].copy()
+      df_exibicao = tabela_com_nomes(df_rank)[["Posição", "Nome", "Total"]].copy()
+      if nomes_aviso:
+        st.caption(nomes_aviso)
       df_exibicao["Total"] = df_exibicao["Total"].astype(int)
       df_exibicao.rename(
           columns={"Nome": "Jogador", "Total": "Pontuação Total"}, inplace=True
@@ -4968,7 +5069,7 @@ else:
         df_exibicao = df_exibicao[
             df_exibicao["Jogador"]
             .str.lower()
-            .str.contains(busca_player.strip().lower())
+            .str.contains(busca_player.strip().lower(), regex=False, na=False)
         ]
 
       altura_dinamica = max(450, len(df_exibicao) * 48 + 250)
@@ -4997,7 +5098,7 @@ else:
           + colunas_raides
           + ["Total"]
       )
-      df_detalhada = df[cols_exibicao].sort_values(
+      df_detalhada = tabela_com_nomes(df)[cols_exibicao].sort_values(
           by="Total", ascending=False
       ).reset_index(drop=True)
 
@@ -5065,7 +5166,7 @@ else:
         for i, col in enumerate(cols_exibicao):
           valor = row[col]
           try:
-            valor = int(float(valor))
+            valor = str(valor) if col == "Nome" else int(float(valor))
           except (TypeError, ValueError):
             valor = str(valor)
 
@@ -5272,17 +5373,26 @@ else:
               st.rerun()
         with c2:
           if not df.empty and "Nome" in df.columns:
-            player_rem = st.selectbox("Remover Player", df["Nome"].tolist())
+            pos_rem = st.selectbox("Remover Player", list(range(len(df))),
+                format_func=lambda i: nome_exibicao(df.iloc[i]) + " — ID " + str(df.iloc[i]["ID"]))
+            player_rem = str(df.iloc[pos_rem]["Nome"])
             confirmar_rem = st.checkbox(
                 "⚠️ Confirmar exclusão permanente deste jogador"
             )
             if st.button("Remover Player", type="primary", disabled=mes_finalizado):
               if confirmar_rem:
-                cell = sheet_dados.find(player_rem)
+                linhas_rem = sheet_dados.get_all_values()
+                coluna_id = linhas_rem[0].index("ID")
+                id_rem = str(df.iloc[pos_rem]["ID"])
+                destinos_rem = [i for i, r in enumerate(linhas_rem[1:], 2)
+                    if len(r) > coluna_id and str(r[coluna_id]).strip() == id_rem]
+                if len(destinos_rem) != 1:
+                  st.error("Participante ausente ou ID repetido; atualize a página.")
+                  st.stop()
                 exigir_backup_automatico(
                     f"Excluir jogador {player_rem}", [("Dados", sheet_dados)]
                 )
-                sheet_dados.delete_rows(cell.row)
+                sheet_dados.delete_rows(destinos_rem[0])
                 registrar_log(
                     st.session_state["admin_logado"],
                     f"Removeu player {player_rem}",
@@ -5508,21 +5618,15 @@ else:
           df_editavel = df.drop(
               columns=["Total", "WarTotal"], errors="ignore"
           ).copy()
+          df_visual = tabela_com_nomes(df_editavel)
           df_editado = st.data_editor(
-              df_editavel, use_container_width=True, hide_index=True
+              df_visual, use_container_width=True, hide_index=True, disabled=["ID", "Nome"]
           )
           if st.button("💾 Salvar Alterações em Lote", type="primary", disabled=mes_finalizado):
             alteracoes = []
             valores_planilha = _ler_sheets_com_retry(sheet_dados.get_all_values)
             headers = valores_planilha[0] if valores_planilha else []
-            nome_col_num = headers.index("Nome") + 1 if "Nome" in headers else None
-            linha_por_nome = {}
-            if nome_col_num:
-              for numero_linha, linha in enumerate(valores_planilha[1:], start=2):
-                if len(linha) >= nome_col_num:
-                  nome_planilha = str(linha[nome_col_num - 1]).strip()
-                  if nome_planilha and nome_planilha not in linha_por_nome:
-                    linha_por_nome[nome_planilha] = numero_linha
+            linha_por_id = nv_linhas_ids(valores_planilha)
 
             atualizacoes_lote = []
             auditorias_lote = []
@@ -5531,10 +5635,12 @@ else:
 
             for idx_row in range(len(df_editado)):
               nome_original = str(df_editavel.iloc[idx_row].get("Nome", "")).strip()
-              numero_linha = linha_por_nome.get(nome_original)
+              numero_linha = linha_por_id.get(str(df_editavel.iloc[idx_row]["ID"]))
               if not numero_linha:
                 continue
               for col in df_editado.columns:
+                if col in {"ID", "Nome"}:
+                  continue
                 antes = df_editavel.iloc[idx_row].get(col)
                 depois = df_editado.iloc[idx_row].get(col)
                 if str(antes) != str(depois) and col in headers:
