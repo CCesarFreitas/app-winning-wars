@@ -3794,7 +3794,204 @@ def pc_confirmar_evento(linhas, linha_enviada):
 
 # Este fragmento e incorporado ao app; nao e executado isoladamente.
 
+"""Vinculos explicitos, sem associacao automatica por nome."""
+from datetime import datetime
+
+VC_ABA = "VinculosParticipantes"
+VC_HEADER = ["EventoID", "ParticipanteID", "PlayerTag", "Administrador", "RegistradoEm"]
+
+
+def vc_registros(linhas, obrigatorios):
+    if not linhas or len(set(linhas[0])) != len(linhas[0]) or not set(obrigatorios) <= set(linhas[0]):
+        raise ValueError("Cabecalho de cadastro inesperado.")
+    saida = []
+    for linha in linhas[1:]:
+        if not any(str(v).strip() for v in linha):
+            continue
+        if len(linha) > len(linhas[0]) and any(str(v).strip() for v in linha[len(linhas[0]):]):
+            raise ValueError("Dados fora do cabecalho.")
+        saida.append(dict(zip(linhas[0], linha + [""] * (len(linhas[0]) - len(linha)))))
+    return saida
+
+
+def vc_estado(ranking, inscricoes, vinculos, controle):
+    contas = pc_estado(pc_ler_eventos(controle))
+    participantes = {}
+    por_id, por_tag = {}, {}
+    for r in vc_registros(ranking, ["ID", "Nome"]):
+        identidade = r["ID"].strip()
+        if not identidade or identidade in participantes or not r["Nome"].strip():
+            raise ValueError("Participante sem ID/nome ou ID repetido.")
+        participantes[identidade] = r["Nome"]
+
+    def ligar(identidade, tag):
+        if not identidade or pc_tag(tag) != tag:
+            raise ValueError("Vinculo com ID ou tag invalido.")
+        if identidade in por_id and por_id[identidade] != tag:
+            raise ValueError("Um participante tem mais de uma tag; requer revisao.")
+        if tag in por_tag and por_tag[tag] != identidade:
+            raise ValueError("Uma conta foi vinculada a participantes diferentes; requer revisao.")
+        por_id[identidade] = tag
+        por_tag[tag] = identidade
+
+    for r in vc_registros(inscricoes, ["ParticipanteID", "PlayerTag"]):
+        # Todas as temporadas/status reservam o vinculo de identidade.
+        ligar(r["ParticipanteID"].strip(), r["PlayerTag"])
+    if not vinculos or vinculos[0] != VC_HEADER:
+        raise ValueError("Cabecalho de vinculos inesperado.")
+    eventos = {}
+    for r in vc_registros(vinculos, VC_HEADER):
+        if not all(isinstance(v, str) and v.strip() for v in r.values()):
+            raise ValueError("Vinculo incompleto.")
+        data = datetime.fromisoformat(r["RegistradoEm"])
+        if data.tzinfo is None or data.utcoffset() is None:
+            raise ValueError("Vinculo sem fuso horario.")
+        if r["EventoID"] in eventos and eventos[r["EventoID"]] != r:
+            raise ValueError("Identificador de vinculo reutilizado.")
+        eventos[r["EventoID"]] = r
+        ligar(r["ParticipanteID"], r["PlayerTag"])
+    return dict(participantes=participantes, contas=contas, por_id=por_id, por_tag=por_tag, eventos=eventos)
+
+
+def vc_preparar(ranking, inscricoes, vinculos, controle, admins, usuario, identidade, tag, evento_id, data):
+    autor = pc_validar_admin(admins, usuario)
+    estado = vc_estado(ranking, inscricoes, vinculos, controle)
+    if identidade not in estado["participantes"] or tag not in estado["contas"]:
+        raise ValueError("Participante ou conta nao encontrado. Atualize a lista.")
+    if identidade in estado["por_id"] or tag in estado["por_tag"]:
+        raise ValueError("Participante ou conta ja vinculado. Atualize a lista.")
+    if evento_id in estado["eventos"]:
+        raise ValueError("Identificador ja utilizado.")
+    linha = [evento_id, identidade, tag, autor, data]
+    vc_estado(ranking, inscricoes, vinculos + [linha], controle)
+    return linha
+
+
+def vc_confirmar(estado, linha):
+    esperado = dict(zip(VC_HEADER, linha))
+    encontrado = estado["eventos"].get(linha[0])
+    if encontrado is not None and encontrado != esperado:
+        raise ValueError("Vinculo registrado com dados divergentes.")
+    return encontrado == esperado
+
+
+# Incorporado no app de teste, abaixo das funcoes compartilhadas.
+def renderizar_vinculos_competicao():
+  st.markdown("### Vincular participantes antigos")
+  st.caption("Escolha a conta principal de cada participante pelo nome e pela tag. O vínculo não altera pontos, inscrições ou a permissão de participar.")
+  try:
+    pc_validar_admin(sheet_admins.get_all_values(), st.session_state.get("admin_logado"))
+    if planilha_competicao.id != "1vlQYrFA3EeuL7dalVnAtdB01L__CTFyQeExBYDVAORM":
+      raise ValueError("Este painel de vínculos está disponível somente na planilha de teste.")
+    try:
+      aba = planilha_competicao.worksheet(VC_ABA)
+    except gspread.WorksheetNotFound:
+      st.info("Prepare o cadastro de vínculos para começar. Os vínculos já existentes de Valdeir e Rafael serão reconhecidos pelas inscrições.")
+      if st.button("Preparar cadastro de vínculos", key="ww_vc_criar"):
+        pc_validar_admin(sheet_admins.get_all_values(), st.session_state.get("admin_logado"))
+        import secrets
+        sheet_id = secrets.randbelow(2**30)
+        try:
+          planilha_competicao.batch_update({"requests": [
+              {"addSheet": {"properties": {"sheetId": sheet_id, "title": VC_ABA,
+                  "gridProperties": {"rowCount": 1000, "columnCount": len(VC_HEADER)}}}},
+              {"updateCells": {"start": {"sheetId": sheet_id, "rowIndex": 0, "columnIndex": 0},
+                  "rows": [{"values": [{"userEnteredValue": {"stringValue": v}} for v in VC_HEADER]}],
+                  "fields": "userEnteredValue"}},
+          ]})
+        except Exception:
+          st.warning("Preparação sem confirmação. Atualize a página para conferir se o cadastro foi criado.")
+          return
+        st.rerun()
+      return
+
+    def fotografar_vinculos():
+      fontes = [sheet_dados, planilha_competicao.worksheet("InscricoesTemporada"), aba,
+                planilha_competicao.worksheet(PC_ABA)]
+      valores = []
+      for indice, fonte in enumerate(fontes):
+        linhas = fonte.get_all_values(value_render_option="FORMATTED_VALUE")
+        if indice in (2, 3) and linhas != fonte.get_all_values(value_render_option="FORMULA"):
+          raise ValueError("O cadastro de vínculos ou de participação contém fórmulas; requer revisão.")
+        valores.append(linhas)
+      return valores
+
+    foto = fotografar_vinculos()
+    estado = vc_estado(*foto)
+    pendente = st.session_state.get("ww_vc_pendente")
+    if pendente:
+      if pendente["planilha"] != planilha_competicao.id:
+        raise ValueError("Há um vínculo sem confirmação em outra planilha.")
+      if vc_confirmar(estado, pendente["linha"]):
+        del st.session_state["ww_vc_pendente"]
+        st.success("Vínculo registrado e conferido.")
+      else:
+        st.warning("O último envio ainda não foi confirmado. Consulte novamente antes de fazer outro vínculo.")
+        st.caption("Identificador: " + pendente["linha"][0])
+        if st.button("Consultar confirmação", key="ww_vc_pendente_atualizar"):
+          st.rerun()
+        return
+
+    if st.button("Atualizar vínculos", key="ww_vc_atualizar"):
+      st.rerun()
+    participantes = estado["participantes"]
+    pendentes = [identidade for identidade in participantes if identidade not in estado["por_id"]]
+    st.caption(f"{len(participantes)} participantes · {len(participantes) - len(pendentes)} vinculados · {len(pendentes)} pendentes")
+    with st.expander("Ver vínculos existentes"):
+      st.dataframe(pd.DataFrame([
+          {"ID": identidade, "Participante": nome, "Tag": estado["por_id"].get(identidade, "Pendente")}
+          for identidade, nome in participantes.items()
+      ]), hide_index=True, use_container_width=True)
+    if not pendentes:
+      st.success("Todos os participantes atuais estão vinculados.")
+      return
+    disponiveis = sorted(
+        [tag for tag in estado["contas"] if tag not in estado["por_tag"]],
+        key=lambda tag: (estado["contas"][tag]["Nome"].casefold(), tag),
+    )
+    identidade = st.selectbox("Participante antigo", [None] + pendentes,
+        format_func=lambda v: "Selecione um participante" if v is None else f"{participantes[v]} — ID {v}", key="ww_vc_id")
+    tag = st.selectbox("Conta principal no clã", [None] + disponiveis,
+        format_func=lambda v: "Selecione uma conta" if v is None else
+            f"{estado['contas'][v]['Nome']} — {v}" + (" · participação bloqueada" if estado['contas'][v]['Habilitada'] == "FALSE" else ""),
+        key="ww_vc_tag_" + str(identidade))
+    if identidade is None or tag is None:
+      st.info("Se não reconhecer uma conta, deixe o participante pendente e continue com outro.")
+      return
+    st.info(f"Vincular {participantes[identidade]} (ID {identidade}) à conta {estado['contas'][tag]['Nome']} ({tag}).")
+    confirmado = st.checkbox("Confirmo que esta é a conta principal deste participante", key="ww_vc_confirmo_" + identidade + tag)
+    if st.button("Confirmar vínculo", disabled=not confirmado, key="ww_vc_salvar"):
+      import uuid
+      atuais = fotografar_vinculos()
+      if atuais != foto:
+        raise ValueError("Os cadastros mudaram. Atualize a lista antes de confirmar.")
+      linha = vc_preparar(*atuais, sheet_admins.get_all_values(), st.session_state.get("admin_logado"),
+          identidade, tag, str(uuid.uuid4()), agora_winning_wars().isoformat())
+      st.session_state["ww_vc_pendente"] = {"planilha": planilha_competicao.id, "linha": linha}
+      try:
+        aba.append_row(linha, value_input_option="RAW")
+        depois = vc_estado(*fotografar_vinculos())
+        if not vc_confirmar(depois, linha):
+          raise ValueError("Vínculo ainda não localizado.")
+      except Exception:
+        st.warning("Envio sem confirmação ou com conflito. Atualize os vínculos para conferir; não repita o envio.")
+        return
+      st.rerun()
+  except (ValueError, PermissionError) as erro:
+    st.error(str(erro))
+  except Exception:
+    st.error("Não foi possível conferir os cadastros. Atualize a página e tente novamente.")
+
+
 def renderizar_participacao_competicao():
+  vinculos, permissoes = st.tabs(["Vincular participantes", "Habilitar ou desabilitar contas"])
+  with vinculos:
+    renderizar_vinculos_competicao()
+  with permissoes:
+    renderizar_permissoes_competicao()
+
+
+def renderizar_permissoes_competicao():
   st.markdown("### 👥 Participação na competição")
   try:
     usuario = pc_validar_admin(
