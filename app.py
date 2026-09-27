@@ -6104,7 +6104,7 @@ else:
             <ul class="info-card-list" style="text-align: left;">
                 <li><b>⚔️ Guerras & Liga (CWL):</b> 1 Ponto por ⭐ conquistada.</li>
                 <li><b>🎯 Jogos do Clã:</b> A partir de outubro/2026: 10.000 = <b>10 pts</b>; 4.000–9.999 = <b>5 pts</b>; 2.000–3.999 = <b>2 pts</b>; abaixo de 2.000 = <b>0</b>. Até setembro: meta = 5 pts; limite total = 10 pts.</li>
-                <li><b>🛡️ Raides (FDS):</b> Concluiu os 6 ataques = <b>10 pts</b>.</li>
+                <li><b>🛡️ Raides (FDS):</b> 1 ponto por ataque (até 6) + 1 ponto de bônus para o Top 3 de saque; máximo de <b>7 pts</b>.</li>
             </ul>
         </div>
         """,
