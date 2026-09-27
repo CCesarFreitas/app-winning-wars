@@ -3917,10 +3917,38 @@ def ww_foto_vinculos_exibicao(planilha_id):
 def ww_controle_exibicao(planilha_id):
   return ww_aba_painel(planilha_id, PC_ABA).get_all_values(value_render_option="FORMATTED_VALUE")
 
+@st.cache_data(ttl=30)
+def ww_atividades_auditoria_exibicao(planilha_id):
+  return ww_aba_painel(planilha_id, "ControleAtividades").get_all_records(default_blank="")
+
+@st.cache_data(ttl=30)
+def ww_lancamentos_manuais_exibicao(planilha_id):
+  return ww_aba_painel(planilha_id, "LancamentosManuais").get_all_records(default_blank="")
+
+def ww_filtrar_auditoria_integrada(registros, filtros=None, busca=""):
+  """Filtra uma fotografia da auditoria sem consultar nem alterar a planilha."""
+  filtros = filtros or {}
+  resultado = list(registros or [])
+  for campo, valor in filtros.items():
+    if valor:
+      resultado = [r for r in resultado if str(r.get(campo, "")).strip() == str(valor).strip()]
+  termo = str(busca or "").strip().casefold()
+  if termo:
+    resultado = [
+        r for r in resultado
+        if termo in " ".join(str(v) for v in r.values()).casefold()
+    ]
+  return resultado
+
+def ww_opcoes_auditoria(registros, campo):
+  return sorted({str(r.get(campo, "")).strip() for r in registros if str(r.get(campo, "")).strip()}, reverse=True)
+
 def ww_limpar_painel():
   ww_admins_exibicao.clear()
   ww_foto_vinculos_exibicao.clear()
   ww_controle_exibicao.clear()
+  ww_atividades_auditoria_exibicao.clear()
+  ww_lancamentos_manuais_exibicao.clear()
   carregar_nomes_vinculados.clear()
 
 
@@ -4587,28 +4615,131 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
 
 
   with auditoria_tab:
-    try:
-      aud = pd.DataFrame(obter_auditoria_cached())
-    except Exception:
-      aud = pd.DataFrame()
-    if aud.empty:
-      st.info("Nenhuma alteração detalhada registrada ainda.")
-    else:
-      aud_rev = aud.iloc[::-1].head(100)
-      st.dataframe(aud_rev, hide_index=True, use_container_width=True)
-      st.caption("A auditoria registra quem alterou, jogador, atividade e valor antes/depois.")
-      ultima = aud.iloc[-1]
-      st.warning(f"Última alteração: {ultima.get('Jogador')} / {ultima.get('Atividade')} — {ultima.get('Antes')} → {ultima.get('Depois')}")
-      if st.button("↩️ Desfazer última alteração", use_container_width=True, disabled=mes_finalizado or ww_outubro_integrado()):
-        jogador = str(ultima.get("Jogador", "")); atividade = str(ultima.get("Atividade", "")); antes = ultima.get("Antes", 0)
-        headers = sheet_dados.row_values(1); cell_nome = sheet_dados.find(jogador) if jogador else None
-        if cell_nome and atividade in headers:
-          atual_val = sheet_dados.cell(cell_nome.row, headers.index(atividade)+1).value
-          sheet_dados.update_cell(cell_nome.row, headers.index(atividade)+1, antes)
-          registrar_auditoria_ponto(jogador, atividade, atual_val, antes, "DESFAZER última alteração")
-          registrar_log(st.session_state["admin_logado"], f"Desfez alteração de {jogador}/{atividade}")
-          snapshot_ranking_atual("desfazer", f"Reversão {jogador}/{atividade}")
-          obter_dados_cached.clear(); obter_auditoria_cached.clear(); st.success("Alteração desfeita."); st.rerun()
+    legado_tab, automaticas_tab, manuais_tab = st.tabs([
+        "Alterações anteriores", "Atividades automáticas", "Jogos e eventos"
+    ])
+
+    with legado_tab:
+      try:
+        aud = pd.DataFrame(obter_auditoria_cached())
+      except Exception:
+        aud = pd.DataFrame()
+      if aud.empty:
+        st.info("Nenhuma alteração detalhada registrada ainda.")
+      else:
+        aud_rev = aud.iloc[::-1].head(100)
+        st.dataframe(aud_rev, hide_index=True, use_container_width=True)
+        st.caption("A auditoria registra quem alterou, jogador, atividade e valor antes/depois.")
+        ultima = aud.iloc[-1]
+        st.warning(f"Última alteração: {ultima.get('Jogador')} / {ultima.get('Atividade')} — {ultima.get('Antes')} → {ultima.get('Depois')}")
+        if st.button("↩️ Desfazer última alteração", use_container_width=True, disabled=mes_finalizado or ww_outubro_integrado()):
+          jogador = str(ultima.get("Jogador", "")); atividade = str(ultima.get("Atividade", "")); antes = ultima.get("Antes", 0)
+          headers = sheet_dados.row_values(1); cell_nome = sheet_dados.find(jogador) if jogador else None
+          if cell_nome and atividade in headers:
+            atual_val = sheet_dados.cell(cell_nome.row, headers.index(atividade)+1).value
+            sheet_dados.update_cell(cell_nome.row, headers.index(atividade)+1, antes)
+            registrar_auditoria_ponto(jogador, atividade, atual_val, antes, "DESFAZER última alteração")
+            registrar_log(st.session_state["admin_logado"], f"Desfez alteração de {jogador}/{atividade}")
+            snapshot_ranking_atual("desfazer", f"Reversão {jogador}/{atividade}")
+            obter_dados_cached.clear(); obter_auditoria_cached.clear(); st.success("Alteração desfeita."); st.rerun()
+
+    with automaticas_tab:
+      st.caption("Resultados de Guerra, Liga e Raide processados pelo motor de integração.")
+      try:
+        atividades_aud = ww_atividades_auditoria_exibicao(planilha_competicao.id)
+      except Exception as exc:
+        atividades_aud = []
+        st.warning(f"Não foi possível consultar ControleAtividades ({type(exc).__name__}).")
+      if not atividades_aud:
+        st.info("Nenhuma atividade automática foi aplicada nesta planilha.")
+      else:
+        c1, c2, c3 = st.columns(3)
+        temporadas = ["Todas"] + ww_opcoes_auditoria(atividades_aud, "Temporada")
+        tipos = ["Todos"] + ww_opcoes_auditoria(atividades_aud, "Tipo")
+        status_opcoes = ["Todos"] + ww_opcoes_auditoria(atividades_aud, "Status")
+        temporada_aud = c1.selectbox("Temporada", temporadas, key="ww_aud_auto_temporada")
+        tipo_aud = c2.selectbox("Tipo", tipos, key="ww_aud_auto_tipo")
+        status_aud = c3.selectbox("Status", status_opcoes, key="ww_aud_auto_status")
+        busca_aud = st.text_input("Buscar por atividade, coluna ou tag", key="ww_aud_auto_busca")
+        filtros_aud = {
+            "Temporada": "" if temporada_aud == "Todas" else temporada_aud,
+            "Tipo": "" if tipo_aud == "Todos" else tipo_aud,
+            "Status": "" if status_aud == "Todos" else status_aud,
+        }
+        auto_filtradas = ww_filtrar_auditoria_integrada(atividades_aud, filtros_aud, busca_aud)
+        auto_filtradas = sorted(auto_filtradas, key=lambda r: str(r.get("AplicadoEm", "")), reverse=True)
+        auto_tabela = pd.DataFrame([{
+            "Atividade": r.get("AtividadeID", ""), "Temporada": r.get("Temporada", ""),
+            "Tipo": r.get("Tipo", ""), "Coluna": r.get("ColunaDestino", ""),
+            "Status": r.get("Status", ""), "Início": r.get("Inicio", ""),
+            "Fim": r.get("Fim", ""), "Aplicado em": r.get("AplicadoEm", ""),
+            "Regra": r.get("VersaoRegra", ""),
+            "Hash": str(r.get("HashResultado", ""))[:12],
+        } for r in auto_filtradas])
+        st.dataframe(auto_tabela, hide_index=True, use_container_width=True)
+        st.caption(f"{len(auto_filtradas)} registro(s) encontrado(s). A consulta é somente leitura.")
+        if auto_filtradas:
+          opcoes_auto = {f"{r.get('AtividadeID', 'sem ID')} · {r.get('Status', '')}": r for r in auto_filtradas}
+          detalhe_auto = st.selectbox("Ver registro completo", [""] + list(opcoes_auto), key="ww_aud_auto_detalhe")
+          if detalhe_auto:
+            registro_auto = dict(opcoes_auto[detalhe_auto])
+            detalhes_auto = registro_auto.pop("DetalhesJSON", "")
+            st.json(registro_auto)
+            if detalhes_auto:
+              with st.expander("Detalhes do processamento"):
+                try:
+                  st.json(json.loads(detalhes_auto))
+                except (TypeError, ValueError):
+                  st.code(str(detalhes_auto))
+
+    with manuais_tab:
+      st.caption("Lançamentos de Jogos do Clã e Eventos, incluindo correções que substituem valores anteriores.")
+      try:
+        lancamentos_aud = ww_lancamentos_manuais_exibicao(planilha_competicao.id)
+      except Exception as exc:
+        lancamentos_aud = []
+        st.warning(f"Não foi possível consultar LancamentosManuais ({type(exc).__name__}).")
+      if not lancamentos_aud:
+        st.info("Nenhum lançamento manual integrado foi registrado nesta planilha.")
+      else:
+        c1, c2, c3 = st.columns(3)
+        temporadas = ["Todas"] + ww_opcoes_auditoria(lancamentos_aud, "Temporada")
+        atividades = ["Todas"] + ww_opcoes_auditoria(lancamentos_aud, "Atividade")
+        administradores = ["Todos"] + ww_opcoes_auditoria(lancamentos_aud, "Administrador")
+        temporada_manual = c1.selectbox("Temporada", temporadas, key="ww_aud_manual_temporada")
+        atividade_manual = c2.selectbox("Atividade", atividades, key="ww_aud_manual_atividade")
+        admin_manual = c3.selectbox("Administrador", administradores, key="ww_aud_manual_admin")
+        busca_manual = st.text_input("Buscar por conta, tag ou evento", key="ww_aud_manual_busca")
+        filtros_manual = {
+            "Temporada": "" if temporada_manual == "Todas" else temporada_manual,
+            "Atividade": "" if atividade_manual == "Todas" else atividade_manual,
+            "Administrador": "" if admin_manual == "Todos" else admin_manual,
+        }
+        manuais_filtrados = ww_filtrar_auditoria_integrada(lancamentos_aud, filtros_manual, busca_manual)
+        manuais_filtrados = sorted(manuais_filtrados, key=lambda r: str(r.get("RegistradoEm", "")), reverse=True)
+        manual_tabela = pd.DataFrame([{
+            "Evento": r.get("EventoID", ""), "Temporada": r.get("Temporada", ""),
+            "Conta": r.get("ParticipanteID", ""), "Tag": r.get("PlayerTag", ""),
+            "Atividade": r.get("Atividade", ""), "Informado": r.get("ValorInformado", ""),
+            "Antes": r.get("Antes", ""), "Depois": r.get("Depois", ""),
+            "Administrador": r.get("Administrador", ""), "Registrado em": r.get("RegistradoEm", ""),
+            "Hash": str(r.get("Hash", ""))[:12],
+        } for r in manuais_filtrados])
+        st.dataframe(manual_tabela, hide_index=True, use_container_width=True)
+        st.caption(f"{len(manuais_filtrados)} registro(s) encontrado(s). A consulta é somente leitura.")
+        if manuais_filtrados:
+          opcoes_manual = {f"{r.get('EventoID', 'sem ID')} · {r.get('PlayerTag', '')}": r for r in manuais_filtrados}
+          detalhe_manual = st.selectbox("Ver registro completo", [""] + list(opcoes_manual), key="ww_aud_manual_detalhe")
+          if detalhe_manual:
+            registro_manual = dict(opcoes_manual[detalhe_manual])
+            detalhes_manual = registro_manual.pop("DetalhesJSON", "")
+            st.json(registro_manual)
+            if detalhes_manual:
+              with st.expander("Detalhes do lançamento"):
+                try:
+                  st.json(json.loads(detalhes_manual))
+                except (TypeError, ValueError):
+                  st.code(str(detalhes_manual))
 
   with permissoes_tab:
     if not tem_permissao("Dono"):
