@@ -24,15 +24,16 @@ except ImportError:
   ImageOps = None
   PILLOW_DISPONIVEL = False
 
-# Winning Wars v46 - fechamento mensal persistente, histórico detalhado por temporada e proteção de quota.
+# Winning Wars v47 - controle integrado de outubro; base v46 - fechamento mensal persistente, histórico detalhado por temporada e proteção de quota.
 # Não depende de streamlit-quill/streamlit-quill2.
 # Quando Components V2 estiver disponível, usa um editor contenteditable nativo;
 # caso contrário, há fallback para st.text_area sem derrubar o aplicativo.
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
-    page_title="Winning Wars APP", page_icon=str(Path(__file__).parent / "static" / "favicon.png"), layout="wide"
+    page_title="Winning Wars", page_icon=str(Path(__file__).parent / "static" / "favicon.png"), layout="wide"
 )
+
 
 # --- PWA / ÍCONE PARA IPHONE, IPAD E ANDROID ---
 # O favicon continua configurado em st.set_page_config.
@@ -405,7 +406,11 @@ def conectar_banco():
   creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
   client = gspread.authorize(creds)
 
-  spreadsheet = client.open("WinningWars_DB")
+  spreadsheet = client.open_by_key(
+      "1QTfVjrfSCVZ3JlqIDbhLHHBc2-anz8XhK9WzxU3v0oA"
+  )
+  if spreadsheet.title != "WinningWars_DB":
+    raise RuntimeError("Planilha oficial diferente da configuração prevista.")
   sheet_dados = spreadsheet.sheet1
 
   # Aba de Admins
@@ -609,6 +614,7 @@ def conectar_banco():
       sheet_historico_mensal,
       sheet_temporadas,
       sheet_backups,
+      spreadsheet,
   )
 
 
@@ -627,6 +633,7 @@ try:
       sheet_historico_mensal,
       sheet_temporadas,
       sheet_backups,
+      planilha_competicao,
   ) = conectar_banco()
 except Exception:
   st.error(
@@ -834,10 +841,10 @@ def nivel_admin_atual() -> str:
     if not atual.empty and "Nivel" in atual.columns:
       linha = atual[atual["Usuario"] == usuario]
       if not linha.empty:
-        return str(linha.iloc[0].get("Nivel", "Lider") or "Lider")
+        return str(linha.iloc[0].get("Nivel", "Membro") or "Membro")
   except Exception:
     pass
-  return "Lider"
+  return "Membro"
 
 
 def tem_permissao(*niveis) -> bool:
@@ -1110,6 +1117,30 @@ def finalizar_temporada_mensal(df_origem: pd.DataFrame):
   return rank, temporada_id, mes_ano
 
 
+def preparar_tabela_nova_temporada(valores, nova_id):
+  if not valores:
+    raise ValueError("A planilha de dados está vazia.")
+  headers = valores[0]
+  if headers[:2] != ["ID", "Nome"]:
+    raise ValueError("O ranking deve iniciar pelas colunas ID e Nome.")
+  if nova_id >= "2026-10":
+    return [["ID", "Nome", "JogosCla", "Eventos"]]
+  dinamicas = [c for c in headers if str(c).startswith(("Guerra_", "Liga_", "Raide_"))]
+  manter_idx = [i for i, c in enumerate(headers) if c not in dinamicas]
+  novos_headers = [headers[i] for i in manter_idx]
+  novas_linhas = [novos_headers]
+  for linha in valores[1:]:
+    nova = []
+    for i in manter_idx:
+      col = headers[i]
+      valor = linha[i] if i < len(linha) else ""
+      if col in ("JogosCla", "Eventos"):
+        valor = 0
+      nova.append(valor)
+    novas_linhas.append(nova)
+  return novas_linhas
+
+
 def iniciar_proxima_temporada():
   estado_fresco = dict(_ler_sheets_com_retry(sheet_estado.get_all_values))
   if str(estado_fresco.get("mes_finalizado", "FALSE")).upper() != "TRUE":
@@ -1125,27 +1156,14 @@ def iniciar_proxima_temporada():
       [("Dados", sheet_dados), ("EstadoMes", sheet_estado)],
   )
 
-  # Reconstrói somente a área de trabalho atual. ID/Nome e quaisquer campos
-  # cadastrais são preservados; atividades do mês são zeradas e as colunas
-  # dinâmicas antigas são removidas para que a nova temporada volte a Guerra_1,
-  # Liga_1 e Raide_1 sem colidir com o histórico arquivado.
+  nova_id = proxima_temporada_id(temporada_id)
+
+  # A partir de outubro/2026, o ranking ativo nasce vazio. Contas cadastradas
+  # no controle de participação só entram aqui com a primeira pontuação
+  # positiva, junto com vínculo, inscrição e auditoria no mesmo lote.
   valores = _ler_sheets_com_retry(sheet_dados.get_all_values)
-  if not valores:
-    raise ValueError("A planilha de dados está vazia.")
-  headers = valores[0]
-  dinamicas = [c for c in headers if str(c).startswith(("Guerra_", "Liga_", "Raide_"))]
-  manter_idx = [i for i, c in enumerate(headers) if c not in dinamicas]
-  novos_headers = [headers[i] for i in manter_idx]
-  novas_linhas = [novos_headers]
-  for linha in valores[1:]:
-    nova = []
-    for i in manter_idx:
-      col = headers[i]
-      valor = linha[i] if i < len(linha) else ""
-      if col in ("JogosCla", "Eventos"):
-        valor = 0
-      nova.append(valor)
-    novas_linhas.append(nova)
+  novas_linhas = preparar_tabela_nova_temporada(valores, nova_id)
+  novos_headers = novas_linhas[0]
 
   sheet_dados.clear()
   sheet_dados.resize(
@@ -1155,7 +1173,6 @@ def iniciar_proxima_temporada():
   fim = gspread.utils.rowcol_to_a1(len(novas_linhas), len(novos_headers))
   sheet_dados.update(f"A1:{fim}", novas_linhas, value_input_option="USER_ENTERED")
 
-  nova_id = proxima_temporada_id(temporada_id)
   novo_nome = temporada_nome_por_id(nova_id)
   aberta_em = agora_winning_wars().strftime("%Y-%m-%d %H:%M:%S")
   definir_estado("temporada_atual_id", nova_id)
@@ -3577,7 +3594,7 @@ def calcular_medalhas(row, colunas_guerras, colunas_liga, colunas_raides, df_ran
   if colunas_guerras and sum(float(row.get(c, 0) or 0) for c in colunas_guerras) >= 20: medalhas.append("⚔️ Senhor da Guerra")
   if colunas_raides and sum(float(row.get(c, 0) or 0) for c in colunas_raides) >= 20: medalhas.append("🏰 Mestre dos Raides")
   if colunas_liga and all(float(row.get(c, 0) or 0) > 0 for c in colunas_liga): medalhas.append("🏆 Veterano da Liga")
-  if not df_rank.empty and str(df_rank.iloc[0].get("Nome")) == nome: medalhas.append("👑 Líder Atual")
+  if not df_rank.empty and str(df_rank.iloc[0].get("ID")) == str(row.get("ID")): medalhas.append("👑 Líder Atual")
   if not df_fama.empty and any(nome in [str(r.get("Primeiro","")), str(r.get("Segundo","")), str(r.get("Terceiro",""))] for _, r in df_fama.iterrows()):
     medalhas.append("🎟️ Hall da Fama")
   return medalhas
@@ -3588,10 +3605,11 @@ def renderizar_perfil_membro(df_rank, colunas_guerras, colunas_liga, colunas_rai
   if df_rank is None or df_rank.empty:
     st.info("Ainda não existem dados para montar perfis.")
     return
-  nomes = df_rank["Nome"].astype(str).tolist()
-  nome = st.selectbox("Escolha seu nome", nomes, key="perfil_membro_nome")
-  pos = nomes.index(nome)
+  pos = st.selectbox("Escolha sua vila", list(range(len(df_rank))),
+      format_func=lambda i: nome_exibicao(df_rank.iloc[i]) + " — " + nomes_vinculos.get(str(df_rank.iloc[i].get("ID", "")), "ID " + str(df_rank.iloc[i].get("ID", ""))),
+      key="perfil_membro_id")
   row = df_rank.iloc[pos]
+  nome = str(row.get("Nome", ""))
   total = int(row.get("Total", 0))
   acima = df_rank.iloc[pos-1] if pos > 0 else None
   terceiro = df_rank.iloc[2] if len(df_rank) >= 3 else None
@@ -3644,6 +3662,586 @@ def renderizar_agenda_membros():
     st.divider()
 
 
+# INICIO CONTROLE PARTICIPACAO
+"""Contrato compartilhado entre o app e a futura integracao do motor.
+
+A aba e um historico de eventos acrescentados ao final, nunca uma tabela
+reescrita pela sincronizacao. CADASTRO cria o padrao; ADMIN sempre prevalece.
+A ordem das linhas define a ordem das decisoes administrativas.
+"""
+import re
+import unicodedata
+from datetime import datetime
+
+PC_ABA = "ParticipacaoCompeticao"
+PC_CABECALHO = [
+    "EventoID", "PlayerTag", "Nome", "Habilitada", "Administrador",
+    "Motivo", "RegistradoEm", "Origem",
+]
+
+
+def pc_tag(valor):
+    if not isinstance(valor, str):
+        raise ValueError("Tag ausente.")
+    tag = valor.strip().upper()
+    if not re.fullmatch(r"#[0289PYLQGRJCUV]+", tag):
+        raise ValueError("Tag invalida.")
+    return tag
+
+
+def pc_validar_admin(linhas, usuario):
+    if not isinstance(usuario, str) or not usuario.strip():
+        raise PermissionError("Entre com uma conta administrativa autorizada.")
+    if not linhas or len(set(linhas[0])) != len(linhas[0]):
+        raise PermissionError("Nao foi possivel confirmar as permissoes.")
+    cabecalho = linhas[0]
+    if "Usuario" not in cabecalho or "Nivel" not in cabecalho:
+        raise PermissionError("Cadastro de administradores incompleto.")
+    encontrados = []
+    for linha in linhas[1:]:
+        dados = dict(zip(cabecalho, linha))
+        if str(dados.get("Usuario", "")).strip().casefold() == usuario.strip().casefold():
+            encontrados.append(dados)
+    if len(encontrados) != 1:
+        raise PermissionError("Administrador ausente ou cadastro duplicado.")
+    nivel = str(encontrados[0].get("Nivel", "")).strip()
+    nivel = "".join(
+        c for c in unicodedata.normalize("NFKD", nivel)
+        if not unicodedata.combining(c)
+    ).casefold()
+    if nivel not in {"dono", "lider", "co-lider", "colider"}:
+        raise PermissionError("Somente dono, lider e colider podem gerir a participacao.")
+    return str(encontrados[0]["Usuario"]).strip()
+
+
+def pc_ler_eventos(linhas):
+    if not linhas or linhas[0] != PC_CABECALHO:
+        raise ValueError("Controle de participacao ausente ou com cabecalho diferente.")
+    eventos = []
+    ids = {}
+    for numero, linha in enumerate(linhas[1:], 2):
+        if not any(str(v).strip() for v in linha):
+            continue
+        if len(linha) != len(PC_CABECALHO) or not all(isinstance(v, str) for v in linha):
+            raise ValueError(f"Linha {numero}: registro de participacao incompleto.")
+        registro = dict(zip(PC_CABECALHO, linha))
+        if any(not valor.strip() for valor in registro.values()):
+            raise ValueError(f"Linha {numero}: campos obrigatorios ausentes.")
+        if registro["PlayerTag"] != pc_tag(registro["PlayerTag"]):
+            raise ValueError(f"Linha {numero}: tag fora do formato padrao.")
+        if registro["Habilitada"] not in {"TRUE", "FALSE"}:
+            raise ValueError(f"Linha {numero}: permissao invalida.")
+        if registro["Origem"] not in {"CADASTRO", "ADMIN"}:
+            raise ValueError(f"Linha {numero}: origem invalida.")
+        data = datetime.fromisoformat(registro["RegistradoEm"])
+        if data.tzinfo is None or data.utcoffset() is None:
+            raise ValueError(f"Linha {numero}: data sem fuso.")
+        identidade = registro["EventoID"]
+        if identidade in ids:
+            if ids[identidade] != registro:
+                raise ValueError(f"Linha {numero}: identificador reutilizado com dados diferentes.")
+            continue
+        ids[identidade] = registro
+        eventos.append(registro)
+    return eventos
+
+
+def pc_estado(eventos):
+    contas = {}
+    for evento in eventos:
+        tag = evento["PlayerTag"]
+        atual = contas.get(tag)
+        if evento["Origem"] == "ADMIN" or atual is None:
+            contas[tag] = dict(evento)
+        # Repetir/importar o cadastro nunca altera uma decisao ja registrada.
+    return contas
+
+
+def pc_habilitada(linhas, tag):
+    """Ausencia de cadastro nao significa permissao implicita para pontuar."""
+    conta = pc_estado(pc_ler_eventos(linhas)).get(pc_tag(tag))
+    if conta is None:
+        raise ValueError("Conta ainda nao registrada no controle de participacao.")
+    return conta["Habilitada"] == "TRUE"
+
+
+def pc_preparar_alteracao(linhas, admins, usuario, tag, habilitada,
+                         motivo, evento_anterior, evento_id, registrado_em):
+    autor = pc_validar_admin(admins, usuario)
+    if type(habilitada) is not bool:
+        raise ValueError("A participacao deve ser habilitada ou desabilitada.")
+    if not isinstance(motivo, str) or not 3 <= len(motivo.strip()) <= 500:
+        raise ValueError("Informe um motivo de 3 a 500 caracteres.")
+    tag = pc_tag(tag)
+    eventos = pc_ler_eventos(linhas)
+    atual = pc_estado(eventos).get(tag)
+    if atual is None:
+        raise ValueError("Conta nao encontrada no controle de participacao.")
+    if atual["EventoID"] != evento_anterior:
+        raise ValueError("Esta conta foi alterada por outro administrador. Atualize o painel.")
+    if any(evento["EventoID"] == evento_id for evento in eventos):
+        raise ValueError("Identificador de alteracao ja utilizado.")
+    valor = "TRUE" if habilitada else "FALSE"
+    if atual["Habilitada"] == valor:
+        raise ValueError("A conta ja possui a participacao selecionada.")
+    linha = [evento_id, tag, atual["Nome"], valor, autor, motivo.strip(), registrado_em, "ADMIN"]
+    pc_ler_eventos([PC_CABECALHO, linha])
+    return linha
+
+
+def pc_confirmar_evento(linhas, linha_enviada):
+    esperado = dict(zip(PC_CABECALHO, linha_enviada))
+    for evento in pc_ler_eventos(linhas):
+        if evento["EventoID"] == esperado["EventoID"]:
+            if evento != esperado:
+                raise ValueError("Alteracao registrada com dados divergentes.")
+            return True
+    return False
+
+
+# Este fragmento e incorporado ao app; nao e executado isoladamente.
+
+"""Vinculos explicitos, sem associacao automatica por nome."""
+from datetime import datetime
+
+VC_ABA = "VinculosParticipantes"
+VC_HEADER = ["EventoID", "ParticipanteID", "PlayerTag", "Administrador", "RegistradoEm"]
+
+
+def vc_registros(linhas, obrigatorios):
+    if not linhas or len(set(linhas[0])) != len(linhas[0]) or not set(obrigatorios) <= set(linhas[0]):
+        raise ValueError("Cabecalho de cadastro inesperado.")
+    saida = []
+    for linha in linhas[1:]:
+        if not any(str(v).strip() for v in linha):
+            continue
+        if len(linha) > len(linhas[0]) and any(str(v).strip() for v in linha[len(linhas[0]):]):
+            raise ValueError("Dados fora do cabecalho.")
+        saida.append(dict(zip(linhas[0], linha + [""] * (len(linhas[0]) - len(linha)))))
+    return saida
+
+
+def vc_estado(ranking, inscricoes, vinculos, controle):
+    contas = pc_estado(pc_ler_eventos(controle))
+    participantes = {}
+    por_id, por_tag = {}, {}
+    for r in vc_registros(ranking, ["ID", "Nome"]):
+        identidade = r["ID"].strip()
+        if not identidade or identidade in participantes or not r["Nome"].strip():
+            raise ValueError("Participante sem ID/nome ou ID repetido.")
+        participantes[identidade] = r["Nome"]
+
+    def ligar(identidade, tag):
+        if not identidade or pc_tag(tag) != tag:
+            raise ValueError("Vinculo com ID ou tag invalido.")
+        if identidade in por_id and por_id[identidade] != tag:
+            raise ValueError("Um participante tem mais de uma tag; requer revisao.")
+        if tag in por_tag and por_tag[tag] != identidade:
+            raise ValueError("Uma conta foi vinculada a participantes diferentes; requer revisao.")
+        por_id[identidade] = tag
+        por_tag[tag] = identidade
+
+    for r in vc_registros(inscricoes, ["ParticipanteID", "PlayerTag"]):
+        # Todas as temporadas/status reservam o vinculo de identidade.
+        ligar(r["ParticipanteID"].strip(), r["PlayerTag"])
+    if not vinculos or vinculos[0] != VC_HEADER:
+        raise ValueError("Cabecalho de vinculos inesperado.")
+    eventos = {}
+    for r in vc_registros(vinculos, VC_HEADER):
+        if not all(isinstance(v, str) and v.strip() for v in r.values()):
+            raise ValueError("Vinculo incompleto.")
+        data = datetime.fromisoformat(r["RegistradoEm"])
+        if data.tzinfo is None or data.utcoffset() is None:
+            raise ValueError("Vinculo sem fuso horario.")
+        if r["EventoID"] in eventos and eventos[r["EventoID"]] != r:
+            raise ValueError("Identificador de vinculo reutilizado.")
+        eventos[r["EventoID"]] = r
+        ligar(r["ParticipanteID"], r["PlayerTag"])
+    return dict(participantes=participantes, contas=contas, por_id=por_id, por_tag=por_tag, eventos=eventos)
+
+
+def vc_preparar(ranking, inscricoes, vinculos, controle, admins, usuario, identidade, tag, evento_id, data):
+    autor = pc_validar_admin(admins, usuario)
+    estado = vc_estado(ranking, inscricoes, vinculos, controle)
+    if identidade not in estado["participantes"] or tag not in estado["contas"]:
+        raise ValueError("Participante ou conta nao encontrado. Atualize a lista.")
+    if identidade in estado["por_id"] or tag in estado["por_tag"]:
+        raise ValueError("Participante ou conta ja vinculado. Atualize a lista.")
+    if evento_id in estado["eventos"]:
+        raise ValueError("Identificador ja utilizado.")
+    linha = [evento_id, identidade, tag, autor, data]
+    vc_estado(ranking, inscricoes, vinculos + [linha], controle)
+    return linha
+
+
+def vc_confirmar(estado, linha):
+    esperado = dict(zip(VC_HEADER, linha))
+    encontrado = estado["eventos"].get(linha[0])
+    if encontrado is not None and encontrado != esperado:
+        raise ValueError("Vinculo registrado com dados divergentes.")
+    return encontrado == esperado
+
+
+# Incorporado no app de teste, abaixo das funcoes compartilhadas.
+# Cache somente para exibicao. Salvamentos continuam lendo dados atuais.
+@st.cache_resource(ttl=300)
+def ww_aba_painel(planilha_id, titulo):
+  if planilha_competicao.id != planilha_id:
+    raise ValueError("Planilha diferente da esperada")
+  return planilha_competicao.worksheet(titulo)
+
+@st.cache_data(ttl=30)
+def ww_admins_exibicao(planilha_id):
+  if planilha_competicao.id != planilha_id:
+    raise ValueError("Planilha diferente da esperada")
+  return sheet_admins.get_all_values()
+
+def ww_foto_vinculos_atual():
+  titulos = [sheet_dados.title, "InscricoesTemporada", VC_ABA, PC_ABA]
+  ranges = ["'" + titulo.replace("'", "''") + "'" for titulo in titulos]
+  def consultar(intervalos, modo):
+    resposta = planilha_competicao.values_batch_get(intervalos, params={"valueRenderOption": modo})
+    partes = resposta.get("valueRanges", [])
+    if len(partes) != len(intervalos):
+      raise ValueError("Leitura em lote incompleta.")
+    return [parte.get("values", []) for parte in partes]
+  valores = consultar(ranges, "FORMATTED_VALUE")
+  formulas = consultar(ranges[2:], "FORMULA")
+  if valores[2:] != formulas:
+    raise ValueError("Fórmulas no cadastro de vínculos ou de participação; requer revisão.")
+  return valores
+
+@st.cache_data(ttl=30)
+def ww_foto_vinculos_exibicao(planilha_id):
+  if planilha_competicao.id != planilha_id:
+    raise ValueError("Planilha diferente da esperada")
+  return ww_foto_vinculos_atual()
+
+@st.cache_data(ttl=30)
+def ww_controle_exibicao(planilha_id):
+  return ww_aba_painel(planilha_id, PC_ABA).get_all_values(value_render_option="FORMATTED_VALUE")
+
+def ww_limpar_painel():
+  ww_admins_exibicao.clear()
+  ww_foto_vinculos_exibicao.clear()
+  ww_controle_exibicao.clear()
+  carregar_nomes_vinculados.clear()
+
+
+"""Preparo do lote sem efeitos externos; todo o lote valido ou nenhum envio."""
+
+def vl_preparar(foto, admins, usuario, escolhas, lote_id, data):
+    import uuid
+    if not escolhas:
+        raise ValueError("Selecione pelo menos uma conta.")
+    ids, tags, linhas = set(), set(), []
+    for identidade, tag in escolhas:
+        if identidade in ids or tag in tags:
+            raise ValueError("Participante ou conta selecionado mais de uma vez no lote.")
+        ids.add(identidade)
+        tags.add(tag)
+        evento_id = str(uuid.uuid5(uuid.UUID(lote_id), identidade))
+        linhas.append(vc_preparar(*foto, admins, usuario, identidade, tag, evento_id, data))
+    vc_estado(foto[0], foto[1], foto[2] + linhas, foto[3])
+    return linhas
+
+def vl_conferir(foto, linhas):
+    estado = vc_estado(*foto)
+    return all(vc_confirmar(estado, linha) for linha in linhas)
+
+
+def renderizar_vinculos_competicao():
+  import time
+  import uuid
+  st.markdown("### Vincular participantes em lote")
+  st.caption("Escolha as contas que reconhecer e confira o lote antes de salvar. Deixe as demais sem seleção. Pontos e permissões não serão alterados.")
+  if time.time() < st.session_state.get("ww_vl_aguardar_ate", 0):
+    st.warning("O Google limitou as consultas. Aguarde cerca de um minuto antes de atualizar esta tela. Nenhum lote será reenviado automaticamente.")
+    return
+  etapa = "ler cadastros"
+  try:
+    if planilha_competicao.id != "1QTfVjrfSCVZ3JlqIDbhLHHBc2-anz8XhK9WzxU3v0oA":
+      raise ValueError("Disponível somente no aplicativo de teste.")
+    pc_validar_admin(ww_admins_exibicao(planilha_competicao.id), st.session_state.get("admin_logado"))
+    foto = ww_foto_vinculos_exibicao(planilha_competicao.id)
+    estado = vc_estado(*foto)
+    # Recupera tambem uma tentativa pendente feita na tela individual anterior.
+    pendente = st.session_state.get("ww_vl_pendente")
+    antigo = st.session_state.get("ww_vc_pendente")
+    if not pendente and antigo:
+      pendente = {"planilha": antigo["planilha"], "linhas": [antigo["linha"]]}
+      st.session_state["ww_vl_pendente"] = pendente
+    if pendente:
+      if pendente["planilha"] != planilha_competicao.id:
+        raise ValueError("Envio pendente em outra planilha.")
+      atual = ww_foto_vinculos_atual()
+      if not vl_conferir(atual, pendente["linhas"]):
+        st.warning("O último envio ainda não foi confirmado por completo. Não envie outro lote antes da conferência.")
+        st.caption("Referência: " + pendente["linhas"][0][0])
+        if st.button("Conferir envio anterior", key="ww_vl_conferir"):
+          st.rerun()
+        return
+      st.session_state.pop("ww_vl_pendente", None)
+      st.session_state.pop("ww_vc_pendente", None)
+      st.session_state.pop("ww_vl_proposta", None)
+      ww_limpar_painel()
+      foto = atual
+      estado = vc_estado(*foto)
+      st.success("Lote registrado e conferido. Atualize a página para ver os nomes no ranking.")
+    participantes = estado["participantes"]
+    pendentes = [i for i in participantes if i not in estado["por_id"]]
+    st.caption(f"{len(participantes)} participantes · {len(participantes)-len(pendentes)} vinculados · {len(pendentes)} pendentes")
+    with st.expander("Ver vínculos existentes"):
+      st.dataframe(pd.DataFrame([{"ID": i, "Participante": nome, "Tag": estado["por_id"].get(i, "Pendente")} for i, nome in participantes.items()]), hide_index=True, use_container_width=True)
+    proposta = st.session_state.get("ww_vl_proposta")
+    if proposta:
+      st.markdown("#### Confira antes de salvar")
+      st.dataframe(pd.DataFrame(proposta["resumo"]), hide_index=True, use_container_width=True)
+      if st.button("Descartar seleção e começar de novo", key="ww_vl_descartar"):
+        del st.session_state["ww_vl_proposta"]
+        st.rerun()
+      if st.button("Confirmar e salvar lote", key="ww_vl_salvar", type="primary"):
+        etapa = "conferir antes de enviar"
+        if proposta["planilha"] != planilha_competicao.id:
+          raise ValueError("Seleção pertence a outra planilha.")
+        atual = ww_foto_vinculos_atual()
+        # Qualquer alteracao de fonte exige nova revisao visual, sem apagar a proposta.
+        if atual != proposta["foto"]:
+          raise ValueError("Os cadastros mudaram. Descarte a seleção e confira um novo lote.")
+        admins = sheet_admins.get_all_values()
+        linhas = vl_preparar(atual, admins, st.session_state.get("admin_logado"), proposta["escolhas"], proposta["lote_id"], proposta["data"])
+        aba = ww_aba_painel(planilha_competicao.id, VC_ABA)
+        st.session_state["ww_vl_pendente"] = {"planilha": planilha_competicao.id, "linhas": linhas}
+        etapa = "envio iniciado; nao repetir"
+        aba.append_rows(linhas, value_input_option="RAW")
+        if not vl_conferir(ww_foto_vinculos_atual(), linhas):
+          raise ValueError("Envio sem confirmação completa. Consulte novamente; não repita o lote.")
+        ww_limpar_painel()
+        st.rerun()
+      return
+    if not pendentes:
+      st.success("Todos os participantes estão vinculados.")
+      return
+    disponiveis = {tag: conta for tag, conta in estado["contas"].items() if tag not in estado["por_tag"]}
+    opcoes = {f"{nome_conta(tag, conta['Nome'])} — {tag}": tag for tag, conta in disponiveis.items()}
+    with st.form("ww_vl_formulario"):
+      selecionados = []
+      for identidade in pendentes:
+        opcao = st.selectbox(f"{participantes[identidade]} — ID {identidade}", ["Deixar pendente"] + sorted(opcoes), key="ww_vl_conta_" + identidade)
+        if opcao != "Deixar pendente":
+          if opcao not in opcoes:
+            raise ValueError("Opções mudaram; atualize a página.")
+          selecionados.append((identidade, opcoes[opcao]))
+      preparar = st.form_submit_button("Conferir lote")
+    if preparar:
+      lote_id = str(uuid.uuid4())
+      data = agora_winning_wars().isoformat()
+      vl_preparar(foto, ww_admins_exibicao(planilha_competicao.id), st.session_state.get("admin_logado"), selecionados, lote_id, data)
+      st.session_state["ww_vl_proposta"] = {"planilha": planilha_competicao.id, "foto": foto, "escolhas": selecionados, "lote_id": lote_id, "data": data,
+          "resumo": [{"Participante": participantes[i], "ID": i, "Conta": nome_conta(tag, disponiveis[tag]["Nome"]), "Tag": tag} for i, tag in selecionados]}
+      st.rerun()
+  except (ValueError, PermissionError) as erro:
+    st.error(str(erro))
+  except Exception as erro:
+    status = getattr(getattr(erro, "response", None), "status_code", None)
+    if status == 429:
+      st.session_state["ww_vl_aguardar_ate"] = time.time() + 70
+      st.warning("O Google limitou as consultas. Aguarde cerca de um minuto. Sua seleção permanece nesta sessão; nenhum envio será repetido automaticamente.")
+    else:
+      st.error("Não foi possível concluir a operação. Preserve esta sessão e envie o diagnóstico.")
+    st.caption(f"Diagnóstico: VINCULOS_LOTE | {etapa} | {type(erro).__name__} | HTTP {status if type(status) is int else '-'}")
+
+
+def renderizar_participacao_competicao():
+  opcao = st.radio("Gerenciar", ["Vincular participantes", "Habilitar ou desabilitar contas"],
+      horizontal=True, key="ww_painel_opcao")
+  if opcao == "Vincular participantes":
+    renderizar_vinculos_competicao()
+  else:
+    renderizar_permissoes_competicao()
+
+
+def renderizar_permissoes_competicao():
+  st.markdown("### 👥 Participação na competição")
+  try:
+    usuario = pc_validar_admin(
+        ww_admins_exibicao(planilha_competicao.id), st.session_state.get("admin_logado")
+    )
+  except PermissionError as erro:
+    st.warning(str(erro))
+    return
+  except Exception:
+    st.error("Não foi possível confirmar sua permissão. Tente novamente mais tarde.")
+    return
+
+  st.caption(
+      "Habilitar uma conta permite sua participação após obter pontuação válida. "
+      "Desabilitar registra um bloqueio; nenhuma pontuação histórica é apagada por este painel."
+  )
+  try:
+    aba = ww_aba_painel(planilha_competicao.id, PC_ABA)
+    linhas = ww_controle_exibicao(planilha_competicao.id)
+    eventos = pc_ler_eventos(linhas)
+    contas = pc_estado(eventos)
+    for conta in contas.values():
+      conta["Nome"] = nome_conta(conta["PlayerTag"], conta["Nome"])
+  except gspread.WorksheetNotFound:
+    st.info("O controle de participação está aguardando a importação inicial das contas do clã.")
+    return
+  except ValueError as erro:
+    st.error(str(erro))
+    return
+  except Exception:
+    st.error("Não foi possível consultar as contas. Nenhuma alteração foi enviada.")
+    return
+
+  pendencia_chave = "ww_participacao_envio_pendente"
+  pendente = st.session_state.get(pendencia_chave)
+  if pendente:
+    linhas = aba.get_all_values(value_render_option="FORMATTED_VALUE")
+    if pendente["planilha_id"] != planilha_competicao.id:
+      st.error("Há uma alteração sem confirmação em outra planilha. Confira-a antes de continuar.")
+      return
+    try:
+      confirmado = pc_confirmar_evento(linhas, pendente["linha"])
+    except ValueError as erro:
+      st.error(str(erro))
+      return
+    if confirmado:
+      del st.session_state[pendencia_chave]
+      st.success("A alteração anterior foi localizada no histórico. Ela não foi enviada novamente.")
+    else:
+      st.warning(
+          "A última tentativa ainda não foi confirmada. Não enviaremos outra alteração "
+          "nesta sessão até conferir o registro."
+      )
+      st.caption("Identificador para conferência: " + pendente["linha"][0])
+      if st.button("Consultar confirmação novamente", key="ww_pc_conferir"):
+        st.rerun()
+      return
+
+  if st.button("Atualizar lista", key="ww_pc_atualizar"):
+    ww_limpar_painel()
+    st.rerun()
+  if not contas:
+    st.info("Nenhuma conta importada ainda.")
+    return
+
+  habilitadas = sum(conta["Habilitada"] == "TRUE" for conta in contas.values())
+  st.caption(
+      f"{len(contas)} contas · {habilitadas} habilitadas · "
+      f"{len(contas) - habilitadas} desabilitadas"
+  )
+  busca = st.text_input("Buscar por nome ou tag", key="ww_pc_busca").strip().casefold()
+  filtro = st.selectbox(
+      "Mostrar", ["Todas", "Habilitadas", "Desabilitadas"], key="ww_pc_filtro"
+  )
+  visiveis = [
+      conta for conta in contas.values()
+      if (not busca or busca in conta["Nome"].casefold() or busca in conta["PlayerTag"].casefold())
+      and (filtro == "Todas" or (conta["Habilitada"] == "TRUE") == (filtro == "Habilitadas"))
+  ]
+  visiveis.sort(key=lambda conta: (conta["Nome"].casefold(), conta["PlayerTag"]))
+  if not visiveis:
+    st.info("Nenhuma conta corresponde à busca.")
+    return
+
+  st.dataframe(pd.DataFrame([
+      {"Nome": conta["Nome"], "Tag": conta["PlayerTag"],
+       "Participação permitida": "Sim" if conta["Habilitada"] == "TRUE" else "Não",
+       "Atualizado por": conta["Administrador"], "Data": conta["RegistradoEm"]}
+      for conta in visiveis
+  ]), hide_index=True, use_container_width=True)
+
+  tag = st.selectbox(
+      "Conta", [conta["PlayerTag"] for conta in visiveis],
+      format_func=lambda valor: f"{contas[valor]['Nome']} — {valor}",
+      key="ww_pc_conta",
+  )
+  conta = contas[tag]
+  chave = tag + "_" + conta["EventoID"]
+  with st.form("ww_pc_form_" + chave):
+    escolha = st.radio(
+        "Participação", ["Habilitada", "Desabilitada"],
+        index=0 if conta["Habilitada"] == "TRUE" else 1,
+        key="ww_pc_escolha_" + chave,
+    )
+    motivo = st.text_input(
+        "Motivo da alteração", max_chars=500, key="ww_pc_motivo_" + chave,
+        placeholder="Ex.: conta secundária ou liberação para participar",
+    )
+    salvar = st.form_submit_button("Salvar participação", type="primary")
+
+  if salvar:
+    import uuid
+    try:
+      atuais = aba.get_all_values(value_render_option="FORMATTED_VALUE")
+      admins_atuais = sheet_admins.get_all_values()
+      linha = pc_preparar_alteracao(
+          atuais, admins_atuais, st.session_state.get("admin_logado"), tag,
+          escolha == "Habilitada", motivo, conta["EventoID"],
+          str(uuid.uuid4()), agora_winning_wars().isoformat(),
+      )
+    except (ValueError, PermissionError) as erro:
+      st.error(str(erro))
+      return
+    except Exception:
+      st.error("Não foi possível validar a alteração. Nenhum envio foi iniciado.")
+      return
+
+    st.session_state[pendencia_chave] = {
+        "linha": linha, "planilha_id": planilha_competicao.id,
+    }
+    try:
+      # Uma unica inclusao registra a decisao e sua auditoria. Nao repetir em falhas.
+      aba.append_row(linha, value_input_option="RAW")
+      confirmado = pc_confirmar_evento(
+          aba.get_all_values(value_render_option="FORMATTED_VALUE"), linha
+      )
+    except Exception:
+      st.warning("Envio sem confirmação. Use Atualizar lista para conferir antes de tentar outra alteração.")
+      return
+    if not confirmado:
+      st.warning("A alteração ainda não apareceu na leitura. Atualize a lista para conferir.")
+      return
+    del st.session_state[pendencia_chave]
+    ww_limpar_painel()
+    st.session_state["ww_pc_sucesso"] = "Participação registrada e conferida."
+    st.rerun()
+
+  mensagem = st.session_state.pop("ww_pc_sucesso", None)
+  if mensagem:
+    st.success(mensagem)
+  with st.expander("Histórico desta conta"):
+    historico = [evento for evento in eventos if evento["PlayerTag"] == tag]
+    st.dataframe(pd.DataFrame([
+        {"Data": evento["RegistradoEm"], "Administrador": evento["Administrador"],
+         "Participação": "Habilitada" if evento["Habilitada"] == "TRUE" else "Desabilitada",
+         "Motivo": evento["Motivo"], "Origem": evento["Origem"]}
+        for evento in reversed(historico)
+    ]), hide_index=True, use_container_width=True)
+
+# FIM CONTROLE PARTICIPACAO
+
+
+def ww_outubro_integrado():
+  return temporada_id_atual() >= "2026-10"
+
+
+def ww_lancamento_integrado():
+  from ww_competicao.painel import renderizar
+  def salvar_backup():
+    abas = [("Ranking", sheet_dados)]
+    for titulo in ("InscricoesTemporada", "VinculosParticipantes", "ParticipacaoCompeticao"):
+      abas.append((titulo, planilha_competicao.worksheet(titulo)))
+    exigir_backup_automatico("Lancamento manual integrado", abas)
+  def limpar():
+    obter_dados_cached.clear()
+    obter_auditoria_cached.clear()
+    ww_limpar_painel()
+  renderizar(st, planilha_competicao, sheet_dados, st.session_state.get("admin_logado"), salvar_backup, limpar)
+
+
 def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides):
   st.markdown("### 🚀 Central de Gestão 2.0")
   st.caption(f"Nível de acesso: **{nivel_admin_atual()}**")
@@ -3656,145 +4254,141 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
   ])
 
   with quick:
-    if mes_finalizado:
-      st.warning("🔒 A temporada está finalizada. Pontuações estão bloqueadas até a abertura do próximo mês.")
-      st.info("Use a aba **🏆 Fechamento Mensal** do Painel Admin para iniciar a próxima temporada.")
-      atividades = []
+    if ww_outubro_integrado():
+      ww_lancamento_integrado()
     else:
-      atividades = [c for c in df.columns if c in ["JogosCla", "Eventos"] or c.startswith(("Guerra_", "Liga_", "Raide_"))]
-    if (df.empty or not atividades) and not mes_finalizado:
-      st.info("Cadastre jogadores e atividades antes de lançar pontos.")
-    elif not mes_finalizado:
-      atividade = st.selectbox("Atividade", atividades, key="ww20_atividade")
-      base = df[["Nome", atividade]].copy()
-      base[atividade] = pd.to_numeric(base[atividade], errors="coerce").fillna(0).astype(int)
-      edit = st.data_editor(base, hide_index=True, use_container_width=True, disabled=["Nome"], key=f"quick_{atividade}")
-      motivo = st.text_input("Motivo/observação (opcional)", key=chave_widget_resetavel("quick_motivo"))
-      if st.button("💾 Salvar somente alterações", type="primary", use_container_width=True):
-        # v45: salva as pontuações em lote para evitar estouro da quota da API
-        # do Google Sheets. A versão anterior fazia find + update_cell + auditoria
-        # + log para cada jogador alterado, multiplicando o número de requisições.
-        alteracoes_pendentes = []
-        for idx, row_edit in edit.iterrows():
-          antes = int(base.iloc[idx][atividade])
-          depois = int(row_edit[atividade])
-          if antes != depois:
-            alteracoes_pendentes.append((str(row_edit["Nome"]), antes, depois))
+      if mes_finalizado:
+        st.warning("🔒 A temporada está finalizada. Pontuações estão bloqueadas até a abertura do próximo mês.")
+        st.info("Use a aba **🏆 Fechamento Mensal** do Painel Admin para iniciar a próxima temporada.")
+        atividades = []
+      else:
+        atividades = [c for c in df.columns if c in ["JogosCla", "Eventos"] or c.startswith(("Guerra_", "Liga_", "Raide_"))]
+      if (df.empty or not atividades) and not mes_finalizado:
+        st.info("Cadastre jogadores e atividades antes de lançar pontos.")
+      elif not mes_finalizado:
+        atividade = st.selectbox("Atividade", atividades, key="ww20_atividade")
+        base = tabela_com_nomes(df)[["Nome", atividade]].copy()
+        base[atividade] = pd.to_numeric(base[atividade], errors="coerce").fillna(0).astype(int)
+        edit = st.data_editor(base, hide_index=True, use_container_width=True, disabled=["Nome"], key=f"quick_{atividade}")
+        motivo = st.text_input("Motivo/observação (opcional)", key=chave_widget_resetavel("quick_motivo"))
+        if st.button("💾 Salvar somente alterações", type="primary", use_container_width=True):
+          # v45: salva as pontuações em lote para evitar estouro da quota da API
+          # do Google Sheets. A versão anterior fazia find + update_cell + auditoria
+          # + log para cada jogador alterado, multiplicando o número de requisições.
+          alteracoes_pendentes = []
+          for idx, row_edit in edit.iterrows():
+            antes = int(base.iloc[idx][atividade])
+            depois = int(row_edit[atividade])
+            if antes != depois:
+              alteracoes_pendentes.append((str(df.iloc[idx]["ID"]), str(df.iloc[idx]["Nome"]), antes, depois))
 
-        if not alteracoes_pendentes:
-          st.info("Nenhuma pontuação foi alterada.")
-        else:
-          try:
-            # Uma única leitura serve para descobrir cabeçalhos e linhas.
-            valores_planilha = sheet_dados.get_all_values()
-            if not valores_planilha:
-              st.error("⚠️ A planilha de dados está vazia.")
-              return
-
-            headers = valores_planilha[0]
-            if atividade not in headers:
-              st.error(f"⚠️ A atividade '{atividade}' não foi encontrada na planilha.")
-              return
-
-            col_num = headers.index(atividade) + 1
+          if not alteracoes_pendentes:
+            st.info("Nenhuma pontuação foi alterada.")
+          else:
             try:
-              nome_col_num = headers.index("Nome") + 1
-            except ValueError:
-              st.error("⚠️ A coluna 'Nome' não foi encontrada na planilha.")
-              return
+              # Uma única leitura serve para descobrir cabeçalhos e linhas.
+              valores_planilha = sheet_dados.get_all_values()
+              if not valores_planilha:
+                st.error("⚠️ A planilha de dados está vazia.")
+                return
 
-            # Mantém o mesmo comportamento do antigo sheet_dados.find():
-            # quando houver nome repetido, considera a primeira ocorrência.
-            linha_por_nome = {}
-            for numero_linha, linha in enumerate(valores_planilha[1:], start=2):
-              if len(linha) >= nome_col_num:
-                nome_planilha = str(linha[nome_col_num - 1]).strip()
-                if nome_planilha and nome_planilha not in linha_por_nome:
-                  linha_por_nome[nome_planilha] = numero_linha
+              headers = valores_planilha[0]
+              if atividade not in headers:
+                st.error(f"⚠️ A atividade '{atividade}' não foi encontrada na planilha.")
+                return
 
-            atualizacoes = []
-            auditorias = []
-            logs = []
-            agora_lote = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            admin_lote = st.session_state.get("admin_logado", "sistema")
-            ignorados = []
+              col_num = headers.index(atividade) + 1
+              try:
+                nome_col_num = headers.index("Nome") + 1
+              except ValueError:
+                st.error("⚠️ A coluna 'Nome' não foi encontrada na planilha.")
+                return
 
-            for nome_j, antes, depois in alteracoes_pendentes:
-              numero_linha = linha_por_nome.get(nome_j.strip())
-              if not numero_linha:
-                ignorados.append(nome_j)
-                continue
+              linha_por_id = nv_linhas_ids(valores_planilha)
 
-              celula_a1 = gspread.utils.rowcol_to_a1(numero_linha, col_num)
-              atualizacoes.append({"range": celula_a1, "values": [[depois]]})
-              auditorias.append([
-                  agora_lote, admin_lote, nome_j, atividade,
-                  antes, depois, motivo,
-              ])
-              logs.append([
-                  agora_lote,
-                  admin_lote,
-                  f"Alterou {nome_j} - {atividade}: {antes} → {depois}",
-              ])
+              atualizacoes = []
+              auditorias = []
+              logs = []
+              agora_lote = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+              admin_lote = st.session_state.get("admin_logado", "sistema")
+              ignorados = []
 
-            if not atualizacoes:
-              st.error("⚠️ Nenhum dos jogadores alterados foi localizado na planilha.")
-              return
+              for id_j, nome_j, antes, depois in alteracoes_pendentes:
+                numero_linha = linha_por_id.get(id_j)
+                if not numero_linha:
+                  ignorados.append(nome_j)
+                  continue
 
-            # 1 requisição de escrita para todas as pontuações alteradas.
-            sheet_dados.batch_update(
-                atualizacoes,
-                value_input_option="USER_ENTERED",
-            )
+                celula_a1 = gspread.utils.rowcol_to_a1(numero_linha, col_num)
+                atualizacoes.append({"range": celula_a1, "values": [[depois]]})
+                auditorias.append([
+                    agora_lote, admin_lote, nome_j, atividade,
+                    antes, depois, motivo,
+                ])
+                logs.append([
+                    agora_lote,
+                    admin_lote,
+                    f"Alterou {nome_j} - {atividade}: {antes} → {depois}",
+                ])
 
-            # Auditoria e logs também são enviados em lote (1 requisição cada).
-            if auditorias:
-              sheet_auditoria.append_rows(
-                  auditorias,
-                  value_input_option="USER_ENTERED",
-              )
-            if logs:
-              sheet_logs.append_rows(
-                  logs,
+              if not atualizacoes:
+                st.error("⚠️ Nenhum dos jogadores alterados foi localizado na planilha.")
+                return
+
+              # 1 requisição de escrita para todas as pontuações alteradas.
+              sheet_dados.batch_update(
+                  atualizacoes,
                   value_input_option="USER_ENTERED",
               )
 
-            alteracoes = len(atualizacoes)
-            obter_dados_cached.clear()
-            obter_auditoria_cached.clear()
-            obter_logs_cached.clear()
-            snapshot_ranking_atual("alteracao", f"Lançamento rápido: {atividade}")
-            resetar_widget("quick_motivo")
+              # Auditoria e logs também são enviados em lote (1 requisição cada).
+              if auditorias:
+                sheet_auditoria.append_rows(
+                    auditorias,
+                    value_input_option="USER_ENTERED",
+                )
+              if logs:
+                sheet_logs.append_rows(
+                    logs,
+                    value_input_option="USER_ENTERED",
+                )
 
-            if ignorados:
-              st.warning(
-                  "⚠️ Algumas alterações não foram aplicadas porque o jogador não "
-                  "foi localizado na planilha: " + ", ".join(ignorados)
-              )
-            st.success(f"✅ {alteracoes} alteração(ões) salva(s) em lote.")
-            st.rerun()
+              alteracoes = len(atualizacoes)
+              obter_dados_cached.clear()
+              obter_auditoria_cached.clear()
+              obter_logs_cached.clear()
+              snapshot_ranking_atual("alteracao", f"Lançamento rápido: {atividade}")
+              resetar_widget("quick_motivo")
 
-          except gspread.exceptions.APIError as exc:
-            # Evita que uma falha temporária da API derrube toda a página e deixa
-            # uma mensagem útil nos logs do Streamlit para diagnóstico.
-            status = getattr(getattr(exc, "response", None), "status_code", "?")
-            print(f"[Winning Wars v45] Google Sheets APIError no salvamento em lote: HTTP {status} - {exc}")
-            if str(status) == "429":
+              if ignorados:
+                st.warning(
+                    "⚠️ Algumas alterações não foram aplicadas porque o jogador não "
+                    "foi localizado na planilha: " + ", ".join(ignorados)
+                )
+              st.success(f"✅ {alteracoes} alteração(ões) salva(s) em lote.")
+              st.rerun()
+
+            except gspread.exceptions.APIError as exc:
+              # Evita que uma falha temporária da API derrube toda a página e deixa
+              # uma mensagem útil nos logs do Streamlit para diagnóstico.
+              status = getattr(getattr(exc, "response", None), "status_code", "?")
+              print(f"[Winning Wars v45] Google Sheets APIError no salvamento em lote: HTTP {status} - {exc}")
+              if str(status) == "429":
+                st.error(
+                    "⚠️ O Google Sheets atingiu temporariamente o limite de requisições. "
+                    "Aguarde alguns instantes e tente salvar novamente."
+                )
+              else:
+                st.error(
+                    "⚠️ O Google Sheets recusou a atualização. Verifique os logs do "
+                    "Streamlit para ver o código retornado pela API."
+                )
+            except Exception as exc:
+              print(f"[Winning Wars v45] Erro inesperado no salvamento em lote: {type(exc).__name__}: {exc}")
               st.error(
-                  "⚠️ O Google Sheets atingiu temporariamente o limite de requisições. "
-                  "Aguarde alguns instantes e tente salvar novamente."
+                  "⚠️ Não foi possível salvar as alterações. Nenhuma nova tentativa "
+                  "automática foi feita para evitar gravações duplicadas."
               )
-            else:
-              st.error(
-                  "⚠️ O Google Sheets recusou a atualização. Verifique os logs do "
-                  "Streamlit para ver o código retornado pela API."
-              )
-          except Exception as exc:
-            print(f"[Winning Wars v45] Erro inesperado no salvamento em lote: {type(exc).__name__}: {exc}")
-            st.error(
-                "⚠️ Não foi possível salvar as alterações. Nenhuma nova tentativa "
-                "automática foi feita para evitar gravações duplicadas."
-            )
 
   with eventos_tab:
     with st.form("novo_evento_20", clear_on_submit=True):
@@ -4009,7 +4603,7 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
       st.caption("A auditoria registra quem alterou, jogador, atividade e valor antes/depois.")
       ultima = aud.iloc[-1]
       st.warning(f"Última alteração: {ultima.get('Jogador')} / {ultima.get('Atividade')} — {ultima.get('Antes')} → {ultima.get('Depois')}")
-      if st.button("↩️ Desfazer última alteração", use_container_width=True, disabled=mes_finalizado):
+      if st.button("↩️ Desfazer última alteração", use_container_width=True, disabled=mes_finalizado or ww_outubro_integrado()):
         jogador = str(ultima.get("Jogador", "")); atividade = str(ultima.get("Atividade", "")); antes = ultima.get("Antes", 0)
         headers = sheet_dados.row_values(1); cell_nome = sheet_dados.find(jogador) if jogador else None
         if cell_nome and atividade in headers:
@@ -4220,6 +4814,100 @@ def renderizar_historico_mensal():
 
 # ==============================================================================
 # SELEÇÃO DE PÁGINAS
+"""Nomes Unicode da API, separados das decisoes administrativas."""
+from datetime import datetime
+
+NV_ABA = "NomesVilas"
+NV_HEADER = ["PlayerTag", "NomeAPI", "ConsultadoEm"]
+
+def nv_ler(linhas):
+    if not linhas or linhas[0] != NV_HEADER:
+        raise ValueError("Cabecalho de nomes inesperado")
+    nomes = {}
+    for linha in linhas[1:]:
+        if not any(str(v).strip() for v in linha):
+            continue
+        if len(linha) != 3 or not all(isinstance(v, str) and v.strip() for v in linha):
+            raise ValueError("Registro de nome incompleto")
+        tag, nome, data = linha
+        if pc_tag(tag) != tag or tag in nomes:
+            raise ValueError("Tag invalida ou repetida nos nomes")
+        momento = datetime.fromisoformat(data)
+        if momento.utcoffset() is None:
+            raise ValueError("Data de consulta sem fuso")
+        nomes[tag] = {"nome": nome, "consultado_em": data}
+    return nomes
+
+def nv_atualizar(linhas, clan, data):
+    anteriores = nv_ler(linhas)
+    if not isinstance(clan, dict) or clan.get("tag") != "#YVLGUJQY":
+        raise ValueError("Cla inesperado na resposta")
+    membros = clan.get("memberList")
+    if not isinstance(membros, list) or not membros:
+        raise ValueError("Lista de membros ausente")
+    if type(clan.get("members")) is not int or clan["members"] != len(membros):
+        raise ValueError("Lista de membros incompleta")
+    novas = []
+    for membro in membros:
+        novas.append([membro.get("tag"), membro.get("name"), data])
+    atuais = nv_ler([NV_HEADER] + novas)
+    anteriores.update(atuais)
+    return [NV_HEADER] + [[tag, r["nome"], r["consultado_em"]] for tag, r in sorted(anteriores.items())]
+
+def nv_nome(identidade, nome_antigo, vinculos, nomes):
+    tag = vinculos.get(str(identidade).strip())
+    return nomes.get(tag, {}).get("nome", str(nome_antigo))
+
+def nv_linhas_ids(linhas):
+    if not linhas or "ID" not in linhas[0]:
+        raise ValueError("Ranking sem ID")
+    coluna = linhas[0].index("ID")
+    saida = {}
+    for numero, linha in enumerate(linhas[1:], 2):
+        if not any(str(v).strip() for v in linha):
+            continue
+        identidade = str(linha[coluna]).strip() if len(linha) > coluna else ""
+        if not identidade or identidade in saida:
+            raise ValueError("ID ausente ou repetido no ranking")
+        saida[identidade] = numero
+    return saida
+
+# Nomes de exibicao; o dataframe original continua sendo a referencia do legado.
+@st.cache_data(ttl=60)
+def carregar_nomes_vinculados():
+  linhas_nomes = ww_aba_painel(planilha_competicao.id, NV_ABA).get_all_values(value_render_option="FORMULA")
+  nomes = nv_ler(linhas_nomes)
+  try:
+    foto = ww_foto_vinculos_exibicao(planilha_competicao.id)
+  except gspread.WorksheetNotFound:
+    return {}, nomes
+  estado = vc_estado(*foto)
+  return estado["por_id"], nomes
+
+try:
+  nomes_vinculos, nomes_api = carregar_nomes_vinculados()
+  nomes_aviso = ""
+except gspread.WorksheetNotFound:
+  nomes_vinculos, nomes_api = {}, {}
+  nomes_aviso = "Os nomes da Supercell aguardam a primeira sincronização."
+except Exception:
+  nomes_vinculos, nomes_api = {}, {}
+  nomes_aviso = "Não foi possível conferir os nomes da Supercell. Os nomes anteriores serão exibidos nesta consulta."
+
+def nome_exibicao(row):
+  return nv_nome(row.get("ID", ""), row.get("Nome", ""), nomes_vinculos, nomes_api)
+
+def tabela_com_nomes(tabela):
+  copia = tabela.copy()
+  if not copia.empty and "Nome" in copia.columns:
+    copia["Nome"] = [nome_exibicao(row) for _, row in copia.iterrows()]
+  return copia
+
+def nome_conta(tag, nome_anterior):
+  return nomes_api.get(tag, {}).get("nome", nome_anterior)
+
+from html import escape as nome_html
+
 # ==============================================================================
 if st.session_state["pagina_atual"] == "layouts_guerra":
   renderizar_pagina_layouts("Guerra", "🛡️ Layouts Oficiais de Guerra")
@@ -4414,7 +5102,7 @@ else:
                 f'<div class="podium-card gold"><img'
                 ' src="https://i.ibb.co/mkC43vT/goldenpass.png" width="55"><div'
                 ' class="podium-title">🥇 1º LUGAR</div><div'
-                f' class="podium-name">{df_rank.iloc[0]["Nome"]}</div><div'
+                f' class="podium-name">{nome_html(nome_exibicao(df_rank.iloc[0]))}</div><div'
                 ' class="podium-score">'
                 f'{int(df_rank.iloc[0]["Total"])} pts</div><small>Garantidor do'
                 " Passe Dourado 🎟️</small></div>",
@@ -4426,7 +5114,7 @@ else:
                 f'<div class="podium-card silver"><img'
                 ' src="https://i.ibb.co/mkC43vT/goldenpass.png" width="55"><div'
                 ' class="podium-title">🥈 2º LUGAR</div><div'
-                f' class="podium-name">{df_rank.iloc[1]["Nome"]}</div><div'
+                f' class="podium-name">{nome_html(nome_exibicao(df_rank.iloc[1]))}</div><div'
                 ' class="podium-score">'
                 f'{int(df_rank.iloc[1]["Total"])} pts</div><small>Garantidor do'
                 " Passe Dourado 🎟️</small></div>",
@@ -4438,7 +5126,7 @@ else:
                 f'<div class="podium-card bronze"><img'
                 ' src="https://i.ibb.co/mkC43vT/goldenpass.png" width="55"><div'
                 ' class="podium-title">🥉 3º LUGAR</div><div'
-                f' class="podium-name">{df_rank.iloc[2]["Nome"]}</div><div'
+                f' class="podium-name">{nome_html(nome_exibicao(df_rank.iloc[2]))}</div><div'
                 ' class="podium-score">'
                 f'{int(df_rank.iloc[2]["Total"])} pts</div><small>Garantidor do'
                 " Passe Dourado 🎟️</small></div>",
@@ -4453,7 +5141,9 @@ else:
             placeholder="Digite o nome do membro...",
         )
 
-      df_exibicao = df_rank[["Posição", "Nome", "Total"]].copy()
+      df_exibicao = tabela_com_nomes(df_rank)[["Posição", "Nome", "Total"]].copy()
+      if nomes_aviso:
+        st.caption(nomes_aviso)
       df_exibicao["Total"] = df_exibicao["Total"].astype(int)
       df_exibicao.rename(
           columns={"Nome": "Jogador", "Total": "Pontuação Total"}, inplace=True
@@ -4463,7 +5153,7 @@ else:
         df_exibicao = df_exibicao[
             df_exibicao["Jogador"]
             .str.lower()
-            .str.contains(busca_player.strip().lower())
+            .str.contains(busca_player.strip().lower(), regex=False, na=False)
         ]
 
       altura_dinamica = max(450, len(df_exibicao) * 48 + 250)
@@ -4492,7 +5182,7 @@ else:
           + colunas_raides
           + ["Total"]
       )
-      df_detalhada = df[cols_exibicao].sort_values(
+      df_detalhada = tabela_com_nomes(df)[cols_exibicao].sort_values(
           by="Total", ascending=False
       ).reset_index(drop=True)
 
@@ -4560,7 +5250,7 @@ else:
         for i, col in enumerate(cols_exibicao):
           valor = row[col]
           try:
-            valor = int(float(valor))
+            valor = str(valor) if col == "Nome" else int(float(valor))
           except (TypeError, ValueError):
             valor = str(valor)
 
@@ -4719,9 +5409,10 @@ else:
           " Liberado)"
       )
 
-      sub_tab_month, sub_tab20, sub_tab1, sub_tab2, sub_tab_pass, sub_tab3, sub_tab4, sub_tab_news, sub_tab5, sub_tab6, sub_tab7 = st.tabs([
+      sub_tab_month, sub_tab20, sub_tab_participacao, sub_tab1, sub_tab2, sub_tab_pass, sub_tab3, sub_tab4, sub_tab_news, sub_tab5, sub_tab6, sub_tab7 = st.tabs([
           "🏆 Fechamento Mensal",
           "🚀 Gestão 2.0",
+          "👥 Participação",
           "➕ Players",
           "👤 Novo Admin",
           "🔑 Alterar Senha",
@@ -4739,13 +5430,16 @@ else:
       with sub_tab20:
         renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
 
+      with sub_tab_participacao:
+        renderizar_participacao_competicao()
+
       with sub_tab1:
         if mes_finalizado:
           st.warning("🔒 O mês está finalizado. Cadastro/remoção de players fica bloqueado até iniciar a próxima temporada.")
         c1, c2 = st.columns(2)
         with c1:
           novo_nome = st.text_input("Nome do Player", key=chave_widget_resetavel("novo_player_nome"))
-          if st.button("Cadastrar Player", disabled=mes_finalizado):
+          if st.button("Cadastrar Player", disabled=mes_finalizado or ww_outubro_integrado()):
             if novo_nome.strip() != "":
               ids_existentes = pd.to_numeric(df.get("ID", pd.Series(dtype=float)), errors="coerce").dropna() if not df.empty else pd.Series(dtype=float)
               novo_id = int(ids_existentes.max()) + 1 if not ids_existentes.empty else 1
@@ -4763,17 +5457,26 @@ else:
               st.rerun()
         with c2:
           if not df.empty and "Nome" in df.columns:
-            player_rem = st.selectbox("Remover Player", df["Nome"].tolist())
+            pos_rem = st.selectbox("Remover Player", list(range(len(df))),
+                format_func=lambda i: nome_exibicao(df.iloc[i]) + " — ID " + str(df.iloc[i]["ID"]))
+            player_rem = str(df.iloc[pos_rem]["Nome"])
             confirmar_rem = st.checkbox(
                 "⚠️ Confirmar exclusão permanente deste jogador"
             )
-            if st.button("Remover Player", type="primary", disabled=mes_finalizado):
+            if st.button("Remover Player", type="primary", disabled=mes_finalizado or ww_outubro_integrado()):
               if confirmar_rem:
-                cell = sheet_dados.find(player_rem)
+                linhas_rem = sheet_dados.get_all_values()
+                coluna_id = linhas_rem[0].index("ID")
+                id_rem = str(df.iloc[pos_rem]["ID"])
+                destinos_rem = [i for i, r in enumerate(linhas_rem[1:], 2)
+                    if len(r) > coluna_id and str(r[coluna_id]).strip() == id_rem]
+                if len(destinos_rem) != 1:
+                  st.error("Participante ausente ou ID repetido; atualize a página.")
+                  st.stop()
                 exigir_backup_automatico(
                     f"Excluir jogador {player_rem}", [("Dados", sheet_dados)]
                 )
-                sheet_dados.delete_rows(cell.row)
+                sheet_dados.delete_rows(destinos_rem[0])
                 registrar_log(
                     st.session_state["admin_logado"],
                     f"Removeu player {player_rem}",
@@ -4881,7 +5584,7 @@ else:
           )
           if st.button(
               f"⚔️ Criar Guerra ({proxima_guerra})",
-              use_container_width=True, disabled=mes_finalizado,
+              use_container_width=True, disabled=mes_finalizado or ww_outubro_integrado(),
           ):
             headers = sheet_dados.row_values(1)
             if proxima_guerra in headers:
@@ -4924,7 +5627,7 @@ else:
             proxima_liga = f"Liga_{qtd_liga + 1}"
             if st.button(
                 f"🏆 Criar Liga ({proxima_liga}) [{qtd_liga + 1}/7]",
-                use_container_width=True, disabled=mes_finalizado,
+                use_container_width=True, disabled=mes_finalizado or ww_outubro_integrado(),
             ):
               headers = sheet_dados.row_values(1)
               if proxima_liga in headers:
@@ -4961,7 +5664,7 @@ else:
           )
           if st.button(
               f"🏰 Criar Raide ({proxima_raide})",
-              use_container_width=True, disabled=mes_finalizado,
+              use_container_width=True, disabled=mes_finalizado or ww_outubro_integrado(),
           ):
             headers = sheet_dados.row_values(1)
             if proxima_raide in headers:
@@ -4994,69 +5697,68 @@ else:
 
         st.divider()
 
-        st.markdown("#### ✏️ Edição de Pontos dos Jogadores")
-        if not df.empty:
-          df_editavel = df.drop(
-              columns=["Total", "WarTotal"], errors="ignore"
-          ).copy()
-          df_editado = st.data_editor(
-              df_editavel, use_container_width=True, hide_index=True
-          )
-          if st.button("💾 Salvar Alterações em Lote", type="primary", disabled=mes_finalizado):
-            alteracoes = []
-            valores_planilha = _ler_sheets_com_retry(sheet_dados.get_all_values)
-            headers = valores_planilha[0] if valores_planilha else []
-            nome_col_num = headers.index("Nome") + 1 if "Nome" in headers else None
-            linha_por_nome = {}
-            if nome_col_num:
-              for numero_linha, linha in enumerate(valores_planilha[1:], start=2):
-                if len(linha) >= nome_col_num:
-                  nome_planilha = str(linha[nome_col_num - 1]).strip()
-                  if nome_planilha and nome_planilha not in linha_por_nome:
-                    linha_por_nome[nome_planilha] = numero_linha
+        if ww_outubro_integrado():
+          st.info("Jogos do Clã e Eventos: use Gestão 2.0 → Lançamento rápido. Guerras, Liga e Raides são processados pela integração; divergências exigem revisão da atividade.")
+        else:
+          st.markdown("#### ✏️ Edição de Pontos dos Jogadores")
+          if not df.empty:
+            df_editavel = df.drop(
+                columns=["Total", "WarTotal"], errors="ignore"
+            ).copy()
+            df_visual = tabela_com_nomes(df_editavel)
+            df_editado = st.data_editor(
+                df_visual, use_container_width=True, hide_index=True, disabled=["ID", "Nome"]
+            )
+            if st.button("💾 Salvar Alterações em Lote", type="primary", disabled=mes_finalizado):
+              alteracoes = []
+              valores_planilha = _ler_sheets_com_retry(sheet_dados.get_all_values)
+              headers = valores_planilha[0] if valores_planilha else []
+              linha_por_id = nv_linhas_ids(valores_planilha)
 
-            atualizacoes_lote = []
-            auditorias_lote = []
-            agora_lote = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            admin_lote = st.session_state.get("admin_logado", "sistema")
+              atualizacoes_lote = []
+              auditorias_lote = []
+              agora_lote = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+              admin_lote = st.session_state.get("admin_logado", "sistema")
 
-            for idx_row in range(len(df_editado)):
-              nome_original = str(df_editavel.iloc[idx_row].get("Nome", "")).strip()
-              numero_linha = linha_por_nome.get(nome_original)
-              if not numero_linha:
-                continue
-              for col in df_editado.columns:
-                antes = df_editavel.iloc[idx_row].get(col)
-                depois = df_editado.iloc[idx_row].get(col)
-                if str(antes) != str(depois) and col in headers:
-                  celula = gspread.utils.rowcol_to_a1(numero_linha, headers.index(col) + 1)
-                  antes_seguro = valor_json_seguro(antes)
-                  depois_seguro = valor_json_seguro(depois)
+              for idx_row in range(len(df_editado)):
+                nome_original = str(df_editavel.iloc[idx_row].get("Nome", "")).strip()
+                numero_linha = linha_por_id.get(str(df_editavel.iloc[idx_row]["ID"]))
+                if not numero_linha:
+                  continue
+                for col in df_editado.columns:
+                  if col in {"ID", "Nome"}:
+                    continue
+                  antes = df_editavel.iloc[idx_row].get(col)
+                  depois = df_editado.iloc[idx_row].get(col)
+                  if str(antes) != str(depois) and col in headers:
+                    celula = gspread.utils.rowcol_to_a1(numero_linha, headers.index(col) + 1)
+                    antes_seguro = valor_json_seguro(antes)
+                    depois_seguro = valor_json_seguro(depois)
 
-                  atualizacoes_lote.append({
-                      "range": celula,
-                      "values": [[depois_seguro]],
-                  })
-                  if col != "Nome":
-                    auditorias_lote.append([
-                        agora_lote, admin_lote, nome_original, col,
-                        antes_seguro, depois_seguro, "Edição em lote"
-                    ])
-                  alteracoes.append(
-                      f"{nome_original}/{col}: {antes_seguro}→{depois_seguro}"
-                  )
+                    atualizacoes_lote.append({
+                        "range": celula,
+                        "values": [[depois_seguro]],
+                    })
+                    if col != "Nome":
+                      auditorias_lote.append([
+                          agora_lote, admin_lote, nome_original, col,
+                          antes_seguro, depois_seguro, "Edição em lote"
+                      ])
+                    alteracoes.append(
+                        f"{nome_original}/{col}: {antes_seguro}→{depois_seguro}"
+                    )
 
-            if atualizacoes_lote:
-              sheet_dados.batch_update(atualizacoes_lote, value_input_option="USER_ENTERED")
-            if auditorias_lote:
-              sheet_auditoria.append_rows(auditorias_lote, value_input_option="USER_ENTERED")
-            registrar_log(st.session_state["admin_logado"], f"Atualizou {len(alteracoes)} campo(s) em lote")
-            if alteracoes:
-              obter_dados_cached.clear()
-              snapshot_ranking_atual("alteracao", "Edição em lote")
-            obter_dados_cached.clear(); obter_auditoria_cached.clear()
-            st.success(f"✅ {len(alteracoes)} alteração(ões) salva(s) sem apagar a planilha.")
-            st.rerun()
+              if atualizacoes_lote:
+                sheet_dados.batch_update(atualizacoes_lote, value_input_option="USER_ENTERED")
+              if auditorias_lote:
+                sheet_auditoria.append_rows(auditorias_lote, value_input_option="USER_ENTERED")
+              registrar_log(st.session_state["admin_logado"], f"Atualizou {len(alteracoes)} campo(s) em lote")
+              if alteracoes:
+                obter_dados_cached.clear()
+                snapshot_ranking_atual("alteracao", "Edição em lote")
+              obter_dados_cached.clear(); obter_auditoria_cached.clear()
+              st.success(f"✅ {len(alteracoes)} alteração(ões) salva(s) sem apagar a planilha.")
+              st.rerun()
 
       with sub_tab4:
         st.markdown("#### 📢 Atualizar / Excluir Mural de Recados")
@@ -5405,7 +6107,7 @@ else:
             <div class="info-card-header">📊 Sistema de Pontuação</div>
             <ul class="info-card-list" style="text-align: left;">
                 <li><b>⚔️ Guerras & Liga (CWL):</b> 1 Ponto por ⭐ conquistada.</li>
-                <li><b>🎯 Jogos do Clã:</b> Meta = <b>5 pts</b> | Bateu limite total = <b>10 pts</b>.</li>
+                <li><b>🎯 Jogos do Clã:</b> A partir de outubro/2026: 10.000 = <b>10 pts</b>; 4.000–9.999 = <b>5 pts</b>; 2.000–3.999 = <b>2 pts</b>; abaixo de 2.000 = <b>0</b>. Até setembro: meta = 5 pts; limite total = 10 pts.</li>
                 <li><b>🛡️ Raides (FDS):</b> Concluiu os 6 ataques = <b>10 pts</b>.</li>
             </ul>
         </div>
