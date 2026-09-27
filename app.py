@@ -3663,12 +3663,8 @@ def renderizar_agenda_membros():
 
 
 # INICIO CONTROLE PARTICIPACAO
-"""Contrato compartilhado entre o app e a futura integracao do motor.
-
-A aba e um historico de eventos acrescentados ao final, nunca uma tabela
-reescrita pela sincronizacao. CADASTRO cria o padrao; ADMIN sempre prevalece.
-A ordem das linhas define a ordem das decisoes administrativas.
-"""
+# Contrato compartilhado entre o app e a integracao do motor. A aba e um
+# historico acrescentado ao final; CADASTRO cria o padrao e ADMIN prevalece.
 import re
 import unicodedata
 from datetime import datetime
@@ -3801,7 +3797,7 @@ def pc_confirmar_evento(linhas, linha_enviada):
 
 # Este fragmento e incorporado ao app; nao e executado isoladamente.
 
-"""Vinculos explicitos, sem associacao automatica por nome."""
+# Vinculos explicitos, sem associacao automatica por nome.
 from datetime import datetime
 
 VC_ABA = "VinculosParticipantes"
@@ -3928,7 +3924,7 @@ def ww_limpar_painel():
   carregar_nomes_vinculados.clear()
 
 
-"""Preparo do lote sem efeitos externos; todo o lote valido ou nenhum envio."""
+# Preparo do lote sem efeitos externos; todo o lote valido ou nenhum envio.
 
 def vl_preparar(foto, admins, usuario, escolhas, lote_id, data):
     import uuid
@@ -4814,7 +4810,7 @@ def renderizar_historico_mensal():
 
 # ==============================================================================
 # SELEÇÃO DE PÁGINAS
-"""Nomes Unicode da API, separados das decisoes administrativas."""
+# Nomes Unicode da API, separados das decisoes administrativas.
 from datetime import datetime
 
 NV_ABA = "NomesVilas"
