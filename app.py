@@ -24,7 +24,7 @@ except ImportError:
   ImageOps = None
   PILLOW_DISPONIVEL = False
 
-# Winning Wars v46 - fechamento mensal persistente, histórico detalhado por temporada e proteção de quota.
+# Winning Wars v47 TESTE - controle integrado de outubro; base v46 - fechamento mensal persistente, histórico detalhado por temporada e proteção de quota.
 # Não depende de streamlit-quill/streamlit-quill2.
 # Quando Components V2 estiver disponível, usa um editor contenteditable nativo;
 # caso contrário, há fallback para st.text_area sem derrubar o aplicativo.
@@ -4218,6 +4218,24 @@ def renderizar_permissoes_competicao():
 # FIM CONTROLE PARTICIPACAO
 
 
+def ww_outubro_integrado():
+  return temporada_id_atual() >= "2026-10"
+
+
+def ww_lancamento_integrado():
+  from ww_competicao.painel import renderizar
+  def salvar_backup():
+    abas = [("Ranking", sheet_dados)]
+    for titulo in ("InscricoesTemporada", "VinculosParticipantes", "ParticipacaoCompeticao"):
+      abas.append((titulo, planilha_competicao.worksheet(titulo)))
+    exigir_backup_automatico("Lancamento manual integrado", abas)
+  def limpar():
+    obter_dados_cached.clear()
+    obter_auditoria_cached.clear()
+    ww_limpar_painel()
+  renderizar(st, planilha_competicao, sheet_dados, st.session_state.get("admin_logado"), salvar_backup, limpar)
+
+
 def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides):
   st.markdown("### 🚀 Central de Gestão 2.0")
   st.caption(f"Nível de acesso: **{nivel_admin_atual()}**")
@@ -4230,138 +4248,141 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
   ])
 
   with quick:
-    if mes_finalizado:
-      st.warning("🔒 A temporada está finalizada. Pontuações estão bloqueadas até a abertura do próximo mês.")
-      st.info("Use a aba **🏆 Fechamento Mensal** do Painel Admin para iniciar a próxima temporada.")
-      atividades = []
+    if ww_outubro_integrado():
+      ww_lancamento_integrado()
     else:
-      atividades = [c for c in df.columns if c in ["JogosCla", "Eventos"] or c.startswith(("Guerra_", "Liga_", "Raide_"))]
-    if (df.empty or not atividades) and not mes_finalizado:
-      st.info("Cadastre jogadores e atividades antes de lançar pontos.")
-    elif not mes_finalizado:
-      atividade = st.selectbox("Atividade", atividades, key="ww20_atividade")
-      base = tabela_com_nomes(df)[["Nome", atividade]].copy()
-      base[atividade] = pd.to_numeric(base[atividade], errors="coerce").fillna(0).astype(int)
-      edit = st.data_editor(base, hide_index=True, use_container_width=True, disabled=["Nome"], key=f"quick_{atividade}")
-      motivo = st.text_input("Motivo/observação (opcional)", key=chave_widget_resetavel("quick_motivo"))
-      if st.button("💾 Salvar somente alterações", type="primary", use_container_width=True):
-        # v45: salva as pontuações em lote para evitar estouro da quota da API
-        # do Google Sheets. A versão anterior fazia find + update_cell + auditoria
-        # + log para cada jogador alterado, multiplicando o número de requisições.
-        alteracoes_pendentes = []
-        for idx, row_edit in edit.iterrows():
-          antes = int(base.iloc[idx][atividade])
-          depois = int(row_edit[atividade])
-          if antes != depois:
-            alteracoes_pendentes.append((str(df.iloc[idx]["ID"]), str(df.iloc[idx]["Nome"]), antes, depois))
+      if mes_finalizado:
+        st.warning("🔒 A temporada está finalizada. Pontuações estão bloqueadas até a abertura do próximo mês.")
+        st.info("Use a aba **🏆 Fechamento Mensal** do Painel Admin para iniciar a próxima temporada.")
+        atividades = []
+      else:
+        atividades = [c for c in df.columns if c in ["JogosCla", "Eventos"] or c.startswith(("Guerra_", "Liga_", "Raide_"))]
+      if (df.empty or not atividades) and not mes_finalizado:
+        st.info("Cadastre jogadores e atividades antes de lançar pontos.")
+      elif not mes_finalizado:
+        atividade = st.selectbox("Atividade", atividades, key="ww20_atividade")
+        base = tabela_com_nomes(df)[["Nome", atividade]].copy()
+        base[atividade] = pd.to_numeric(base[atividade], errors="coerce").fillna(0).astype(int)
+        edit = st.data_editor(base, hide_index=True, use_container_width=True, disabled=["Nome"], key=f"quick_{atividade}")
+        motivo = st.text_input("Motivo/observação (opcional)", key=chave_widget_resetavel("quick_motivo"))
+        if st.button("💾 Salvar somente alterações", type="primary", use_container_width=True):
+          # v45: salva as pontuações em lote para evitar estouro da quota da API
+          # do Google Sheets. A versão anterior fazia find + update_cell + auditoria
+          # + log para cada jogador alterado, multiplicando o número de requisições.
+          alteracoes_pendentes = []
+          for idx, row_edit in edit.iterrows():
+            antes = int(base.iloc[idx][atividade])
+            depois = int(row_edit[atividade])
+            if antes != depois:
+              alteracoes_pendentes.append((str(df.iloc[idx]["ID"]), str(df.iloc[idx]["Nome"]), antes, depois))
 
-        if not alteracoes_pendentes:
-          st.info("Nenhuma pontuação foi alterada.")
-        else:
-          try:
-            # Uma única leitura serve para descobrir cabeçalhos e linhas.
-            valores_planilha = sheet_dados.get_all_values()
-            if not valores_planilha:
-              st.error("⚠️ A planilha de dados está vazia.")
-              return
-
-            headers = valores_planilha[0]
-            if atividade not in headers:
-              st.error(f"⚠️ A atividade '{atividade}' não foi encontrada na planilha.")
-              return
-
-            col_num = headers.index(atividade) + 1
+          if not alteracoes_pendentes:
+            st.info("Nenhuma pontuação foi alterada.")
+          else:
             try:
-              nome_col_num = headers.index("Nome") + 1
-            except ValueError:
-              st.error("⚠️ A coluna 'Nome' não foi encontrada na planilha.")
-              return
+              # Uma única leitura serve para descobrir cabeçalhos e linhas.
+              valores_planilha = sheet_dados.get_all_values()
+              if not valores_planilha:
+                st.error("⚠️ A planilha de dados está vazia.")
+                return
 
-            linha_por_id = nv_linhas_ids(valores_planilha)
+              headers = valores_planilha[0]
+              if atividade not in headers:
+                st.error(f"⚠️ A atividade '{atividade}' não foi encontrada na planilha.")
+                return
 
-            atualizacoes = []
-            auditorias = []
-            logs = []
-            agora_lote = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            admin_lote = st.session_state.get("admin_logado", "sistema")
-            ignorados = []
+              col_num = headers.index(atividade) + 1
+              try:
+                nome_col_num = headers.index("Nome") + 1
+              except ValueError:
+                st.error("⚠️ A coluna 'Nome' não foi encontrada na planilha.")
+                return
 
-            for id_j, nome_j, antes, depois in alteracoes_pendentes:
-              numero_linha = linha_por_id.get(id_j)
-              if not numero_linha:
-                ignorados.append(nome_j)
-                continue
+              linha_por_id = nv_linhas_ids(valores_planilha)
 
-              celula_a1 = gspread.utils.rowcol_to_a1(numero_linha, col_num)
-              atualizacoes.append({"range": celula_a1, "values": [[depois]]})
-              auditorias.append([
-                  agora_lote, admin_lote, nome_j, atividade,
-                  antes, depois, motivo,
-              ])
-              logs.append([
-                  agora_lote,
-                  admin_lote,
-                  f"Alterou {nome_j} - {atividade}: {antes} → {depois}",
-              ])
+              atualizacoes = []
+              auditorias = []
+              logs = []
+              agora_lote = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+              admin_lote = st.session_state.get("admin_logado", "sistema")
+              ignorados = []
 
-            if not atualizacoes:
-              st.error("⚠️ Nenhum dos jogadores alterados foi localizado na planilha.")
-              return
+              for id_j, nome_j, antes, depois in alteracoes_pendentes:
+                numero_linha = linha_por_id.get(id_j)
+                if not numero_linha:
+                  ignorados.append(nome_j)
+                  continue
 
-            # 1 requisição de escrita para todas as pontuações alteradas.
-            sheet_dados.batch_update(
-                atualizacoes,
-                value_input_option="USER_ENTERED",
-            )
+                celula_a1 = gspread.utils.rowcol_to_a1(numero_linha, col_num)
+                atualizacoes.append({"range": celula_a1, "values": [[depois]]})
+                auditorias.append([
+                    agora_lote, admin_lote, nome_j, atividade,
+                    antes, depois, motivo,
+                ])
+                logs.append([
+                    agora_lote,
+                    admin_lote,
+                    f"Alterou {nome_j} - {atividade}: {antes} → {depois}",
+                ])
 
-            # Auditoria e logs também são enviados em lote (1 requisição cada).
-            if auditorias:
-              sheet_auditoria.append_rows(
-                  auditorias,
+              if not atualizacoes:
+                st.error("⚠️ Nenhum dos jogadores alterados foi localizado na planilha.")
+                return
+
+              # 1 requisição de escrita para todas as pontuações alteradas.
+              sheet_dados.batch_update(
+                  atualizacoes,
                   value_input_option="USER_ENTERED",
               )
-            if logs:
-              sheet_logs.append_rows(
-                  logs,
-                  value_input_option="USER_ENTERED",
-              )
 
-            alteracoes = len(atualizacoes)
-            obter_dados_cached.clear()
-            obter_auditoria_cached.clear()
-            obter_logs_cached.clear()
-            snapshot_ranking_atual("alteracao", f"Lançamento rápido: {atividade}")
-            resetar_widget("quick_motivo")
+              # Auditoria e logs também são enviados em lote (1 requisição cada).
+              if auditorias:
+                sheet_auditoria.append_rows(
+                    auditorias,
+                    value_input_option="USER_ENTERED",
+                )
+              if logs:
+                sheet_logs.append_rows(
+                    logs,
+                    value_input_option="USER_ENTERED",
+                )
 
-            if ignorados:
-              st.warning(
-                  "⚠️ Algumas alterações não foram aplicadas porque o jogador não "
-                  "foi localizado na planilha: " + ", ".join(ignorados)
-              )
-            st.success(f"✅ {alteracoes} alteração(ões) salva(s) em lote.")
-            st.rerun()
+              alteracoes = len(atualizacoes)
+              obter_dados_cached.clear()
+              obter_auditoria_cached.clear()
+              obter_logs_cached.clear()
+              snapshot_ranking_atual("alteracao", f"Lançamento rápido: {atividade}")
+              resetar_widget("quick_motivo")
 
-          except gspread.exceptions.APIError as exc:
-            # Evita que uma falha temporária da API derrube toda a página e deixa
-            # uma mensagem útil nos logs do Streamlit para diagnóstico.
-            status = getattr(getattr(exc, "response", None), "status_code", "?")
-            print(f"[Winning Wars v45] Google Sheets APIError no salvamento em lote: HTTP {status} - {exc}")
-            if str(status) == "429":
+              if ignorados:
+                st.warning(
+                    "⚠️ Algumas alterações não foram aplicadas porque o jogador não "
+                    "foi localizado na planilha: " + ", ".join(ignorados)
+                )
+              st.success(f"✅ {alteracoes} alteração(ões) salva(s) em lote.")
+              st.rerun()
+
+            except gspread.exceptions.APIError as exc:
+              # Evita que uma falha temporária da API derrube toda a página e deixa
+              # uma mensagem útil nos logs do Streamlit para diagnóstico.
+              status = getattr(getattr(exc, "response", None), "status_code", "?")
+              print(f"[Winning Wars v45] Google Sheets APIError no salvamento em lote: HTTP {status} - {exc}")
+              if str(status) == "429":
+                st.error(
+                    "⚠️ O Google Sheets atingiu temporariamente o limite de requisições. "
+                    "Aguarde alguns instantes e tente salvar novamente."
+                )
+              else:
+                st.error(
+                    "⚠️ O Google Sheets recusou a atualização. Verifique os logs do "
+                    "Streamlit para ver o código retornado pela API."
+                )
+            except Exception as exc:
+              print(f"[Winning Wars v45] Erro inesperado no salvamento em lote: {type(exc).__name__}: {exc}")
               st.error(
-                  "⚠️ O Google Sheets atingiu temporariamente o limite de requisições. "
-                  "Aguarde alguns instantes e tente salvar novamente."
+                  "⚠️ Não foi possível salvar as alterações. Nenhuma nova tentativa "
+                  "automática foi feita para evitar gravações duplicadas."
               )
-            else:
-              st.error(
-                  "⚠️ O Google Sheets recusou a atualização. Verifique os logs do "
-                  "Streamlit para ver o código retornado pela API."
-              )
-          except Exception as exc:
-            print(f"[Winning Wars v45] Erro inesperado no salvamento em lote: {type(exc).__name__}: {exc}")
-            st.error(
-                "⚠️ Não foi possível salvar as alterações. Nenhuma nova tentativa "
-                "automática foi feita para evitar gravações duplicadas."
-            )
 
   with eventos_tab:
     with st.form("novo_evento_20", clear_on_submit=True):
@@ -4576,7 +4597,7 @@ def renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
       st.caption("A auditoria registra quem alterou, jogador, atividade e valor antes/depois.")
       ultima = aud.iloc[-1]
       st.warning(f"Última alteração: {ultima.get('Jogador')} / {ultima.get('Atividade')} — {ultima.get('Antes')} → {ultima.get('Depois')}")
-      if st.button("↩️ Desfazer última alteração", use_container_width=True, disabled=mes_finalizado):
+      if st.button("↩️ Desfazer última alteração", use_container_width=True, disabled=mes_finalizado or ww_outubro_integrado()):
         jogador = str(ultima.get("Jogador", "")); atividade = str(ultima.get("Atividade", "")); antes = ultima.get("Antes", 0)
         headers = sheet_dados.row_values(1); cell_nome = sheet_dados.find(jogador) if jogador else None
         if cell_nome and atividade in headers:
@@ -5412,7 +5433,7 @@ else:
         c1, c2 = st.columns(2)
         with c1:
           novo_nome = st.text_input("Nome do Player", key=chave_widget_resetavel("novo_player_nome"))
-          if st.button("Cadastrar Player", disabled=mes_finalizado):
+          if st.button("Cadastrar Player", disabled=mes_finalizado or ww_outubro_integrado()):
             if novo_nome.strip() != "":
               ids_existentes = pd.to_numeric(df.get("ID", pd.Series(dtype=float)), errors="coerce").dropna() if not df.empty else pd.Series(dtype=float)
               novo_id = int(ids_existentes.max()) + 1 if not ids_existentes.empty else 1
@@ -5436,7 +5457,7 @@ else:
             confirmar_rem = st.checkbox(
                 "⚠️ Confirmar exclusão permanente deste jogador"
             )
-            if st.button("Remover Player", type="primary", disabled=mes_finalizado):
+            if st.button("Remover Player", type="primary", disabled=mes_finalizado or ww_outubro_integrado()):
               if confirmar_rem:
                 linhas_rem = sheet_dados.get_all_values()
                 coluna_id = linhas_rem[0].index("ID")
@@ -5557,7 +5578,7 @@ else:
           )
           if st.button(
               f"⚔️ Criar Guerra ({proxima_guerra})",
-              use_container_width=True, disabled=mes_finalizado,
+              use_container_width=True, disabled=mes_finalizado or ww_outubro_integrado(),
           ):
             headers = sheet_dados.row_values(1)
             if proxima_guerra in headers:
@@ -5600,7 +5621,7 @@ else:
             proxima_liga = f"Liga_{qtd_liga + 1}"
             if st.button(
                 f"🏆 Criar Liga ({proxima_liga}) [{qtd_liga + 1}/7]",
-                use_container_width=True, disabled=mes_finalizado,
+                use_container_width=True, disabled=mes_finalizado or ww_outubro_integrado(),
             ):
               headers = sheet_dados.row_values(1)
               if proxima_liga in headers:
@@ -5637,7 +5658,7 @@ else:
           )
           if st.button(
               f"🏰 Criar Raide ({proxima_raide})",
-              use_container_width=True, disabled=mes_finalizado,
+              use_container_width=True, disabled=mes_finalizado or ww_outubro_integrado(),
           ):
             headers = sheet_dados.row_values(1)
             if proxima_raide in headers:
@@ -5670,65 +5691,68 @@ else:
 
         st.divider()
 
-        st.markdown("#### ✏️ Edição de Pontos dos Jogadores")
-        if not df.empty:
-          df_editavel = df.drop(
-              columns=["Total", "WarTotal"], errors="ignore"
-          ).copy()
-          df_visual = tabela_com_nomes(df_editavel)
-          df_editado = st.data_editor(
-              df_visual, use_container_width=True, hide_index=True, disabled=["ID", "Nome"]
-          )
-          if st.button("💾 Salvar Alterações em Lote", type="primary", disabled=mes_finalizado):
-            alteracoes = []
-            valores_planilha = _ler_sheets_com_retry(sheet_dados.get_all_values)
-            headers = valores_planilha[0] if valores_planilha else []
-            linha_por_id = nv_linhas_ids(valores_planilha)
+        if ww_outubro_integrado():
+          st.info("Jogos do Clã e Eventos: use Gestão 2.0 → Lançamento rápido. Guerras, Liga e Raides são processados pela integração; divergências exigem revisão da atividade.")
+        else:
+          st.markdown("#### ✏️ Edição de Pontos dos Jogadores")
+          if not df.empty:
+            df_editavel = df.drop(
+                columns=["Total", "WarTotal"], errors="ignore"
+            ).copy()
+            df_visual = tabela_com_nomes(df_editavel)
+            df_editado = st.data_editor(
+                df_visual, use_container_width=True, hide_index=True, disabled=["ID", "Nome"]
+            )
+            if st.button("💾 Salvar Alterações em Lote", type="primary", disabled=mes_finalizado):
+              alteracoes = []
+              valores_planilha = _ler_sheets_com_retry(sheet_dados.get_all_values)
+              headers = valores_planilha[0] if valores_planilha else []
+              linha_por_id = nv_linhas_ids(valores_planilha)
 
-            atualizacoes_lote = []
-            auditorias_lote = []
-            agora_lote = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            admin_lote = st.session_state.get("admin_logado", "sistema")
+              atualizacoes_lote = []
+              auditorias_lote = []
+              agora_lote = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+              admin_lote = st.session_state.get("admin_logado", "sistema")
 
-            for idx_row in range(len(df_editado)):
-              nome_original = str(df_editavel.iloc[idx_row].get("Nome", "")).strip()
-              numero_linha = linha_por_id.get(str(df_editavel.iloc[idx_row]["ID"]))
-              if not numero_linha:
-                continue
-              for col in df_editado.columns:
-                if col in {"ID", "Nome"}:
+              for idx_row in range(len(df_editado)):
+                nome_original = str(df_editavel.iloc[idx_row].get("Nome", "")).strip()
+                numero_linha = linha_por_id.get(str(df_editavel.iloc[idx_row]["ID"]))
+                if not numero_linha:
                   continue
-                antes = df_editavel.iloc[idx_row].get(col)
-                depois = df_editado.iloc[idx_row].get(col)
-                if str(antes) != str(depois) and col in headers:
-                  celula = gspread.utils.rowcol_to_a1(numero_linha, headers.index(col) + 1)
-                  antes_seguro = valor_json_seguro(antes)
-                  depois_seguro = valor_json_seguro(depois)
+                for col in df_editado.columns:
+                  if col in {"ID", "Nome"}:
+                    continue
+                  antes = df_editavel.iloc[idx_row].get(col)
+                  depois = df_editado.iloc[idx_row].get(col)
+                  if str(antes) != str(depois) and col in headers:
+                    celula = gspread.utils.rowcol_to_a1(numero_linha, headers.index(col) + 1)
+                    antes_seguro = valor_json_seguro(antes)
+                    depois_seguro = valor_json_seguro(depois)
 
-                  atualizacoes_lote.append({
-                      "range": celula,
-                      "values": [[depois_seguro]],
-                  })
-                  if col != "Nome":
-                    auditorias_lote.append([
-                        agora_lote, admin_lote, nome_original, col,
-                        antes_seguro, depois_seguro, "Edição em lote"
-                    ])
-                  alteracoes.append(
-                      f"{nome_original}/{col}: {antes_seguro}→{depois_seguro}"
-                  )
+                    atualizacoes_lote.append({
+                        "range": celula,
+                        "values": [[depois_seguro]],
+                    })
+                    if col != "Nome":
+                      auditorias_lote.append([
+                          agora_lote, admin_lote, nome_original, col,
+                          antes_seguro, depois_seguro, "Edição em lote"
+                      ])
+                    alteracoes.append(
+                        f"{nome_original}/{col}: {antes_seguro}→{depois_seguro}"
+                    )
 
-            if atualizacoes_lote:
-              sheet_dados.batch_update(atualizacoes_lote, value_input_option="USER_ENTERED")
-            if auditorias_lote:
-              sheet_auditoria.append_rows(auditorias_lote, value_input_option="USER_ENTERED")
-            registrar_log(st.session_state["admin_logado"], f"Atualizou {len(alteracoes)} campo(s) em lote")
-            if alteracoes:
-              obter_dados_cached.clear()
-              snapshot_ranking_atual("alteracao", "Edição em lote")
-            obter_dados_cached.clear(); obter_auditoria_cached.clear()
-            st.success(f"✅ {len(alteracoes)} alteração(ões) salva(s) sem apagar a planilha.")
-            st.rerun()
+              if atualizacoes_lote:
+                sheet_dados.batch_update(atualizacoes_lote, value_input_option="USER_ENTERED")
+              if auditorias_lote:
+                sheet_auditoria.append_rows(auditorias_lote, value_input_option="USER_ENTERED")
+              registrar_log(st.session_state["admin_logado"], f"Atualizou {len(alteracoes)} campo(s) em lote")
+              if alteracoes:
+                obter_dados_cached.clear()
+                snapshot_ranking_atual("alteracao", "Edição em lote")
+              obter_dados_cached.clear(); obter_auditoria_cached.clear()
+              st.success(f"✅ {len(alteracoes)} alteração(ões) salva(s) sem apagar a planilha.")
+              st.rerun()
 
       with sub_tab4:
         st.markdown("#### 📢 Atualizar / Excluir Mural de Recados")
@@ -6077,7 +6101,7 @@ else:
             <div class="info-card-header">📊 Sistema de Pontuação</div>
             <ul class="info-card-list" style="text-align: left;">
                 <li><b>⚔️ Guerras & Liga (CWL):</b> 1 Ponto por ⭐ conquistada.</li>
-                <li><b>🎯 Jogos do Clã:</b> Meta = <b>5 pts</b> | Bateu limite total = <b>10 pts</b>.</li>
+                <li><b>🎯 Jogos do Clã:</b> A partir de outubro/2026: 10.000 = <b>10 pts</b>; 4.000–9.999 = <b>5 pts</b>; 2.000–3.999 = <b>2 pts</b>; abaixo de 2.000 = <b>0</b>. Até setembro: meta = 5 pts; limite total = 10 pts.</li>
                 <li><b>🛡️ Raides (FDS):</b> Concluiu os 6 ataques = <b>10 pts</b>.</li>
             </ul>
         </div>
