@@ -4086,164 +4086,152 @@ def renderizar_participacao_competicao():
 
 
 def renderizar_permissoes_competicao():
-  st.markdown("### 👥 Participação na competição")
+  from ww_competicao.participacao_lote import preparar_lote, conferir_lote
+  import uuid
+  st.markdown("### 👥 Participação em lote")
+  st.caption("Selecione as contas e habilite ou bloqueie sua participação de uma vez. "
+      "Habilitar permite entrar após pontuar; bloquear não apaga pontos anteriores.")
   try:
-    usuario = pc_validar_admin(
-        ww_admins_exibicao(planilha_competicao.id), st.session_state.get("admin_logado")
-    )
+    pc_validar_admin(ww_admins_exibicao(planilha_competicao.id), st.session_state.get("admin_logado"))
+    aba = ww_aba_painel(planilha_competicao.id, PC_ABA)
   except PermissionError as erro:
     st.warning(str(erro))
     return
   except Exception:
-    st.error("Não foi possível confirmar sua permissão. Tente novamente mais tarde.")
+    st.error("Não foi possível conferir sua permissão ou acessar as contas. Tente novamente mais tarde.")
     return
 
-  st.caption(
-      "Habilitar uma conta permite sua participação após obter pontuação válida. "
-      "Desabilitar registra um bloqueio; nenhuma pontuação histórica é apagada por este painel."
-  )
-  try:
-    aba = ww_aba_painel(planilha_competicao.id, PC_ABA)
-    linhas = ww_controle_exibicao(planilha_competicao.id)
-    eventos = pc_ler_eventos(linhas)
-    contas = pc_estado(eventos)
-    for conta in contas.values():
-      conta["Nome"] = nome_conta(conta["PlayerTag"], conta["Nome"])
-  except gspread.WorksheetNotFound:
-    st.info("O controle de participação está aguardando a importação inicial das contas do clã.")
-    return
-  except ValueError as erro:
-    st.error(str(erro))
-    return
-  except Exception:
-    st.error("Não foi possível consultar as contas. Nenhuma alteração foi enviada.")
-    return
-
-  pendencia_chave = "ww_participacao_envio_pendente"
-  pendente = st.session_state.get(pendencia_chave)
+  pendencia = "ww_participacao_envio_pendente"
+  proposta_chave = "ww_participacao_lote_proposta"
+  pendente = st.session_state.get(pendencia)
   if pendente:
-    linhas = aba.get_all_values(value_render_option="FORMATTED_VALUE")
     if pendente["planilha_id"] != planilha_competicao.id:
-      st.error("Há uma alteração sem confirmação em outra planilha. Confira-a antes de continuar.")
+      st.error("Há um envio sem confirmação em outra planilha. Confira-o antes de continuar.")
       return
     try:
-      confirmado = pc_confirmar_evento(linhas, pendente["linha"])
-    except ValueError as erro:
-      st.error(str(erro))
-      return
+      anteriores = pendente.get("linhas") or [pendente["linha"]]
+      confirmado = conferir_lote(aba.get_all_values(value_render_option="FORMATTED_VALUE"), anteriores)
+    except Exception:
+      confirmado = False
     if confirmado:
-      del st.session_state[pendencia_chave]
-      st.success("A alteração anterior foi localizada no histórico. Ela não foi enviada novamente.")
-    else:
-      st.warning(
-          "A última tentativa ainda não foi confirmada. Não enviaremos outra alteração "
-          "nesta sessão até conferir o registro."
-      )
-      st.caption("Identificador para conferência: " + pendente["linha"][0])
-      if st.button("Consultar confirmação novamente", key="ww_pc_conferir"):
-        st.rerun()
-      return
-
-  if st.button("Atualizar lista", key="ww_pc_atualizar"):
-    ww_limpar_painel()
-    st.rerun()
-  if not contas:
-    st.info("Nenhuma conta importada ainda.")
+      del st.session_state[pendencia]
+      st.session_state.pop(proposta_chave, None)
+      ww_limpar_painel()
+      st.session_state["ww_pc_sucesso"] = "Lote localizado no histórico e conferido, sem novo envio."
+      st.rerun()
+    st.warning("O último envio ainda não foi confirmado. Nenhuma alteração será reenviada automaticamente.")
+    st.caption("Registros para conferência: " + ", ".join(r[0] for r in (pendente.get("linhas") or [pendente["linha"]])))
+    if st.button("Conferir último envio", key="ww_pc_lote_reconsultar"):
+      st.rerun()
     return
-
-  habilitadas = sum(conta["Habilitada"] == "TRUE" for conta in contas.values())
-  st.caption(
-      f"{len(contas)} contas · {habilitadas} habilitadas · "
-      f"{len(contas) - habilitadas} desabilitadas"
-  )
-  busca = st.text_input("Buscar por nome ou tag", key="ww_pc_busca").strip().casefold()
-  filtro = st.selectbox(
-      "Mostrar", ["Todas", "Habilitadas", "Desabilitadas"], key="ww_pc_filtro"
-  )
-  visiveis = [
-      conta for conta in contas.values()
-      if (not busca or busca in conta["Nome"].casefold() or busca in conta["PlayerTag"].casefold())
-      and (filtro == "Todas" or (conta["Habilitada"] == "TRUE") == (filtro == "Habilitadas"))
-  ]
-  visiveis.sort(key=lambda conta: (conta["Nome"].casefold(), conta["PlayerTag"]))
-  if not visiveis:
-    st.info("Nenhuma conta corresponde à busca.")
-    return
-
-  st.dataframe(pd.DataFrame([
-      {"Nome": conta["Nome"], "Tag": conta["PlayerTag"],
-       "Participação permitida": "Sim" if conta["Habilitada"] == "TRUE" else "Não",
-       "Atualizado por": conta["Administrador"], "Data": conta["RegistradoEm"]}
-      for conta in visiveis
-  ]), hide_index=True, use_container_width=True)
-
-  tag = st.selectbox(
-      "Conta", [conta["PlayerTag"] for conta in visiveis],
-      format_func=lambda valor: f"{contas[valor]['Nome']} — {valor}",
-      key="ww_pc_conta",
-  )
-  conta = contas[tag]
-  chave = tag + "_" + conta["EventoID"]
-  with st.form("ww_pc_form_" + chave):
-    escolha = st.radio(
-        "Participação", ["Habilitada", "Desabilitada"],
-        index=0 if conta["Habilitada"] == "TRUE" else 1,
-        key="ww_pc_escolha_" + chave,
-    )
-    motivo = st.text_input(
-        "Motivo da alteração", max_chars=500, key="ww_pc_motivo_" + chave,
-        placeholder="Ex.: conta secundária ou liberação para participar",
-    )
-    salvar = st.form_submit_button("Salvar participação", type="primary")
-
-  if salvar:
-    import uuid
-    try:
-      atuais = aba.get_all_values(value_render_option="FORMATTED_VALUE")
-      admins_atuais = sheet_admins.get_all_values()
-      linha = pc_preparar_alteracao(
-          atuais, admins_atuais, st.session_state.get("admin_logado"), tag,
-          escolha == "Habilitada", motivo, conta["EventoID"],
-          str(uuid.uuid4()), agora_winning_wars().isoformat(),
-      )
-    except (ValueError, PermissionError) as erro:
-      st.error(str(erro))
-      return
-    except Exception:
-      st.error("Não foi possível validar a alteração. Nenhum envio foi iniciado.")
-      return
-
-    st.session_state[pendencia_chave] = {
-        "linha": linha, "planilha_id": planilha_competicao.id,
-    }
-    try:
-      # Uma unica inclusao registra a decisao e sua auditoria. Nao repetir em falhas.
-      aba.append_row(linha, value_input_option="RAW")
-      confirmado = pc_confirmar_evento(
-          aba.get_all_values(value_render_option="FORMATTED_VALUE"), linha
-      )
-    except Exception:
-      st.warning("Envio sem confirmação. Use Atualizar lista para conferir antes de tentar outra alteração.")
-      return
-    if not confirmado:
-      st.warning("A alteração ainda não apareceu na leitura. Atualize a lista para conferir.")
-      return
-    del st.session_state[pendencia_chave]
-    ww_limpar_painel()
-    st.session_state["ww_pc_sucesso"] = "Participação registrada e conferida."
-    st.rerun()
 
   mensagem = st.session_state.pop("ww_pc_sucesso", None)
   if mensagem:
     st.success(mensagem)
-  with st.expander("Histórico desta conta"):
-    historico = [evento for evento in eventos if evento["PlayerTag"] == tag]
-    st.dataframe(pd.DataFrame([
-        {"Data": evento["RegistradoEm"], "Administrador": evento["Administrador"],
-         "Participação": "Habilitada" if evento["Habilitada"] == "TRUE" else "Desabilitada",
-         "Motivo": evento["Motivo"], "Origem": evento["Origem"]}
-        for evento in reversed(historico)
-    ]), hide_index=True, use_container_width=True)
+
+  proposta = st.session_state.get(proposta_chave)
+  if proposta:
+    if proposta["planilha_id"] != planilha_competicao.id:
+      st.error("A proposta pertence a outra planilha.")
+      if st.button("Descartar proposta"):
+        del st.session_state[proposta_chave]
+        st.rerun()
+      return
+    st.markdown("#### Confira antes de salvar")
+    st.write(f"{len(proposta['selecoes'])} contas serão " + ("habilitadas." if proposta["habilitada"] else "bloqueadas."))
+    st.dataframe(pd.DataFrame(proposta["preview"]), hide_index=True, use_container_width=True)
+    st.write("Motivo: " + proposta["motivo"])
+    if st.button("Voltar sem salvar", key="ww_pc_lote_voltar"):
+      del st.session_state[proposta_chave]
+      st.rerun()
+    if st.button("Confirmar e salvar lote", type="primary", key="ww_pc_lote_confirmar"):
+      try:
+        atuais = aba.get_all_values(value_render_option="FORMATTED_VALUE")
+        admins = sheet_admins.get_all_values()
+        novas = preparar_lote(atuais, admins, st.session_state.get("admin_logado"),
+            proposta["selecoes"], proposta["habilitada"], proposta["motivo"],
+            proposta["lote_id"], agora_winning_wars().isoformat())
+      except (ValueError, PermissionError) as erro:
+        st.error(str(erro))
+        return
+      except Exception:
+        st.error("Não foi possível validar o lote. Nenhuma gravação foi iniciada.")
+        return
+      st.session_state[pendencia] = {"planilha_id": planilha_competicao.id, "linhas": novas}
+      try:
+        aba.append_rows(novas, value_input_option="RAW")
+        confirmado = conferir_lote(aba.get_all_values(value_render_option="FORMATTED_VALUE"), novas)
+      except Exception:
+        confirmado = False
+      if not confirmado:
+        st.warning("Envio sem confirmação. Use Conferir último envio; não repita o lote.")
+        st.rerun()
+      del st.session_state[pendencia]
+      del st.session_state[proposta_chave]
+      ww_limpar_painel()
+      st.session_state["ww_pc_sucesso"] = f"{len(novas)} contas alteradas e conferidas. Pontos anteriores preservados."
+      st.rerun()
+    return
+
+  if st.button("Atualizar lista", key="ww_pc_atualizar"):
+    ww_limpar_painel()
+    st.rerun()
+  try:
+    linhas = ww_controle_exibicao(planilha_competicao.id)
+    eventos = pc_ler_eventos(linhas)
+    contas = pc_estado(eventos)
+    nomes = {tag: nome_conta(tag, conta["Nome"]) for tag, conta in contas.items()}
+  except Exception:
+    st.error("Não foi possível conferir o cadastro de participação. Tente atualizar a lista mais tarde.")
+    return
+  habilitadas = sum(c["Habilitada"] == "TRUE" for c in contas.values())
+  st.caption(f"{len(contas)} contas · {habilitadas} habilitadas · {len(contas)-habilitadas} desabilitadas")
+  if not contas:
+    st.info("Nenhuma conta cadastrada ainda.")
+    return
+  acao = st.radio("Ação do lote", ["Bloquear participação", "Habilitar participação"], horizontal=True)
+  habilitar = acao == "Habilitar participação"
+  busca = st.text_input("Buscar por nome ou tag", key="ww_pc_lote_busca").strip().casefold()
+  elegiveis = sorted([tag for tag,c in contas.items() if (c["Habilitada"] == "TRUE") != habilitar
+      and (not busca or busca in nomes[tag].casefold() or busca in tag.casefold())],
+      key=lambda tag: (nomes[tag].casefold(), tag))
+  st.caption("A lista mostra somente contas que precisam da alteração escolhida. Ao mudar a busca ou a ação, confira novamente sua seleção.")
+  if not elegiveis:
+    st.info("Nenhuma conta corresponde à busca e à ação escolhida.")
+  else:
+    import hashlib
+    chave = hashlib.sha256(json.dumps([(t,contas[t]["EventoID"]) for t in elegiveis]).encode()).hexdigest()[:16]
+    with st.form("ww_pc_lote_" + str(habilitar) + chave):
+      todas = st.checkbox("Selecionar todas as contas desta lista", value=False)
+      selecionadas = st.multiselect("Contas", elegiveis,
+          format_func=lambda tag: f"{nomes[tag]} — {tag}")
+      motivo = st.text_input("Motivo da alteração", max_chars=500,
+          placeholder="Ex.: contas secundárias ou liberação para competir")
+      revisar = st.form_submit_button("Revisar lote", type="primary")
+    if revisar:
+      tags = elegiveis if todas else selecionadas
+      selecoes = {tag: contas[tag]["EventoID"] for tag in tags}
+      try:
+        lote_id = str(uuid.uuid4())
+        preparar_lote(linhas, ww_admins_exibicao(planilha_competicao.id),
+            st.session_state.get("admin_logado"), selecoes, habilitar, motivo,
+            lote_id, agora_winning_wars().isoformat())
+      except (ValueError, PermissionError) as erro:
+        st.error(str(erro))
+      except Exception:
+        st.error("Não foi possível preparar a revisão. Nenhum envio foi iniciado.")
+      else:
+        st.session_state[proposta_chave] = {"planilha_id": planilha_competicao.id,
+            "selecoes": selecoes, "habilitada": habilitar, "motivo": motivo.strip(), "lote_id": lote_id,
+            "preview": [{"Nome":nomes[t], "Tag":t, "Antes":"Habilitada" if contas[t]["Habilitada"]=="TRUE" else "Bloqueada",
+                "Depois":"Habilitada" if habilitar else "Bloqueada"} for t in tags]}
+        st.rerun()
+  with st.expander("Consultar histórico de uma conta"):
+    tag = st.selectbox("Conta para consulta", sorted(contas), format_func=lambda t: f"{nomes[t]} — {t}")
+    st.dataframe(pd.DataFrame([{"Data":e["RegistradoEm"], "Administrador":e["Administrador"],
+        "Participação":"Habilitada" if e["Habilitada"]=="TRUE" else "Bloqueada", "Motivo":e["Motivo"]}
+        for e in reversed(eventos) if e["PlayerTag"]==tag]), hide_index=True, use_container_width=True)
+
 
 # FIM CONTROLE PARTICIPACAO
 
