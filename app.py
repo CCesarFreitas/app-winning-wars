@@ -6221,7 +6221,8 @@ else:
             <img src="https://i.ibb.co/3PPkJD8/War-League-Main-Banner.webp" width="75" style="margin-bottom: 8px;">
             <div class="info-card-header">📊 Sistema de Pontuação</div>
             <ul class="info-card-list" style="text-align: left;">
-                <li><b>⚔️ Guerras & Liga (CWL):</b> 1 Ponto por ⭐ conquistada.</li>
+                <li><b>⚔️ Guerras:</b> melhor ataque, até 3 pontos; condições de CV explicadas abaixo.</li>
+                <li><b>🏆 Liga:</b> até 3 pontos por rodada; 2 estrelas contra CV superior valem 3 pontos.</li>
                 <li><b>🎯 Jogos do Clã:</b> A partir de outubro/2026: 10.000 = <b>10 pts</b>; 4.000–9.999 = <b>5 pts</b>; 2.000–3.999 = <b>2 pts</b>; abaixo de 2.000 = <b>0</b>. Até setembro: meta = 5 pts; limite total = 10 pts.</li>
                 <li><b>🛡️ Raides (FDS):</b> 1 ponto por ataque (até 6) + 1 ponto de bônus para o Top 3 de saque; máximo de <b>7 pts</b>.</li>
             </ul>
@@ -6245,6 +6246,9 @@ else:
         """,
         unsafe_allow_html=True,
     )
+
+  from ww_competicao.regulamento import renderizar_regulamento
+  renderizar_regulamento(st)
 
   # GALERIA DA FAMA FORMATADA COM DESTAQUE
   st.write("---")
