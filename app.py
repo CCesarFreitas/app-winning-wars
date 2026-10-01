@@ -5199,9 +5199,18 @@ else:
   # ABAS DESTACADAS DA PÁGINA PRINCIPAL
   st.write("")
 
-  tab_ranking, tab_tabela, tab_historico_mes, tab_perfil, tab_agenda, tab_admin = st.tabs(
-      ["🏆 Ranking ao Vivo", "📋 Tabela Detalhada", "🗂️ Meses Anteriores", "👤 Meu Perfil", "📅 Agenda", "🔐 Painel Admin"]
+  tab_ranking, tab_tabela, tab_historico_mes, tab_perfil, tab_agenda, tab_atividades, tab_admin = st.tabs(
+      ["🏆 Ranking ao Vivo", "📋 Tabela Detalhada", "🗂️ Meses Anteriores", "👤 Meu Perfil", "📅 Agenda", "📚 Atividades encerradas", "🔐 Painel Admin"]
   )
+
+  with tab_atividades:
+    from ww_competicao.historico_publico import renderizar as renderizar_historico_publico
+    try:
+      registros_publicos = ww_atividades_auditoria_exibicao(planilha_competicao.id)
+    except Exception:
+      st.warning("Não foi possível consultar o histórico agora. Tente novamente em alguns instantes.")
+    else:
+      renderizar_historico_publico(st, registros_publicos, pd)
 
   # ABA 1: RANKING AO VIVO
   with tab_ranking:
