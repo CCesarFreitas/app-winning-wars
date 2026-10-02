@@ -4938,7 +4938,7 @@ def renderizar_historico_mensal():
       else:
         st.info("Não há snapshots antigos registrados na aba Historico.")
   elif not df_fama.empty:
-    st.caption("A Galeria da Fama antiga continua preservada abaixo na página.")
+    st.caption("A Galeria da Fama está disponível nesta aba, na seção recolhível abaixo.")
 
 
 # ==============================================================================
@@ -5213,19 +5213,16 @@ else:
   # ABAS DESTACADAS DA PÁGINA PRINCIPAL
   st.write("")
 
-  pagina_ww = st.selectbox("Ir para", ["🏆 Ranking ao Vivo", "📋 Tabela Detalhada", "🗂️ Meses Anteriores",
-      "👤 Meu Perfil", "📅 Agenda", "📚 Atividades encerradas", "👥 Membros do clã",
-      "💚 Saúde da integração", "🔐 Painel Admin"], key="ww_navegacao_principal")
+  tab_ranking, tab_tabela, tab_historico_mes, tab_perfil, tab_agenda, tab_atividades, tab_membros, tab_admin = st.tabs([
+      "🏆 Ranking ao Vivo", "📋 Tabela Detalhada", "🗂️ Meses Anteriores", "👤 Meu Perfil",
+      "📅 Agenda", "📚 Atividades encerradas", "👥 Membros do clã", "🔐 Painel Admin",
+  ])
 
-  if pagina_ww == "👥 Membros do clã":
+  with tab_membros:
     from ww_competicao.consultas import renderizar_membros
     renderizar_membros(st, ww_consultas_disponiveis(), pd)
 
-  if pagina_ww == "💚 Saúde da integração":
-    from ww_competicao.consultas import renderizar_saude
-    renderizar_saude(st, ww_consultas_disponiveis())
-
-  if pagina_ww == "📚 Atividades encerradas":
+  with tab_atividades:
     from ww_competicao.consultas import renderizar_detalhes
     renderizar_detalhes(st, ww_consultas_disponiveis(), pd)
     from ww_competicao.historico_publico import renderizar as renderizar_historico_publico
@@ -5238,7 +5235,7 @@ else:
         renderizar_historico_publico(st, registros_publicos, pd)
 
   # ABA 1: RANKING AO VIVO
-  if pagina_ww == "🏆 Ranking ao Vivo":
+  with tab_ranking:
     if not df.empty and "Total" in df.columns:
       if mes_finalizado:
         st.success(
@@ -5315,7 +5312,7 @@ else:
       )
 
   # ABA 2: TABELA DETALHADA GERAL
-  if pagina_ww == "📋 Tabela Detalhada":
+  with tab_tabela:
     if not df.empty and "Total" in df.columns:
       st.markdown("### 📋 Tabela Detalhada Geral de Pontuações")
       st.markdown(
@@ -5532,21 +5529,21 @@ else:
       components.html(html_tabela, height=altura, scrolling=False)
 
   # ABA 3: HISTÓRICO MENSAL ARQUIVADO
-  if pagina_ww == "🗂️ Meses Anteriores":
+  with tab_historico_mes:
     renderizar_historico_mensal()
 
   # ABA 4: PERFIL INDIVIDUAL / CONQUISTAS
-  if pagina_ww == "👤 Meu Perfil":
+  with tab_perfil:
     renderizar_perfil_membro(df_rank, colunas_guerras, colunas_liga, colunas_raides)
     from ww_competicao.consultas import renderizar_trajetoria
     renderizar_trajetoria(st, ww_consultas_disponiveis(), pd)
 
   # ABA 4: AGENDA DO CLÃ
-  if pagina_ww == "📅 Agenda":
+  with tab_agenda:
     renderizar_agenda_membros()
 
   # ABA 5: ÁREA ADMIN
-  if pagina_ww == "🔐 Painel Admin":
+  with tab_admin:
     st.subheader("🔐 Painel de Controle e Administração")
 
     if "admin_logado" not in st.session_state:
@@ -5560,7 +5557,7 @@ else:
           " Liberado)"
       )
 
-      sub_tab_month, sub_tab20, sub_tab_participacao, sub_tab1, sub_tab2, sub_tab_pass, sub_tab3, sub_tab4, sub_tab_news, sub_tab5, sub_tab6, sub_tab7 = st.tabs([
+      sub_tab_month, sub_tab20, sub_tab_participacao, sub_tab1, sub_tab2, sub_tab_pass, sub_tab3, sub_tab4, sub_tab_news, sub_tab5, sub_tab6, sub_tab7, sub_tab_integracao = st.tabs([
           "🏆 Fechamento Mensal",
           "🚀 Gestão 2.0",
           "👥 Participação",
@@ -5573,7 +5570,17 @@ else:
           "📜 Logs do Sistema",
           "💾 Backup de Dados",
           "🎲 Sorteio de Desempate",
+          "💚 Integração",
       ])
+
+      with sub_tab_integracao:
+        try:
+          pc_validar_admin(ww_admins_exibicao(planilha_competicao.id), st.session_state['admin_logado'])
+        except Exception:
+          st.info("Acompanhamento disponível para a liderança autorizada.")
+        else:
+          from ww_competicao.consultas import renderizar_saude
+          renderizar_saude(st, ww_consultas_disponiveis())
 
       with sub_tab_month:
         renderizar_fechamento_mensal(df_rank)
@@ -6216,149 +6223,89 @@ else:
         else:
           st.info("Nenhum dado de ranking encontrado para realizar o sorteio.")
 
-  # FEED DE NOVIDADES NA PÁGINA PRINCIPAL
-  # Fica abaixo do ranking/tabela e concentra os comunicados sem exigir
-  # navegação para outra página.
-  st.write("---")
-  renderizar_feed_novidades()
+  # Conteúdo de apoio organizado por assunto, sem repetir o rodapé em cada tela.
+  with tab_ranking:
+    with st.expander("📰 Novidades do clã", expanded=False):
+      renderizar_feed_novidades()
+    with st.expander("📜 Regras e premiação", expanded=False):
+      st.markdown("**Premiação:** os três primeiros garantem um Passe Dourado. Empates são resolvidos por sorteio.")
+      st.caption("Competição para a conta principal, com participação no grupo do WhatsApp e respeito às regras do clã.")
+      from ww_competicao.regulamento import renderizar_regulamento
+      renderizar_regulamento(st)
 
-  # SEÇÃO EXPLICATIVA (RODAPÉ)
-  st.write("---")
-  st.markdown(
-      "<h2 style='text-align: center;'>📜 Regulamento & Sistema de"
-      " Premiação</h2>",
-      unsafe_allow_html=True,
-  )
-  st.markdown(
-      "<p style='text-align: center; color: #cbd5e1;'>A ideia é simples:"
-      " valorizar quem joga bem, participa ativamente e ajuda o clã a"
-      " crescer!</p><br>",
-      unsafe_allow_html=True,
-  )
+  with tab_historico_mes:
+    with st.expander("🌟 Galeria da Fama", expanded=False):
+      # GALERIA DA FAMA FORMATADA COM DESTAQUE
+      st.write("---")
+      st.markdown(
+          "<h2 style='text-align: center;'>🌟 Galeria da Fama</h2>",
+          unsafe_allow_html=True,
+      )
+      st.markdown(
+          "<p style='text-align: center; color: #cbd5e1;'>Histórico dos grandes"
+          " guerreiros do clã que conquistaram o Passe Dourado!</p><br>",
+          unsafe_allow_html=True,
+      )
 
-  info_col1, info_col2, info_col3 = st.columns(3)
+      if not df_fama.empty:
+        df_fama_exib = df_fama.copy()
+        if "Primeiro" in df_fama_exib.columns:
+          df_fama_exib["Primeiro"] = "🥇 " + df_fama_exib["Primeiro"].astype(str)
+        if "Segundo" in df_fama_exib.columns:
+          df_fama_exib["Segundo"] = "🥈 " + df_fama_exib["Segundo"].astype(str)
+        if "Terceiro" in df_fama_exib.columns:
+          df_fama_exib["Terceiro"] = "🥉 " + df_fama_exib["Terceiro"].astype(str)
 
-  with info_col1:
+        df_fama_exib.rename(
+            columns={
+                "MesAno": "Mês / Edição",
+                "Primeiro": "1º Lugar (Campeão)",
+                "Segundo": "2º Lugar",
+                "Terceiro": "3º Lugar",
+            },
+            inplace=True,
+        )
+        st.dataframe(df_fama_exib, use_container_width=True, hide_index=True)
+      else:
+        st.info("Nenhum histórico de meses anteriores registrado ainda.")
+
+  with st.expander("🔗 Links do clã", expanded=False):
+    # LINKS EXTERNOS / ATALHOS — MANTIDOS NO FINAL DA PÁGINA
+    st.write("---")
     st.markdown(
-        """
-        <div class="info-card" style="text-align: center;">
-            <img src="https://i.ibb.co/mkC43vT/goldenpass.png" width="60" style="margin-bottom: 8px;">
-            <div class="info-card-header">🏆 Premiação Mensal</div>
-            <ul class="info-card-list" style="text-align: left;">
-                <li><b>Top 3 Destaques:</b> Garantem <b>1 Passe Dourado 🎟️</b> cada um no final do mês.</li>
-                <li><b>Em caso de Empate:</b> Sorteio de desempate.</li>
-            </ul>
-        </div>
-        """,
+        "<h3 style='text-align: center;'>🔗 Links Rápidos</h3>",
         unsafe_allow_html=True,
     )
+    c_link1, c_link2, c_link3, c_link4 = st.columns(4)
 
-  with info_col2:
-    st.markdown(
-        """
-        <div class="info-card" style="text-align: center;">
-            <img src="https://i.ibb.co/3PPkJD8/War-League-Main-Banner.webp" width="75" style="margin-bottom: 8px;">
-            <div class="info-card-header">📊 Sistema de Pontuação</div>
-            <ul class="info-card-list" style="text-align: left;">
-                <li><b>⚔️ Guerras:</b> melhor ataque, até 3 pontos; condições de CV explicadas abaixo.</li>
-                <li><b>🏆 Liga:</b> até 3 pontos por rodada; 2 estrelas contra CV superior valem 3 pontos.</li>
-                <li><b>🎯 Jogos do Clã:</b> A partir de outubro/2026: 10.000 = <b>10 pts</b>; 4.000–9.999 = <b>5 pts</b>; 2.000–3.999 = <b>2 pts</b>; abaixo de 2.000 = <b>0</b>. Até setembro: meta = 5 pts; limite total = 10 pts.</li>
-                <li><b>🛡️ Raides (FDS):</b> 1 ponto por ataque (até 6) + 1 ponto de bônus para o Top 3 de saque; máximo de <b>7 pts</b>.</li>
-            </ul>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    with c_link1:
+      st.markdown(
+          '<a href="https://www.youtube.com/@winningwarscoc?sub_confirmation=1" '
+          'target="_blank" rel="noopener noreferrer" class="btn-youtube-link"><img '
+          'src="https://img.cdndsgni.com/preview/10000151.jpg" '
+          'height="20" style="border-radius: 4px; object-fit: cover;"> Canal Winning Wars YT ↗</a>',
+          unsafe_allow_html=True,
+      )
 
-  with info_col3:
-    st.markdown(
-        """
-        <div class="info-card" style="text-align: center;">
-            <img src="https://i.ibb.co/YFbsJ97x/Clash-of-Clans-emblem.png" width="60" style="margin-bottom: 8px;">
-            <div class="info-card-header">📜 Diretrizes Básicas</div>
-            <ul class="info-card-list" style="text-align: left;">
-                <li><b>Conta Principal:</b> Válido estritamente para a conta principal.</li>
-                <li><b>Zero Trapaça 🚫:</b> Qualquer ato antidesportivo anula a pontuação.</li>
-                <li><b>WhatsApp Obrigatório 📱:</b> Indispensável estar no grupo do clã.</li>
-            </ul>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    with c_link2:
+      if st.button("📜 Regras do Clã", use_container_width=True, key="bottom_regras_cla"):
+        st.session_state["pagina_atual"] = "regras_cla"
+        st.rerun()
 
-  from ww_competicao.regulamento import renderizar_regulamento
-  renderizar_regulamento(st)
+    with c_link3:
+      st.markdown(
+          '<a href="https://link.clashofclans.com/?action=OpenSCID&p=25-1cb8481f-3a79-4681-90f9-8914acef2d63" '
+          'target="_blank" rel="noopener noreferrer" class="btn-scid"><img '
+          'src="https://i.ibb.co/fzPGy6fr/bg-hero-scid-landing-0.webp" '
+          'height="20" style="border-radius: 4px; object-fit: cover;"> Add no Supercell ID ↗</a>',
+          unsafe_allow_html=True,
+      )
 
-  # GALERIA DA FAMA FORMATADA COM DESTAQUE
-  st.write("---")
-  st.markdown(
-      "<h2 style='text-align: center;'>🌟 Galeria da Fama</h2>",
-      unsafe_allow_html=True,
-  )
-  st.markdown(
-      "<p style='text-align: center; color: #cbd5e1;'>Histórico dos grandes"
-      " guerreiros do clã que conquistaram o Passe Dourado!</p><br>",
-      unsafe_allow_html=True,
-  )
-
-  if not df_fama.empty:
-    df_fama_exib = df_fama.copy()
-    if "Primeiro" in df_fama_exib.columns:
-      df_fama_exib["Primeiro"] = "🥇 " + df_fama_exib["Primeiro"].astype(str)
-    if "Segundo" in df_fama_exib.columns:
-      df_fama_exib["Segundo"] = "🥈 " + df_fama_exib["Segundo"].astype(str)
-    if "Terceiro" in df_fama_exib.columns:
-      df_fama_exib["Terceiro"] = "🥉 " + df_fama_exib["Terceiro"].astype(str)
-
-    df_fama_exib.rename(
-        columns={
-            "MesAno": "Mês / Edição",
-            "Primeiro": "1º Lugar (Campeão)",
-            "Segundo": "2º Lugar",
-            "Terceiro": "3º Lugar",
-        },
-        inplace=True,
-    )
-    st.dataframe(df_fama_exib, use_container_width=True, hide_index=True)
-  else:
-    st.info("Nenhum histórico de meses anteriores registrado ainda.")
-
-  # LINKS EXTERNOS / ATALHOS — MANTIDOS NO FINAL DA PÁGINA
-  st.write("---")
-  st.markdown(
-      "<h3 style='text-align: center;'>🔗 Links Rápidos</h3>",
-      unsafe_allow_html=True,
-  )
-  c_link1, c_link2, c_link3, c_link4 = st.columns(4)
-
-  with c_link1:
-    st.markdown(
-        '<a href="https://www.youtube.com/@winningwarscoc?sub_confirmation=1" '
-        'target="_blank" rel="noopener noreferrer" class="btn-youtube-link"><img '
-        'src="https://img.cdndsgni.com/preview/10000151.jpg" '
-        'height="20" style="border-radius: 4px; object-fit: cover;"> Canal Winning Wars YT ↗</a>',
-        unsafe_allow_html=True,
-    )
-
-  with c_link2:
-    if st.button("📜 Regras do Clã", use_container_width=True, key="bottom_regras_cla"):
-      st.session_state["pagina_atual"] = "regras_cla"
-      st.rerun()
-
-  with c_link3:
-    st.markdown(
-        '<a href="https://link.clashofclans.com/?action=OpenSCID&p=25-1cb8481f-3a79-4681-90f9-8914acef2d63" '
-        'target="_blank" rel="noopener noreferrer" class="btn-scid"><img '
-        'src="https://i.ibb.co/fzPGy6fr/bg-hero-scid-landing-0.webp" '
-        'height="20" style="border-radius: 4px; object-fit: cover;"> Add no Supercell ID ↗</a>',
-        unsafe_allow_html=True,
-    )
-
-  with c_link4:
-    st.markdown(
-        '<a href="https://chat.whatsapp.com/FKFc5y323PCBnTFdsjhv64" '
-        'target="_blank" rel="noopener noreferrer" class="btn-whatsapp-link"><img '
-        'src="https://img.cdndsgni.com/preview/10000484.jpg" '
-        'height="20" style="border-radius: 4px; object-fit: cover;"> Grupo do Clã no Whats ↗</a>',
-        unsafe_allow_html=True,
-    )
+    with c_link4:
+      st.markdown(
+          '<a href="https://chat.whatsapp.com/FKFc5y323PCBnTFdsjhv64" '
+          'target="_blank" rel="noopener noreferrer" class="btn-whatsapp-link"><img '
+          'src="https://img.cdndsgni.com/preview/10000484.jpg" '
+          'height="20" style="border-radius: 4px; object-fit: cover;"> Grupo do Clã no Whats ↗</a>',
+          unsafe_allow_html=True,
+      )
