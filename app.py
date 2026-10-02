@@ -3921,6 +3921,20 @@ def ww_controle_exibicao(planilha_id):
 def ww_atividades_auditoria_exibicao(planilha_id):
   return ww_aba_painel(planilha_id, "ControleAtividades").get_all_records(default_blank="")
 
+@st.cache_data(ttl=60)
+def ww_consultas_publicas(planilha_id):
+  from ww_competicao.consultas import ler
+  if planilha_id != planilha_competicao.id:
+    raise ValueError("Planilha inesperada")
+  return ler(planilha_competicao)
+
+def ww_consultas_disponiveis():
+  try:
+    return ww_consultas_publicas(planilha_competicao.id)
+  except Exception:
+    st.warning("As consultas detalhadas estão temporariamente indisponíveis. O ranking continua acessível.")
+    return {}
+
 @st.cache_data(ttl=30)
 def ww_lancamentos_manuais_exibicao(planilha_id):
   return ww_aba_painel(planilha_id, "LancamentosManuais").get_all_records(default_blank="")
@@ -5199,21 +5213,32 @@ else:
   # ABAS DESTACADAS DA PÁGINA PRINCIPAL
   st.write("")
 
-  tab_ranking, tab_tabela, tab_historico_mes, tab_perfil, tab_agenda, tab_atividades, tab_admin = st.tabs(
-      ["🏆 Ranking ao Vivo", "📋 Tabela Detalhada", "🗂️ Meses Anteriores", "👤 Meu Perfil", "📅 Agenda", "📚 Atividades encerradas", "🔐 Painel Admin"]
-  )
+  pagina_ww = st.selectbox("Ir para", ["🏆 Ranking ao Vivo", "📋 Tabela Detalhada", "🗂️ Meses Anteriores",
+      "👤 Meu Perfil", "📅 Agenda", "📚 Atividades encerradas", "👥 Membros do clã",
+      "💚 Saúde da integração", "🔐 Painel Admin"], key="ww_navegacao_principal")
 
-  with tab_atividades:
+  if pagina_ww == "👥 Membros do clã":
+    from ww_competicao.consultas import renderizar_membros
+    renderizar_membros(st, ww_consultas_disponiveis(), pd)
+
+  if pagina_ww == "💚 Saúde da integração":
+    from ww_competicao.consultas import renderizar_saude
+    renderizar_saude(st, ww_consultas_disponiveis())
+
+  if pagina_ww == "📚 Atividades encerradas":
+    from ww_competicao.consultas import renderizar_detalhes
+    renderizar_detalhes(st, ww_consultas_disponiveis(), pd)
     from ww_competicao.historico_publico import renderizar as renderizar_historico_publico
     try:
       registros_publicos = ww_atividades_auditoria_exibicao(planilha_competicao.id)
     except Exception:
       st.warning("Não foi possível consultar o histórico agora. Tente novamente em alguns instantes.")
     else:
-      renderizar_historico_publico(st, registros_publicos, pd)
+      with st.expander("Conferir os registros originais de lançamento"):
+        renderizar_historico_publico(st, registros_publicos, pd)
 
   # ABA 1: RANKING AO VIVO
-  with tab_ranking:
+  if pagina_ww == "🏆 Ranking ao Vivo":
     if not df.empty and "Total" in df.columns:
       if mes_finalizado:
         st.success(
@@ -5290,7 +5315,7 @@ else:
       )
 
   # ABA 2: TABELA DETALHADA GERAL
-  with tab_tabela:
+  if pagina_ww == "📋 Tabela Detalhada":
     if not df.empty and "Total" in df.columns:
       st.markdown("### 📋 Tabela Detalhada Geral de Pontuações")
       st.markdown(
@@ -5507,19 +5532,21 @@ else:
       components.html(html_tabela, height=altura, scrolling=False)
 
   # ABA 3: HISTÓRICO MENSAL ARQUIVADO
-  with tab_historico_mes:
+  if pagina_ww == "🗂️ Meses Anteriores":
     renderizar_historico_mensal()
 
   # ABA 4: PERFIL INDIVIDUAL / CONQUISTAS
-  with tab_perfil:
+  if pagina_ww == "👤 Meu Perfil":
     renderizar_perfil_membro(df_rank, colunas_guerras, colunas_liga, colunas_raides)
+    from ww_competicao.consultas import renderizar_trajetoria
+    renderizar_trajetoria(st, ww_consultas_disponiveis(), pd)
 
   # ABA 4: AGENDA DO CLÃ
-  with tab_agenda:
+  if pagina_ww == "📅 Agenda":
     renderizar_agenda_membros()
 
   # ABA 5: ÁREA ADMIN
-  with tab_admin:
+  if pagina_ww == "🔐 Painel Admin":
     st.subheader("🔐 Painel de Controle e Administração")
 
     if "admin_logado" not in st.session_state:
@@ -5553,6 +5580,9 @@ else:
 
       with sub_tab20:
         renderizar_gestao_20(df_rank, colunas_guerras, colunas_liga, colunas_raides)
+        from ww_competicao.revisoes import renderizar as renderizar_revisoes
+        renderizar_revisoes(st, planilha_competicao, sheet_dados,
+            st.session_state['admin_logado'], obter_dados_cached.clear)
 
       with sub_tab_participacao:
         renderizar_participacao_competicao()

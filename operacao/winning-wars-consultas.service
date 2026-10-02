@@ -1,0 +1,16 @@
+[Unit]
+Description=Winning Wars - publicar historico, membros e saude
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=opc
+WorkingDirectory=/opt/winning-wars-api/consultas_app_20261002
+ExecStart=/opt/winning-wars-api/venv/bin/python -B /opt/winning-wars-api/consultas_app_20261002/operacao/publicar_consultas.py
+TimeoutStartSec=180
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/winning-wars-api/dados_consulta

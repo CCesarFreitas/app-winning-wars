@@ -1,0 +1,11 @@
+[Unit]
+Description=Winning Wars - atualizar consultas a cada cinco minutos
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=5min
+RandomizedDelaySec=10
+Unit=winning-wars-consultas.service
+
+[Install]
+WantedBy=timers.target
