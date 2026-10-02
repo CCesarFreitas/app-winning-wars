@@ -5213,10 +5213,17 @@ else:
   # ABAS DESTACADAS DA PÁGINA PRINCIPAL
   st.write("")
 
-  tab_ranking, tab_tabela, tab_historico_mes, tab_perfil, tab_agenda, tab_atividades, tab_membros, tab_admin = st.tabs([
+  tab_ranking, tab_tabela, tab_historico_mes, tab_perfil, tab_agenda, tab_atividades, tab_planejamento, tab_membros, tab_admin = st.tabs([
       "🏆 Ranking ao Vivo", "📋 Tabela Detalhada", "🗂️ Meses Anteriores", "👤 Meu Perfil",
-      "📅 Agenda", "📚 Atividades encerradas", "👥 Membros do clã", "🔐 Painel Admin",
+      "📅 Agenda", "📚 Atividades encerradas", "⚔️ Planejamento de guerras", "👥 Membros do clã", "🔐 Painel Admin",
   ])
+
+  with tab_planejamento:
+    from ww_competicao.planejamento import renderizar as renderizar_planejamento
+    try:
+      renderizar_planejamento(st, ww_consultas_disponiveis(), pd)
+    except Exception:
+      st.warning("O planejamento de guerras está temporariamente indisponível. Tente novamente em alguns minutos.")
 
   with tab_membros:
     from ww_competicao.consultas import renderizar_membros

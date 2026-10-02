@@ -152,6 +152,17 @@ def executar():
                   armazenamento='SQLite na Oracle; ranking mantido na planilha')
     documentos['saude'] = health
     arquivo.guardar('saude', 'integracao', health, agora.isoformat())
+    # Processo limitado: uma falha da Supercell não impede publicar as consultas existentes.
+    planejamento_ok = False
+    try:
+        retorno = subprocess.run([sys.executable, '-B', str(RAIZ / 'operacao/coletar_planejamento.py')],
+                                 capture_output=True, text=True, timeout=65)
+        planejamento_ok = retorno.returncode == 0
+    except subprocess.TimeoutExpired:
+        pass
+    planejamento = arquivo.ultimos('planejamento').get('atual')
+    if planejamento:
+        documentos['planejamento'] = {**planejamento, 'coleta_interrompida': not planejamento_ok}
     linhas = empacotar(documentos)
     try:
         destino = planilha.worksheet('ConsultaPublica')
