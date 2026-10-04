@@ -81,6 +81,25 @@ class DetalhesMotor(unittest.TestCase):
         self.assertEqual(j['pontos'], 3)
         self.assertIn('Duas estrelas', j['ataques'][0]['Regra aplicada'])
 
+    def test_correcao_auditada_inclui_conta_omitida(self):
+        self.g['attacksPerMember'] = 1
+        c = {'versao': 1, 'origem': 'api_liga', 'clan_tag': '#YVLGUJQY', 'temporada_liga': '2026-10',
+             'rodada': 1, 'war_tag': '#PPP', 'guerra': self.g, 'temporada_origem': '2026-10'}
+        c['conteudo_sha256'] = sha({k: c[k] for k in ('clan_tag', 'temporada_liga', 'rodada', 'war_tag', 'guerra')})
+        c['atividade_id'] = identificar_atividade('liga', '#YVLGUJQY', self.g['startTime'], oponente='#2YPL9GU8Y', war_tag='#PPP')
+        registro = self.registro(c, 'liga', 3)
+        detalhes = json.loads(registro['DetalhesJSON'])
+        detalhes['pontos_por_participante'] = {'99': 1}
+        detalhes['tags'] = {'99': '#888'}
+        registro['DetalhesJSON'] = json.dumps(detalhes)
+        registro['HashResultado'] = sha(detalhes)
+        revisao = {'Temporada': '2026-10', 'ParticipanteID': '30', 'Atividade': 'Atividade_1',
+                   'Depois': '3', 'RegistradoEm': '2026-10-04T18:00:00+00:00'}
+        j = detalhar(c, 'liga', registro, (), {'#222': '30'}, [revisao])['jogadores'][0]
+        self.assertEqual(j['participante_id'], '30')
+        self.assertEqual(j['pontos'], 3)
+        self.assertIn('correção auditada', j['situacao'])
+
     def test_raide_saque_bonus_e_sem_dados_admin(self):
         raid = {'state': 'ended', 'startTime': self.g['startTime'], 'endTime': self.g['endTime'],
             'totalAttacks': 6, 'capitalTotalLoot': 100, 'members': [{'tag': '#222', 'name': 'Vila ♤',

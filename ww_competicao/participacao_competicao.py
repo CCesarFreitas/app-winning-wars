@@ -86,9 +86,10 @@ def pc_estado(eventos):
     for evento in eventos:
         tag = evento["PlayerTag"]
         atual = contas.get(tag)
-        if evento["Origem"] == "ADMIN" or atual is None:
+        if evento["Origem"] == "ADMIN" or atual is None or atual["Origem"] != "ADMIN":
             contas[tag] = dict(evento)
-        # Repetir/importar o cadastro nunca altera uma decisao ja registrada.
+        # Um novo CADASTRO pode corrigir outro cadastro automatico/importado.
+        # Depois da primeira decisao ADMIN, somente outro ADMIN pode altera-la.
     return contas
 
 

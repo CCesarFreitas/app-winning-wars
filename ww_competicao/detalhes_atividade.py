@@ -5,7 +5,7 @@ from .historico_publico import atividades_publicas
 from .participacao_competicao import pc_estado
 
 
-def detalhar(captura, tipo, registro=None, eventos=()):
+def detalhar(captura, tipo, registro=None, eventos=(), vinculos=None, revisoes=()):
     aplicado = atividades_publicas([registro]) if registro else []
     if registro and not aplicado:
         raise ValueError('Lançamento sem integridade confirmada')
@@ -35,17 +35,33 @@ def detalhar(captura, tipo, registro=None, eventos=()):
                      or registro['Tipo'] != tipo
                      or detalhes.get('captura_sha256') != captura['conteudo_sha256']):
         raise ValueError('Captura diferente da usada no lançamento')
-    por_tag = {tag: pid for pid, tag in detalhes.get('tags', {}).items()}
+    por_tag_original = {tag: pid for pid, tag in detalhes.get('tags', {}).items()}
+    vinculos = vinculos or {}
     # A decisão de hoje não reescreve a elegibilidade de uma atividade passada.
     momento = datetime.fromisoformat(registro['AplicadoEm']) if registro else None
     historicos = [e for e in eventos if momento and datetime.fromisoformat(e['RegistradoEm']) <= momento]
     estado = pc_estado(historicos)
     jogadores = []
     for tag, j in sorted(bruto.items()):
-        pid = por_tag.get(tag)
-        pontos = detalhes.get('pontos_por_participante', {}).get(pid)
+        pid_original = por_tag_original.get(tag)
+        pontos_originais = detalhes.get('pontos_por_participante', {}).get(pid_original)
+        pid, pontos = pid_original, pontos_originais
+        correcoes = []
+        if registro:
+            candidato = pid_original or vinculos.get(tag)
+            correcoes = sorted([
+                r for r in revisoes
+                if str(r.get('ParticipanteID')) == str(candidato)
+                and r.get('Temporada') == captura['temporada_origem']
+                and r.get('Atividade') == registro['ColunaDestino']
+            ], key=lambda r: r.get('RegistradoEm', ''))
+            if correcoes:
+                pid = candidato
+                pontos = int(correcoes[-1]['Depois'])
         if not registro:
             motivo = 'Encerrada no jogo; aguardando lançamento ou revisão'
+        elif correcoes:
+            motivo = 'Pontuação registrada por correção auditada'
         elif pid is not None:
             motivo = 'Pontuação registrada' if pontos else 'Sem pontos neste resultado'
         elif estado.get(tag, {}).get('Habilitada') == 'FALSE':
@@ -66,7 +82,7 @@ def detalhar(captura, tipo, registro=None, eventos=()):
         else:
             item['cv'] = j['cv']
             item['pontos_calculados'] = j['pontos_brutos']
-            if pid is not None and pontos != j['pontos_brutos']:
+            if pid_original is not None and pontos_originais != j['pontos_brutos']:
                 raise ValueError('Cálculo diverge do lançamento original')
             ataques = j['ataques'] if tipo == 'guerra' else ([j['ataque']] if j['ataque'] else [])
             for a in ataques:

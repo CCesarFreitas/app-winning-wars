@@ -66,7 +66,8 @@ def planejar_inscricoes(temporada, jogadores, ranking, inscricoes, vinculos, con
     contas = estado["contas"]
     for tag, jogador in sorted(por_tag.items()):
         pontos, nome = jogador["pontos"], jogador["nome"]
-        if tag in contas and contas[tag]["Habilitada"] == "FALSE":
+        conta = contas.get(tag)
+        if conta and conta["Origem"] == "ADMIN" and conta["Habilitada"] == "FALSE":
             excluidos.append({"tag": tag, "motivo": "bloqueio_administrativo"})
             continue
         inscricao = atuais.get(tag)
@@ -86,8 +87,10 @@ def planejar_inscricoes(temporada, jogadores, ranking, inscricoes, vinculos, con
             proximo_id += 1
         if identidade not in estado["participantes"]:
             novas_linhas.append([identidade, nome] + [0] * (len(cabecalho) - 2))
-        if tag not in contas:
-            eid = str(uuid.uuid5(uuid.NAMESPACE_URL, "winning-wars:participacao:cadastro:" + tag))
+        if conta is None or (conta["Origem"] == "CADASTRO" and conta["Habilitada"] == "FALSE"):
+            prefixo = ("winning-wars:participacao:cadastro:" if conta is None
+                       else "winning-wars:participacao:primeira-pontuacao:")
+            eid = str(uuid.uuid5(uuid.NAMESPACE_URL, prefixo + tag))
             novas_contas.append([eid, tag, nome, "TRUE", "integracao_automatica", "Primeira pontuacao valida", registrado_em, "CADASTRO"])
         if tag not in estado["por_tag"]:
             eid = str(uuid.uuid5(uuid.NAMESPACE_URL, "winning-wars:vinculo:auto:" + identidade + ":" + tag))

@@ -60,7 +60,8 @@ def executar():
     cred = Credentials.from_service_account_file(str(BASE / 'credentials/google_service_account.json'),
                 scopes=['https://www.googleapis.com/auth/spreadsheets'])
     planilha = gspread.authorize(cred).open_by_key(SHEET)
-    nomes = ['ControleAtividades', 'ParticipacaoCompeticao', 'InscricoesTemporada', 'EstadoMes', 'Página1']
+    nomes = ['ControleAtividades', 'ParticipacaoCompeticao', 'InscricoesTemporada',
+             'VinculosParticipantes', 'EstadoMes', 'Página1']
     # Uma leitura em lote; não acessa credenciais de administradores.
     resposta = planilha.values_batch_get(["'" + n + "'!A:ZZ" for n in nomes],
                                          params={'valueRenderOption': 'FORMATTED_VALUE'})
@@ -69,6 +70,8 @@ def executar():
         arquivo.guardar('fonte', nome, linhas, agora.isoformat())
     eventos = pc_ler_eventos(fotos['ParticipacaoCompeticao'])
     contas = pc_estado(eventos)
+    vinculos = {r['PlayerTag']: r['ParticipanteID']
+                for r in linhas_registros(fotos['VinculosParticipantes'])}
     registros = linhas_registros(fotos['ControleAtividades'])
     contagem = Counter(r['AtividadeID'] for r in registros)
     por_id = {r['AtividadeID']: r for r in registros if contagem[r['AtividadeID']] == 1}
@@ -100,6 +103,13 @@ def executar():
                        'permissao': ('Bloqueada' if contas.get(m['tag'], {}).get('Habilitada') == 'FALSE'
                                     else 'Habilitada' if m['tag'] in contas else 'Sem decisão registrada')}
                       for m in membros['contas']]}
+    # Revisões entram também na reconstrução do detalhe: uma correção auditada
+    # pode incluir uma conta que o lançamento original omitiu.
+    try:
+        revisoes_fonte = planilha.worksheet('RevisoesPontuacao').get_all_values()
+    except gspread.WorksheetNotFound:
+        revisoes_fonte = []
+    revisoes_registros = linhas_registros(revisoes_fonte)
     falhas = []
     candidatas = {}
     for tipo in ('guerra', 'liga', 'raide'):
@@ -117,7 +127,7 @@ def executar():
                 registro = por_id.get(identidade)
                 if registro and json.loads(registro['DetalhesJSON']).get('captura_sha256') != captura.get('conteudo_sha256'):
                     continue
-                detalhe = detalhar(captura, tipo, registro, eventos)
+                detalhe = detalhar(captura, tipo, registro, eventos, vinculos, revisoes_registros)
                 anterior = candidatas.get(identidade)
                 # Uma mesma atividade pode ter várias fotografias encerradas. A de lançamento prevalece.
                 if not anterior or captura.get('arquivado_em', '') > anterior[0]:
@@ -133,13 +143,9 @@ def executar():
     for identidade, detalhe in arquivo.ultimos('atividade').items():
         documentos['atividade:' + identidade] = detalhe
     # Revisões são arquivadas somente se a aba já existe; não cria dados fictícios.
-    try:
-        revisoes = planilha.worksheet('RevisoesPontuacao').get_all_values()
-    except gspread.WorksheetNotFound:
-        revisoes = []
-    if revisoes:
-        arquivo.guardar('fonte', 'RevisoesPontuacao', revisoes, agora.isoformat())
-        for r in linhas_registros(revisoes):
+    if revisoes_fonte:
+        arquivo.guardar('fonte', 'RevisoesPontuacao', revisoes_fonte, agora.isoformat())
+        for r in revisoes_registros:
             arquivo.guardar('revisao', r['RevisaoID'], r, agora.isoformat())
     documentos['revisoes'] = [{k: r[k] for k in ('RevisaoID', 'Temporada', 'ParticipanteID', 'Atividade',
         'Antes', 'Depois', 'RegistradoEm')} for r in arquivo.ultimos('revisao').values()]
