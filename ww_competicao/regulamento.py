@@ -78,7 +78,7 @@ O lançamento registra responsável, valor anterior e novo, e permite a inscriç
 """)
     with st.expander("🔎 Como consultar pontos e históricos"):
         st.markdown("""
-**Todos os membros:** consulte o ranking e a Tabela Detalhada da temporada. Em **Meses Anteriores**, consulte as temporadas já arquivadas.
+**Todos os membros:** consulte o ranking e a Tabela Detalhada da temporada. Para entender um lançamento específico, abra **Meu Perfil → Meu desempenho por atividade**, escolha sua vila e a atividade. O app mostra os pontos oficiais, ataque, alvo, estrelas e a regra aplicada. A mesma explicação está em **Atividades encerradas**. Em **Meses Anteriores**, consulte as temporadas já arquivadas.
 
 **Administradores:** em **Painel Admin → Gestão 2.0 → Auditoria**, existem três consultas:
 
@@ -86,5 +86,5 @@ O lançamento registra responsável, valor anterior e novo, e permite a inscriç
 - **Jogos e eventos:** lançamentos manuais integrados, com responsável e valores antes/depois.
 - **Alterações anteriores:** histórico de alterações do sistema anterior.
 
-A auditoria automática mostra **lançamentos concluídos**, não todas as capturas ou atividades ainda em andamento. Ela não é um replay completo de cada ataque. Históricos antigos guardados na Oracle não são importados automaticamente para essa consulta. Se uma atividade não foi lançada ou ficou pendente de revisão, ela pode ainda não aparecer nessa lista.
+A auditoria automática mostra **lançamentos concluídos**, não atividades ainda em andamento. Desde outubro, guerras e Liga exibem ao jogador os ataques usados no cálculo; raides exibem ataques, saque e bônus. Históricos antigos guardados na Oracle não são importados automaticamente para essa consulta. Se uma atividade não foi lançada ou ficou pendente de revisão, ela pode ainda não aparecer nessa lista.
 """)

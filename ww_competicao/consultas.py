@@ -1,5 +1,6 @@
 """Consultas públicas leves, alimentadas pelo observador da Oracle."""
 from datetime import datetime, timezone, timedelta
+from html import escape
 from zoneinfo import ZoneInfo
 from .armazenamento import desempacotar
 
@@ -97,6 +98,53 @@ def atividades(documentos):
     return sorted(resultado, key=lambda d: d['fim'], reverse=True)
 
 
+def _revisoes_do_jogador(documentos, atividade, jogador):
+    return sorted([
+        revisao for revisao in documentos.get('revisoes', [])
+        if revisao['Temporada'] == atividade['temporada']
+        and str(revisao['ParticipanteID']) == str(jogador['participante_id'])
+        and revisao['Atividade'] == atividade['coluna']
+    ], key=lambda revisao: revisao['RegistradoEm'])
+
+
+def renderizar_explicacao(st, documentos, atividade, jogador, chave):
+    pontos = jogador['pontos']
+    pontos_texto = ('Pendente' if pontos is None else
+                    f"{pontos} ponto{'s' if pontos != 1 else ''}")
+    st.markdown(f"""
+      <div style="border:1px solid #334155;border-radius:16px;padding:15px;background:linear-gradient(145deg,#172554,#0f172a);margin:8px 0">
+        <div style="font-size:.78rem;color:#93c5fd">{escape(atividade['coluna'] or atividade['tipo'].capitalize())}</div>
+        <div style="font-size:1.08rem;font-weight:850;color:#f8fafc;overflow-wrap:anywhere">{escape(jogador['nome'])}</div>
+        <div style="font-size:2rem;font-weight:900;color:#facc15">{escape(pontos_texto)}</div>
+        <div style="font-size:.82rem;color:#cbd5e1">{escape(jogador['situacao'])}</div>
+      </div>
+    """, unsafe_allow_html=True)
+    if atividade['tipo'] == 'raide':
+        colunas = st.columns(3)
+        colunas[0].metric('Ataques', jogador['quantidade_ataques'])
+        colunas[1].metric('Saque', jogador['saque'])
+        colunas[2].metric('Bônus Top 3', 'Sim' if jogador['bonus'] else 'Não')
+        st.caption('No raide, a pontuação considera os ataques usados e o bônus de saque previsto na regra da temporada.')
+    elif jogador['ataques']:
+        st.markdown('**Como os pontos foram calculados**')
+        for numero, ataque in enumerate(jogador['ataques'], start=1):
+            st.markdown(f"""
+              <div style="border:1px solid #334155;border-radius:13px;padding:12px;margin:7px 0;background:#111827;color:#e2e8f0">
+                <b>Ataque {numero}</b> · <span style="color:#facc15;font-weight:900">{ataque['Estrelas']} ★ → {ataque['Pontos do ataque']} ponto{'s' if ataque['Pontos do ataque'] != 1 else ''}</span><br>
+                <small>Alvo {escape(ataque['Alvo'])} · CV {ataque['CV atacante']} contra CV {ataque['CV alvo']}</small><br>
+                <small style="color:#93c5fd">{escape(ataque['Regra aplicada'])}</small>
+              </div>
+            """, unsafe_allow_html=True)
+    elif atividade['tipo'] != 'raide':
+        st.info('Nenhum ataque válido foi registrado para esta vila nesta atividade.')
+    revisoes = _revisoes_do_jogador(documentos, atividade, jogador)
+    if revisoes:
+        with st.expander('Correções posteriores ao lançamento', expanded=True):
+            for revisao in revisoes:
+                st.write(f"{revisao['Antes']} → {revisao['Depois']} · {horario(revisao['RegistradoEm'])}")
+    st.caption('A explicação usa a captura final conferida pelo motor. Motivos administrativos restritos não são publicados.')
+
+
 def renderizar_detalhes(st, documentos, pd):
     st.markdown('### Desempenho das atividades encerradas')
     lista = atividades(documentos)
@@ -118,26 +166,14 @@ def renderizar_detalhes(st, documentos, pd):
     else:
         st.warning('Encerrada no jogo, aguardando lançamento ou revisão. Pontos ainda não atribuídos.')
     st.caption('Regra: ' + a['regra'])
-    busca = st.text_input('Buscar jogador no resultado', key='ww_detalhe_busca').strip().casefold()
-    jogadores = [j for j in a['jogadores'] if not busca or busca in (j['nome']+' '+j['tag']).casefold()]
-    st.dataframe(pd.DataFrame([{'Vila': j['nome'], 'Tag': j['tag'], 'Pontos originais': j['pontos'],
-        'Situação': j['situacao'], **({'Ataques': j['quantidade_ataques'], 'Saque': j['saque'], 'Bônus': j['bonus']}
-        if a['tipo'] == 'raide' else {'CV': j['cv'], 'Pontos calculados': j['pontos_calculados']})}
-        for j in jogadores]), hide_index=True, use_container_width=True)
-    for j in jogadores:
-        with st.expander(j['nome'] + ' · ' + j['tag']):
-            st.write(j['situacao'])
-            if j['ataques']:
-                st.dataframe(pd.DataFrame(j['ataques']), hide_index=True, use_container_width=True)
-            elif a['tipo'] != 'raide':
-                st.write('Nenhum ataque registrado.')
-            revisoes = [r for r in documentos.get('revisoes', []) if r['Temporada'] == a['temporada']
-                        and str(r['ParticipanteID']) == str(j['participante_id']) and r['Atividade'] == a['coluna']]
-            if revisoes:
-                st.write('Correções posteriores ao lançamento:')
-                st.dataframe([{'Antes': r['Antes'], 'Depois': r['Depois'], 'Data': horario(r['RegistradoEm'])}
-                              for r in sorted(revisoes, key=lambda r: r['RegistradoEm'])], hide_index=True)
-    st.caption('Pontos calculados mostram o desempenho. Pontos originais são os do lançamento oficial; ausência de lançamento não significa zero. Correções posteriores ficam na trilha de revisões.')
+    if not a['jogadores']:
+        st.info('Nenhum jogador disponível nesta atividade.')
+        return
+    jogador = st.selectbox(
+        'Escolha a vila para entender a pontuação', a['jogadores'],
+        format_func=lambda j: j['nome'] + ' · ' + j['tag'], key='ww_detalhe_jogador'
+    )
+    renderizar_explicacao(st, documentos, a, jogador, 'ww_detalhe')
 
 
 def renderizar_trajetoria(st, documentos, pd):
@@ -150,7 +186,16 @@ def renderizar_trajetoria(st, documentos, pd):
     tag = st.selectbox('Escolha sua vila (busque pelo nome ou tag)', sorted(pessoas),
                       format_func=lambda t: pessoas[t]+' · '+t, key='ww_trajetoria_vila')
     mes = st.selectbox('Temporada do desempenho', sorted({a['temporada'] for a in lista}, reverse=True), key='ww_trajetoria_mes')
-    linhas = [{'Atividade': a['coluna'] or a['tipo'], 'Modalidade': a['tipo'], 'Pontos originais': j['pontos'],
-               'Situação': j['situacao']} for a in lista if a['temporada'] == mes for j in a['jogadores'] if j['tag'] == tag]
-    st.dataframe(pd.DataFrame(linhas), hide_index=True, use_container_width=True)
-    st.caption('Este extrato mostra atividades automáticas encerradas. O total atualizado, incluindo Jogos, Eventos e correções, está no ranking.')
+    opcoes = [(a, j) for a in lista if a['temporada'] == mes for j in a['jogadores'] if j['tag'] == tag]
+    if not opcoes:
+        st.info('Nenhuma atividade automática encerrada para esta vila na temporada escolhida.')
+        return
+    escolha = st.selectbox(
+        'Atividade para explicar', opcoes,
+        format_func=lambda item: (f"{item[0]['coluna'] or item[0]['tipo']} · " +
+                                  ('Pendente' if item[1]['pontos'] is None else
+                                   f"{item[1]['pontos']} ponto(s)")),
+        key='ww_trajetoria_atividade'
+    )
+    renderizar_explicacao(st, documentos, escolha[0], escolha[1], 'ww_trajetoria')
+    st.caption('Jogos do Clã e Eventos aparecem no total do ranking e possuem auditoria própria de lançamento manual.')

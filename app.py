@@ -1250,19 +1250,6 @@ df_temporadas = pd.DataFrame(obter_temporadas_cached())
 df_eventos = pd.DataFrame(obter_eventos_cached())
 
 
-# --- FUNÇÃO AUXILIAR PARA DETERMINAR A PRÓXIMA COLUNA SEQUENCIAL ---
-def obter_proxima_coluna_sequencial(col_prefixo: str, df_cols) -> str:
-  max_num = 0
-  pattern = re.compile(rf"^{col_prefixo}_(\d+)$", re.IGNORECASE)
-  for col in df_cols:
-    match = pattern.match(str(col).strip())
-    if match:
-      num = int(match.group(1))
-      if num > max_num:
-        max_num = num
-  return f"{col_prefixo}_{max_num + 1}"
-
-
 # --- FUNÇÃO PARA GERAR A TABELA COMPLETA EM HTML E DOWNLOAD EM HD COM DESTAQUE NO TOP 3 ---
 def gerar_tabela_bilhete_dourado(df_exib):
   """Gera o HTML do ranking com destaque de cores e medalhas para o Top 3."""
@@ -5323,8 +5310,8 @@ else:
     if not df.empty and "Total" in df.columns:
       st.markdown("### 📋 Tabela Detalhada Geral de Pontuações")
       st.markdown(
-          "Acompanhe os pontos por atividade. No celular, **Nome** e **Total** "
-          "permanecem fixos enquanto você desliza para visualizar as atividades."
+          "Acompanhe os pontos por atividade. No celular, cada jogador aparece em um cartão "
+          "com o total e todas as atividades, sem rolagem lateral."
       )
 
       cols_exibicao = (
@@ -5382,6 +5369,7 @@ else:
       )
 
       linhas = []
+      cartoes_mobile = []
       for idx_m, row in df_tabela_mobile.iterrows():
         nome = str(row["Nome"])
         destaque = " jogador-destaque" if busca_detalhada and busca_detalhada in nome.lower() else ""
@@ -5416,6 +5404,29 @@ else:
           cells.append(f'<td class="{classe}">{str_display}</td>')
         linhas.append(f'<tr class="{destaque}{top_class}">' + "".join(cells) + "</tr>")
 
+        atividades_mobile = []
+        for col in cols_exibicao[1:-1]:
+          try:
+            valor_mobile = int(float(row[col]))
+          except (TypeError, ValueError):
+            valor_mobile = escape(str(row[col]))
+          atividades_mobile.append(
+              f'<div class="mobile-atividade"><span>{escape(rotulo_coluna(col))}</span><strong>{valor_mobile}</strong></div>'
+          )
+        try:
+          total_mobile = int(float(row["Total"]))
+        except (TypeError, ValueError):
+          total_mobile = escape(str(row["Total"]))
+        cartoes_mobile.append(f"""
+          <article class="mobile-card {top_class.strip()}">
+            <div class="mobile-card-head">
+              <div class="mobile-nome">{prefixo_m}{escape(nome)}</div>
+              <div class="mobile-total"><strong>{total_mobile}</strong><span>pontos</span></div>
+            </div>
+            <div class="mobile-atividades">{''.join(atividades_mobile)}</div>
+          </article>
+        """)
+
       html_tabela = f"""
       <!DOCTYPE html>
       <html>
@@ -5442,6 +5453,7 @@ else:
           }}
           .btn-download-img:hover {{ background: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%); }}
           .viewport {{ width:100%; overflow:auto; max-height:68vh; border:1px solid #334155; border-radius:10px; -webkit-overflow-scrolling:touch; background:#0f172a; }}
+          .mobile-list {{ display:none; }}
           table {{ border-collapse:separate; border-spacing:0; min-width:760px; width:max-content; background:#0f172a; }}
           th,td {{ padding:9px 11px; border-right:1px solid #334155; border-bottom:1px solid #334155; text-align:center; white-space:nowrap; font-size:13px; color:#e2e8f0; background:#0f172a; }}
           thead th {{ background:#1e293b; font-weight:800; position:sticky; z-index:5; }}
@@ -5469,10 +5481,23 @@ else:
 
           .vazio {{ padding:28px; text-align:center; color:#94a3b8; background:#0f172a; }}
           @media (max-width:600px) {{
-            table {{ min-width:680px; }}
-            th,td {{ padding:8px 9px; font-size:12px; }}
-            .sticky-nome {{ min-width:130px; max-width:130px; }}
-            .sticky-total {{ min-width:75px; }}
+            .viewport {{ display:none; }}
+            .mobile-list {{ display:block; max-height:72vh; overflow-y:auto; -webkit-overflow-scrolling:touch; padding-right:2px; }}
+            .legenda .badge {{ display:none; }}
+            .btn-download-img {{ display:none; }}
+            .mobile-card {{ border:1px solid #334155; border-radius:14px; padding:12px; margin:0 0 10px; background:linear-gradient(145deg,#111827,#0f172a); color:#e2e8f0; }}
+            .mobile-card-head {{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; }}
+            .mobile-nome {{ min-width:0; overflow-wrap:anywhere; font-weight:850; color:#f8fafc; }}
+            .mobile-total {{ flex:0 0 auto; text-align:center; border-radius:12px; padding:6px 10px; background:#172554; color:#facc15; }}
+            .mobile-total strong {{ display:block; font-size:1.35rem; line-height:1; }}
+            .mobile-total span {{ display:block; font-size:.65rem; color:#bfdbfe; margin-top:3px; }}
+            .mobile-atividades {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }}
+            .mobile-atividade {{ display:flex; justify-content:space-between; gap:6px; padding:7px 8px; border-radius:9px; background:#1e293b; font-size:.73rem; }}
+            .mobile-atividade span {{ color:#cbd5e1; overflow-wrap:anywhere; }}
+            .mobile-atividade strong {{ color:#f8fafc; }}
+            .mobile-card.top1-detalhada {{ border-color:#facc15; }}
+            .mobile-card.top2-detalhada {{ border-color:#cbd5e1; }}
+            .mobile-card.top3-detalhada {{ border-color:#f97316; }}
           }}
         </style>
       </head>
@@ -5499,6 +5524,9 @@ else:
               {''.join(linhas) if linhas else f'<tr><td colspan="{len(cols_exibicao)}" class="vazio">Nenhum jogador encontrado.</td></tr>'}
             </tbody>
           </table>
+        </div>
+        <div class="mobile-list">
+          {''.join(cartoes_mobile) if cartoes_mobile else '<div class="vazio">Nenhum jogador encontrado.</div>'}
         </div>
 
         <script>
@@ -5734,135 +5762,15 @@ else:
                     st.success("✅ Senha alterada com sucesso!")
                     st.rerun()
 
-      sub_tab3_col1, sub_tab3_col2 = sub_tab3.columns([1, 1])
       with sub_tab3:
         if mes_finalizado:
-          st.warning("🔒 Tabelas de pontuação fechadas. Inicie a próxima temporada para editar ou criar novas atividades.")
-        st.markdown("#### ➕ Criar Novas Colunas de Guerras, Liga ou Raides")
-        st.markdown(
-            "Clique nos botões abaixo para criar automaticamente as próximas"
-            " colunas na sequência."
+          st.warning("🔒 Tabelas de pontuação fechadas. Inicie a próxima temporada para editar pontos.")
+        st.markdown("#### ⚙️ Atividades automáticas")
+        st.info(
+            "As colunas Guerra, Liga e Raide são criadas pelo motor somente após "
+            "a atividade terminar e a captura final ser validada. O painel não cria "
+            "colunas manualmente, evitando numeração duplicada e lançamentos vazios."
         )
-
-        col_btn1, col_btn2, col_btn3 = st.columns(3)
-
-        with col_btn1:
-          proxima_guerra = obter_proxima_coluna_sequencial(
-              "Guerra", df.columns if not df.empty else []
-          )
-          if st.button(
-              f"⚔️ Criar Guerra ({proxima_guerra})",
-              use_container_width=True, disabled=mes_finalizado or ww_outubro_integrado(),
-          ):
-            headers = sheet_dados.row_values(1)
-            if proxima_guerra in headers:
-              st.error(f"⚠️ A coluna {proxima_guerra} já existe!")
-            else:
-              proxima_col_num = len(headers) + 1
-
-              # Garante que a coluna exista fisicamente na grade do Google Sheets
-              # antes de tentar escrever nela. Sem isso, o Google retorna
-              # APIError 400 quando proxima_col_num ultrapassa sheet_dados.col_count.
-              if proxima_col_num > sheet_dados.col_count:
-                sheet_dados.add_cols(proxima_col_num - sheet_dados.col_count)
-
-              sheet_dados.update_cell(1, proxima_col_num, proxima_guerra)
-
-              if not df.empty:
-                num_linhas = len(df)
-                sheet_dados.update(
-                    f"{gspread.utils.rowcol_to_a1(2, proxima_col_num)}:{gspread.utils.rowcol_to_a1(num_linhas + 1, proxima_col_num)}",
-                    [[0]] * num_linhas,
-                )
-
-              registrar_log(
-                  st.session_state["admin_logado"],
-                  f"Criou a coluna de Guerra Normal '{proxima_guerra}'",
-              )
-              obter_dados_cached.clear()
-              st.success(
-                  f"✅ Coluna **{proxima_guerra}** adicionada com sucesso!"
-              )
-              st.rerun()
-
-        with col_btn2:
-          colunas_liga_existentes = [c for c in (df.columns if not df.empty else []) if c.startswith("Liga_")]
-          qtd_liga = len(colunas_liga_existentes)
-          
-          if qtd_liga >= 7:
-            st.info("🔒 **Limite de 7 Guerras de Liga atingido.**")
-          else:
-            proxima_liga = f"Liga_{qtd_liga + 1}"
-            if st.button(
-                f"🏆 Criar Liga ({proxima_liga}) [{qtd_liga + 1}/7]",
-                use_container_width=True, disabled=mes_finalizado or ww_outubro_integrado(),
-            ):
-              headers = sheet_dados.row_values(1)
-              if proxima_liga in headers:
-                st.error(f"⚠️ A coluna {proxima_liga} já existe!")
-              else:
-                proxima_col_num = len(headers) + 1
-
-                # Garante espaço físico para a nova coluna antes da escrita.
-                if proxima_col_num > sheet_dados.col_count:
-                  sheet_dados.add_cols(proxima_col_num - sheet_dados.col_count)
-
-                sheet_dados.update_cell(1, proxima_col_num, proxima_liga)
-
-                if not df.empty:
-                  num_linhas = len(df)
-                  sheet_dados.update(
-                      f"{gspread.utils.rowcol_to_a1(2, proxima_col_num)}:{gspread.utils.rowcol_to_a1(num_linhas + 1, proxima_col_num)}",
-                      [[0]] * num_linhas,
-                  )
-
-                registrar_log(
-                    st.session_state["admin_logado"],
-                    f"Criou a coluna de Guerra de Liga '{proxima_liga}'",
-                )
-                obter_dados_cached.clear()
-                st.success(
-                    f"✅ Coluna **{proxima_liga}** adicionada com sucesso!"
-                )
-                st.rerun()
-
-        with col_btn3:
-          proxima_raide = obter_proxima_coluna_sequencial(
-              "Raide", df.columns if not df.empty else []
-          )
-          if st.button(
-              f"🏰 Criar Raide ({proxima_raide})",
-              use_container_width=True, disabled=mes_finalizado or ww_outubro_integrado(),
-          ):
-            headers = sheet_dados.row_values(1)
-            if proxima_raide in headers:
-              st.error(f"⚠️ A coluna {proxima_raide} já existe!")
-            else:
-              proxima_col_num = len(headers) + 1
-
-              # Garante espaço físico para a nova coluna antes da escrita.
-              if proxima_col_num > sheet_dados.col_count:
-                sheet_dados.add_cols(proxima_col_num - sheet_dados.col_count)
-
-              sheet_dados.update_cell(1, proxima_col_num, proxima_raide)
-
-              if not df.empty:
-                num_linhas = len(df)
-                sheet_dados.update(
-                    f"{gspread.utils.rowcol_to_a1(2, proxima_col_num)}:{gspread.utils.rowcol_to_a1(num_linhas + 1, proxima_col_num)}",
-                    [[0]] * num_linhas,
-                )
-
-              registrar_log(
-                  st.session_state["admin_logado"],
-                  f"Criou a coluna de Raide '{proxima_raide}'",
-              )
-              obter_dados_cached.clear()
-              st.success(
-                  f"✅ Coluna **{proxima_raide}** adicionada com sucesso!"
-              )
-              st.rerun()
-
         st.divider()
 
         if ww_outubro_integrado():
