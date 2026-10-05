@@ -5,6 +5,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from ww_competicao.armazenamento import Arquivo, empacotar, desempacotar
 from ww_competicao.planejamento_dados import coletar, validar_guerra, ataques, TAG
+from ww_competicao.planejamento import composicao_clans, perfil_ofensivo
 
 
 def guerra(a=TAG, b='#ENEMY'):
@@ -105,6 +106,33 @@ class Planejamento(unittest.TestCase):
         novo = coletar(self.arquivo, self.buscar, self.now+timedelta(minutes=30))
         self.assertEqual(novo['grupo'], d['grupo'])
         self.assertIn('grupo', novo['pendencias'])
+
+    def test_composicao_inscrita_e_escalada_por_cla(self):
+        self.grupo['clans'][0]['members'].append(
+            {'tag': TAG+'Q', 'name': 'Reserva', 'townHallLevel': 18})
+        g = guerra(TAG, '#C0')
+        linhas = composicao_clans(self.grupo, [
+            {'rodada': 1, 'dados': g},
+        ], 1)
+        nosso = next(r for r in linhas if r['tag'] == TAG)
+        rival = next(r for r in linhas if r['tag'] == '#C0')
+        ausente = next(r for r in linhas if r['tag'] == '#C1')
+        self.assertEqual(nosso['inscritos'], {17: 1, 18: 1})
+        self.assertEqual(nosso['escalados'], {17: 1})
+        self.assertEqual(rival['escalados'], {18: 1})
+        self.assertIsNone(ausente['total_escalados'])
+
+    def test_perfil_ofensivo_sem_inventar_tropas(self):
+        g = guerra(TAG, '#C0')
+        g['opponent']['members'][0]['attacks'] = [
+            {'attackerTag': '#C0P', 'defenderTag': TAG+'P', 'stars': 3,
+             'order': 1, 'destructionPercentage': 100, 'duration': 140}]
+        perfil = perfil_ofensivo([{'rodada': 1, 'dados': g}], '#C0')
+        self.assertEqual(perfil['ataques'], 1)
+        self.assertEqual(perfil['triplos'], 1)
+        self.assertEqual(perfil['relacoes']['CV inferior'], 1)
+        self.assertEqual(perfil['por_cv'][18]['ataques'], 1)
+        self.assertNotIn('tropas', perfil)
 
 
 if __name__ == '__main__':

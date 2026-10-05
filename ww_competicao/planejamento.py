@@ -44,6 +44,65 @@ def resumo_ataques(guerra, lado, tipo='liga'):
     }
 
 
+def composicao_clans(grupo, guerras, rodada):
+    """Compara o elenco inscrito no grupo com a escalação real da rodada."""
+    escalados = {}
+    for registro in guerras:
+        if registro.get('rodada') != rodada:
+            continue
+        guerra = registro.get('dados', {})
+        for lado in ('clan', 'opponent'):
+            cla = guerra.get(lado, {})
+            if cla.get('tag'):
+                escalados[cla['tag']] = distribuicao(cla.get('members', []))
+    resultado = []
+    for cla in grupo.get('clans', []):
+        inscritos = Counter(m.get('townHallLevel') for m in cla.get('members', []))
+        escala = escalados.get(cla['tag'])
+        resultado.append({
+            'nome': cla.get('name', cla['tag']), 'tag': cla['tag'],
+            'inscritos': inscritos, 'total_inscritos': sum(inscritos.values()),
+            'escalados': escala or Counter(),
+            'total_escalados': sum(escala.values()) if escala is not None else None,
+        })
+    return sorted(resultado, key=lambda r: (r['tag'] != TAG, r['nome'].casefold()))
+
+
+def perfil_ofensivo(guerras, clan_tag):
+    """Resume ataques observados; a API não informa tropas ou feitiços usados."""
+    linhas, rodadas = [], set()
+    for registro in guerras:
+        guerra = registro.get('dados', {})
+        lado = next((lado for lado in ('clan', 'opponent')
+                     if guerra.get(lado, {}).get('tag') == clan_tag), None)
+        if lado is None:
+            continue
+        observados = ataques(guerra, lado)
+        if observados:
+            rodadas.add(registro.get('rodada'))
+            linhas.extend(observados)
+    relacoes = Counter()
+    por_cv = {}
+    for linha in linhas:
+        diferenca = linha['CV alvo'] - linha['CV atacante']
+        relacoes['CV superior' if diferenca > 0 else 'Mesmo CV' if diferenca == 0 else 'CV inferior'] += 1
+        faixa = por_cv.setdefault(linha['CV atacante'], {'ataques': 0, 'triplos': 0, 'estrelas': 0})
+        faixa['ataques'] += 1
+        faixa['triplos'] += linha['Estrelas'] == 3
+        faixa['estrelas'] += linha['Estrelas']
+    total = len(linhas)
+    duracoes = [l['Duração (s)'] for l in linhas if isinstance(l.get('Duração (s)'), (int, float))]
+    return {
+        'ataques': total, 'rodadas': len(rodadas),
+        'triplos': sum(l['Estrelas'] == 3 for l in linhas),
+        'taxa_triplos': 100 * sum(l['Estrelas'] == 3 for l in linhas) / total if total else 0,
+        'estrelas_media': sum(l['Estrelas'] for l in linhas) / total if total else 0,
+        'destruicao_media': sum(l['Destruição %'] for l in linhas) / total if total else 0,
+        'duracao_media': sum(duracoes) / len(duracoes) if duracoes else None,
+        'relacoes': relacoes, 'por_cv': por_cv, 'linhas': linhas,
+    }
+
+
 def filtrar_ataques(linhas, busca):
     termo = busca.strip().casefold()
     if not termo:
@@ -69,6 +128,9 @@ def _css(st):
       .ww-plan-chip{display:inline-block;padding:5px 9px;margin:3px;border:1px solid #475569;border-radius:999px;background:#1e293b;color:#e2e8f0;font-size:.78rem}
       .ww-plan-kpi{font-size:1.18rem;font-weight:850;color:#f8fafc}.ww-plan-label{font-size:.73rem;color:#94a3b8}
       .ww-plan-attack{padding:11px 12px}.ww-plan-attack strong{color:#f8fafc}.ww-plan-stars{color:#facc15;font-weight:900;white-space:nowrap}
+      .ww-cwl-row{margin:12px 0 15px}.ww-cwl-head{display:flex;justify-content:space-between;gap:10px;font-size:.82rem;color:#e2e8f0;margin-bottom:5px}
+      .ww-cwl-track{display:flex;height:27px;border-radius:9px;overflow:hidden;background:#1e293b;border:1px solid #334155}.ww-cwl-seg{display:flex;align-items:center;justify-content:center;min-width:0;font-size:.72rem;font-weight:850;color:#fff;text-shadow:0 1px 2px #000;overflow:hidden}
+      .ww-cwl-empty{padding:5px 9px;border-radius:9px;background:#1e293b;color:#94a3b8;font-size:.76rem}.ww-plan-note{border-left:3px solid #38bdf8;background:#0c4a6e33;padding:10px 12px;border-radius:8px;color:#cbd5e1;font-size:.8rem;margin:10px 0}
       @media(max-width:600px){.ww-plan-hero,.ww-plan-card{padding:12px;border-radius:13px}.ww-plan-title{font-size:.96rem}.ww-plan-side strong{font-size:1.35rem}.ww-plan-grid{grid-template-columns:1fr 1fr}.ww-plan-sub{font-size:.72rem}}
     </style>
     """, unsafe_allow_html=True)
@@ -134,6 +196,88 @@ def _cartao_vila(membro):
     """
 
 
+def _grafico_composicao(linhas, campo):
+    totais = [sum(r[campo].values()) for r in linhas]
+    maior = max(totais, default=1) or 1
+    cvs = sorted({cv for r in linhas for cv in r[campo]}, reverse=True)
+    paleta = ['#2563eb', '#0891b2', '#059669', '#65a30d', '#ca8a04', '#ea580c', '#dc2626', '#9333ea']
+    cores = {cv: paleta[i % len(paleta)] for i, cv in enumerate(cvs)}
+    legenda = ''.join(f'<span class="ww-plan-chip" style="border-color:{cores[cv]}">CV {cv}</span>' for cv in cvs)
+    blocos = []
+    for r in linhas:
+        dist, total = r[campo], sum(r[campo].values())
+        if total:
+            segmentos = ''.join(
+                f'<div class="ww-cwl-seg" title="CV {cv}: {qtd}" style="width:{100*qtd/total:.2f}%;background:{cores[cv]}">{qtd}</div>'
+                for cv, qtd in sorted(dist.items(), reverse=True)
+            )
+            barra = f'<div class="ww-cwl-track" style="width:{100*total/maior:.2f}%">{segmentos}</div>'
+        else:
+            barra = '<div class="ww-cwl-empty">Escalação ainda indisponível</div>'
+        destaque = ' · Winning Wars' if r['tag'] == TAG else ''
+        blocos.append(f'<div class="ww-cwl-row"><div class="ww-cwl-head"><b>{escape(r["nome"])}</b><span>{total} vilas{destaque}</span></div>{barra}</div>')
+    return legenda + ''.join(blocos)
+
+
+def inteligencia_liga(st, grupo, guerras, rodada, adversario_padrao=None):
+    linhas = composicao_clans(grupo, guerras, rodada)
+    st.markdown('#### Composição dos oito clãs')
+    st.caption('Compare o elenco inscrito na Liga com as vilas realmente escaladas na rodada selecionada.')
+    visao = st.radio('Composição exibida', ['Inscritos na Liga', f'Escalados na rodada {rodada}'],
+                     horizontal=True, key='ww_cwl_composicao')
+    campo = 'inscritos' if visao == 'Inscritos na Liga' else 'escalados'
+    st.markdown(_grafico_composicao(linhas, campo), unsafe_allow_html=True)
+    st.caption('O comprimento da barra representa a quantidade total. Cada cor é um nível de CV; o número dentro da faixa é a quantidade de vilas.')
+
+    adversarios = [r for r in linhas if r['tag'] != TAG]
+    if not adversarios:
+        return
+    tags = [r['tag'] for r in adversarios]
+    indice = tags.index(adversario_padrao) if adversario_padrao in tags else 0
+    escolhido = st.selectbox('Analisar clã adversário', tags, index=indice,
+        format_func=lambda tag: next(r['nome'] + ' · ' + tag for r in adversarios if r['tag'] == tag),
+        key='ww_cwl_adversario')
+    cla = next(r for r in adversarios if r['tag'] == escolhido)
+    inscritos = ' · '.join(f'CV {cv}: {qtd}' for cv, qtd in sorted(cla['inscritos'].items(), reverse=True))
+    escalados = (' · '.join(f'CV {cv}: {qtd}' for cv, qtd in sorted(cla['escalados'].items(), reverse=True))
+                 or 'Ainda indisponível')
+    st.markdown(f"""
+      <div class="ww-plan-card">
+        <div class="ww-plan-title">{escape(cla['nome'])}</div>
+        <div class="ww-plan-sub"><b>Inscritos:</b> {escape(inscritos)}</div>
+        <div class="ww-plan-sub"><b>Rodada {rodada}:</b> {escape(escalados)}</div>
+      </div>
+    """, unsafe_allow_html=True)
+
+    perfil = perfil_ofensivo(guerras, escolhido)
+    st.markdown('#### Padrão ofensivo observado')
+    st.markdown('<div class="ww-plan-note"><b>Limite da API:</b> a Supercell não informa tropas, feitiços ou máquinas usados nos ataques. Estes indicadores usam somente ataques reais observados: CV, alvo, estrelas, destruição e duração.</div>', unsafe_allow_html=True)
+    if not perfil['ataques']:
+        st.info('Ainda não há ataques desse clã nas rodadas disponíveis.')
+        return
+    duracao = f"{perfil['duracao_media']:.0f}s" if perfil['duracao_media'] is not None else '—'
+    st.markdown(f"""
+      <div class="ww-plan-grid">
+        <div class="ww-plan-card"><div class="ww-plan-kpi">{perfil['ataques']}</div><div class="ww-plan-label">ataques em {perfil['rodadas']} rodada(s)</div></div>
+        <div class="ww-plan-card"><div class="ww-plan-kpi">{perfil['taxa_triplos']:.1f}%</div><div class="ww-plan-label">taxa de triplos</div></div>
+        <div class="ww-plan-card"><div class="ww-plan-kpi">{perfil['destruicao_media']:.1f}%</div><div class="ww-plan-label">destruição média</div></div>
+        <div class="ww-plan-card"><div class="ww-plan-kpi">{duracao}</div><div class="ww-plan-label">duração média</div></div>
+      </div>
+    """, unsafe_allow_html=True)
+    relacoes = ''.join(f'<span class="ww-plan-chip">{escape(nome)}: {qtd}</span>'
+                       for nome, qtd in perfil['relacoes'].items())
+    por_cv = ''.join(
+        f'<span class="ww-plan-chip">CV {cv}: {d["ataques"]} ataques · {d["triplos"]} triplos</span>'
+        for cv, d in sorted(perfil['por_cv'].items(), reverse=True)
+    )
+    st.markdown('**Escolha de alvos observada**<br>' + relacoes, unsafe_allow_html=True)
+    st.markdown('**Eficiência por CV atacante**<br>' + por_cv, unsafe_allow_html=True)
+    if perfil['por_cv']:
+        cv_mais_perigoso, dados = max(perfil['por_cv'].items(),
+            key=lambda item: (item[1]['triplos'] / item[1]['ataques'], item[1]['ataques']))
+        st.caption(f"Leitura defensiva: CV {cv_mais_perigoso} teve {dados['triplos']} triplos em {dados['ataques']} ataques observados. Priorize a revisão das bases que esse nível costuma enfrentar; a amostra aumenta a cada rodada.")
+
+
 def desempenho(st, registro, chave):
     guerra = registro['dados']
     nomes = {lado: guerra[lado]['name'] for lado in ('clan', 'opponent')}
@@ -184,15 +328,16 @@ def renderizar(st, documentos, pd=None):
     grupo = documento.get('grupo')
     guerras = documento.get('guerras_liga', [])
     nossa_rodada, escolhidas = None, []
-    agora_tab, adversario_tab, analise_tab, comum_tab = st.tabs([
-        'Nossa guerra', 'Adversário', 'Análise', 'Guerras comuns'
+    agora_tab, liga_tab, adversario_tab, analise_tab, comum_tab = st.tabs([
+        'Nossa guerra', 'Escalações da Liga', 'Adversário', 'Análise', 'Guerras comuns'
     ])
     if grupo:
         dados_grupo = grupo['dados']
         opcoes = list(range(1, len(dados_grupo['rounds']) + 1))
         ativas = [r['rodada'] for r in guerras if r['dados']['state'] == 'inWar']
         preparadas = [r['rodada'] for r in guerras if r['dados']['state'] == 'preparation']
-        padrao = max(ativas or preparadas or [1])
+        disponiveis = [r['rodada'] for r in guerras]
+        padrao = max(ativas or preparadas or disponiveis or [1])
         rodada = st.selectbox('Rodada da Liga', opcoes, index=opcoes.index(padrao), key='ww_plan_rodada')
         escolhidas = [r for r in guerras if r['rodada'] == rodada]
         nossa_rodada = next((r for r in escolhidas if TAG in (r['dados']['clan']['tag'], r['dados']['opponent']['tag'])), None)
@@ -227,6 +372,16 @@ def renderizar(st, documentos, pd=None):
                        if not busca or busca in (m['name'] + ' ' + m['tag']).casefold()]
             for membro in membros:
                 st.markdown(_cartao_vila(membro), unsafe_allow_html=True)
+
+    with liga_tab:
+        if not grupo:
+            st.info('Aguardando o grupo da Liga para comparar os clãs.')
+        else:
+            adversario_padrao = None
+            if nossa_rodada:
+                g = nossa_rodada['dados']
+                adversario_padrao = g['opponent']['tag'] if g['clan']['tag'] == TAG else g['clan']['tag']
+            inteligencia_liga(st, dados_grupo, guerras, rodada, adversario_padrao)
 
     with analise_tab:
         if not nossa_rodada:
