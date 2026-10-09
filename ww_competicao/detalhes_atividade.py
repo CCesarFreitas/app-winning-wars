@@ -31,6 +31,14 @@ def detalhar(captura, tipo, registro=None, eventos=(), vinculos=None, revisoes=(
     else:
         raise ValueError('Modalidade desconhecida')
     detalhes = json.loads(registro['DetalhesJSON']) if registro else {}
+    # Dados de desempenho preservados da mesma captura validada, sem nova consulta.
+    if tipo == 'raide':
+        membros_captura = {m['tag']: m for m in dados.get('members', [])}
+        adversario = None
+    else:
+        lado = 'clan' if dados.get('clan', {}).get('tag') == '#YVLGUJQY' else 'opponent'
+        membros_captura = {m['tag']: m for m in dados[lado].get('members', [])}
+        adversario = dados['opponent' if lado == 'clan' else 'clan'].get('name')
     if registro and (registro['AtividadeID'] != captura['atividade_id']
                      or registro['Tipo'] != tipo
                      or detalhes.get('captura_sha256') != captura['conteudo_sha256']):
@@ -71,15 +79,21 @@ def detalhar(captura, tipo, registro=None, eventos=(), vinculos=None, revisoes=(
         else:
             motivo = 'Não incluída no lançamento; motivo requer conferência administrativa'
         item = {'tag': tag, 'nome': j['nome'], 'participante_id': pid,
-                'pontos': pontos, 'situacao': motivo, 'ataques': []}
+                'pontos': pontos, 'pontos_originais': pontos_originais,
+                'situacao': motivo, 'ataques': []}
+        membro = membros_captura.get(tag, {})
         if tipo == 'raide':
             raid = detalhes.get('raide_por_participante', {}).get(pid, {})
             item.update(quantidade_ataques=j['ataques'], saque=j['capital_resources_looted'],
                         bonus=raid.get('bonus_top3'))
+            limite, bonus_limite = membro.get('attackLimit'), membro.get('bonusAttackLimit')
+            item['limite_ataques'] = (limite + bonus_limite
+                if type(limite) is int and type(bonus_limite) is int else None)
             if pid is not None and (raid.get('ataques') != j['ataques']
                     or raid.get('saque') != j['capital_resources_looted']):
                 raise ValueError('Raide lançado diverge da captura')
         else:
+            item['limite_ataques'] = 1 if tipo == 'liga' else dados.get('attacksPerMember')
             item['cv'] = j['cv']
             item['pontos_calculados'] = j['pontos_brutos']
             if pid_original is not None and pontos_originais != j['pontos_brutos']:
@@ -96,7 +110,10 @@ def detalhar(captura, tipo, registro=None, eventos=(), vinculos=None, revisoes=(
                     regra = 'Estrelas convertidas em pontos; alvo já fechado também vale'
                 item['ataques'].append({'Ordem': a['ordem'], 'Alvo': a['alvo_tag'],
                     'CV atacante': j['cv'], 'CV alvo': a['cv_alvo'], 'Estrelas': a['estrelas'],
-                    'Pontos do ataque': valor, 'Regra aplicada': regra})
+                    'Pontos do ataque': valor, 'Regra aplicada': regra,
+                    'Destruição (%)': next((at.get('destructionPercentage')
+                        for at in membro.get('attacks', []) if at.get('order') == a['ordem']
+                        and at.get('defenderTag') == a['alvo_tag']), None)})
         jogadores.append(item)
     return {'id': captura['atividade_id'], 'tipo': tipo,
             'temporada': captura['temporada_origem'], 'inicio': dados['startTime'],
@@ -105,4 +122,5 @@ def detalhar(captura, tipo, registro=None, eventos=(), vinculos=None, revisoes=(
             'coluna': registro['ColunaDestino'] if registro else '',
             'aplicado_em': registro['AplicadoEm'] if registro else None,
             'regra': registro['VersaoRegra'] if registro else 'Prévia de desempenho; sem pontos atribuídos',
+            'adversario': adversario, 'rodada': captura.get('rodada'),
             'jogadores': jogadores}

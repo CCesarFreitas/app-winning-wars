@@ -57,6 +57,7 @@ class DetalhesMotor(unittest.TestCase):
         j = detalhar(c, 'guerra')['jogadores'][0]
         self.assertIsNone(j['pontos'])
         self.assertEqual(j['pontos_calculados'], 2)
+        self.assertEqual(j['limite_ataques'], 2)
         self.assertIn('Desconto', j['ataques'][0]['Regra aplicada'])
         self.assertEqual(detalhar(c, 'guerra', self.registro(c, 'guerra'))['jogadores'][0]['pontos'], 2)
 
@@ -79,6 +80,7 @@ class DetalhesMotor(unittest.TestCase):
         c['atividade_id'] = identificar_atividade('liga', '#YVLGUJQY', self.g['startTime'], oponente='#2YPL9GU8Y', war_tag='#PPP')
         j = detalhar(c, 'liga', self.registro(c, 'liga', 3))['jogadores'][0]
         self.assertEqual(j['pontos'], 3)
+        self.assertEqual(j['limite_ataques'], 1)
         self.assertIn('Duas estrelas', j['ataques'][0]['Regra aplicada'])
 
     def test_correcao_auditada_inclui_conta_omitida(self):
@@ -110,6 +112,7 @@ class DetalhesMotor(unittest.TestCase):
         d = detalhar(c, 'raide', self.registro(c, 'raide', 7))
         self.assertEqual(d['jogadores'][0]['bonus'], 1)
         self.assertEqual(d['jogadores'][0]['saque'], 100)
+        self.assertEqual(d['jogadores'][0]['limite_ataques'], 6)
 
 
 if __name__ == '__main__': unittest.main()

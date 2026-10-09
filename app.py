@@ -5592,9 +5592,10 @@ else:
           " Liberado)"
       )
 
-      sub_tab_month, sub_tab20, sub_tab_participacao, sub_tab1, sub_tab2, sub_tab_pass, sub_tab3, sub_tab4, sub_tab_news, sub_tab5, sub_tab6, sub_tab7, sub_tab_integracao = st.tabs([
+      sub_tab_month, sub_tab20, sub_tab_desempenho, sub_tab_participacao, sub_tab1, sub_tab2, sub_tab_pass, sub_tab3, sub_tab4, sub_tab_news, sub_tab5, sub_tab6, sub_tab7, sub_tab_integracao = st.tabs([
           "🏆 Fechamento Mensal",
           "🚀 Gestão 2.0",
+          "📊 Desempenho dos membros",
           "👥 Participação",
           "➕ Players",
           "👤 Novo Admin",
@@ -5607,6 +5608,17 @@ else:
           "🎲 Sorteio de Desempate",
           "💚 Integração",
       ])
+
+      with sub_tab_desempenho:
+        try:
+          admins_desempenho = ww_admins_exibicao(planilha_competicao.id)
+          pc_validar_admin(admins_desempenho, st.session_state['admin_logado'])
+        except Exception:
+          st.info("Relatório disponível para a liderança autorizada. Se necessário, atualize sua sessão.")
+        else:
+          from ww_competicao.relatorio_desempenho import renderizar as renderizar_relatorio_desempenho
+          renderizar_relatorio_desempenho(st, pd, ww_consultas_disponiveis(),
+              admins_desempenho, st.session_state['admin_logado'])
 
       with sub_tab_integracao:
         try:
