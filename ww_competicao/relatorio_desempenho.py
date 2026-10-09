@@ -202,10 +202,9 @@ def renderizar(st, pd, documentos, admins, usuario):
     cols[2].metric('Sem amostra no período', sum(not c['registros'] for c in contas))
     st.caption('Atividades no período: ' + ' · '.join(f'{TIPOS[t]}: {sum(a["tipo"] == t for a in modelo["atividades"])}' for t in tipos))
     tabela = linhas_contas(contas)
-    compacto = ['Vila', 'Tag', 'Escalações sem ataque', '3 estrelas (%)', 'Penalizações CV',
-                'Ataques não usados raide', 'Saque/ataque', 'Acompanhamento']
-    st.dataframe(pd.DataFrame(tabela)[compacto].round(1), hide_index=True, use_container_width=True)
-    with st.expander('Ver todas as métricas da seleção'):
+    from .graficos_desempenho import coletivo, individual, ficha_html
+    coletivo(st, pd, contas, tipos, minimo)
+    with st.expander('Consultar tabela e todas as métricas'):
         st.dataframe(pd.DataFrame(tabela).round(1), hide_index=True, use_container_width=True)
     st.download_button('Baixar relatório CSV', csv_seguro(tabela), file_name=f'desempenho_{inicio}_{fim}.csv',
                        mime='text/csv', key='rd_exportar')
@@ -213,6 +212,10 @@ def renderizar(st, pd, documentos, admins, usuario):
     por_tag = {c['tag']: c for c in contas}
     tag = st.selectbox('Membro', list(por_tag), format_func=lambda t: por_tag[t]['nome']+' · '+t, key='rd_membro')
     c = por_tag[tag]; r = c['resumo']
+    individual(st, pd, c)
+    st.download_button('Baixar ficha visual do membro (HTML)', ficha_html(c, inicio, fim),
+        file_name='desempenho_'+tag.lstrip('#')+'.html', mime='text/html', key='rd_ficha_visual')
+    st.caption('A ficha abre no navegador e pode ser impressa em PDF para apresentar ao membro. Contém apenas a conta selecionada.')
     for alerta in r['alertas']: st.warning(alerta)
     if not c['registros']:
         st.info('Sem registros nas atividades selecionadas. Isso não comprova ausência ou falta de colaboração.'); return
@@ -224,7 +227,7 @@ def renderizar(st, pd, documentos, admins, usuario):
         regs = [reg for reg in c['registros'] if reg['tipo'] == tipo]
         if not regs: continue
         s = resumo(regs, minimo, referencia)
-        with st.expander(TIPOS[tipo] + f' · {len(regs)} atividade(s)', expanded=True):
+        with st.expander('Detalhes de '+TIPOS[tipo] + f' · {len(regs)} atividade(s)', expanded=False):
             if tipo == 'raide':
                 st.write(f"{s['ataques_raide']} ataques · {s['saque']:,} de saque · {s['bonus']} bônus registrado(s)")
                 st.caption('Uso dos ataques disponíveis: ' + (f"{s['uso_raide']:.1f}%" if s['uso_raide'] is not None else 'Não informado'))

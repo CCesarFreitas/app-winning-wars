@@ -17,3 +17,7 @@ Base de implantação: commit 8d68dcc, preservando atualizações de outubro fei
 Backup remoto: `/opt/winning-wars-api/dados_consulta/backup_relatorio_20261009T135809Z` (módulo anterior e SQLite consistente). Modificado apenas o módulo do observador; motores de pontuação preservados. Temporizador de consultas retomado. Para reversão, reverter a interface e restaurar apenas o módulo anterior com o observador ocioso; não restaurar banco antigo sobre histórico novo.
 
 Artefatos locais de homologação fora do Git: `relatorio_desempenho/leitura_antes.json`, `leitura_depois.json`, `homologar.py`, `testar_interface.py` e scripts de implantação.
+
+Atualização visual de 09/10: gráficos passam a ser a visão principal; tabela completa e detalhes ficam recolhidos. Comparação por modalidade de uso de ataques, triplos (com mínimo de amostra) e saque ponderado por ataque. Ficha individual apresenta distribuição de estrelas, triplos por faixa de CV e saque por raide. Ausência de limites não vira falta; ausência de ataque não vira zero estrela.
+
+Download de ficha HTML autônoma, apenas da conta selecionada, com nomes escapados e possibilidade de impressão em PDF pelo navegador. Não envia mensagens nem altera permissões. Sem consultas extras ou alteração na Oracle: utiliza os documentos existentes. Validação: 60 testes passaram, AppTest com dados reais e alternância de métricas passou, gráficos inspecionados no navegador local.
