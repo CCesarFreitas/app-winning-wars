@@ -2132,13 +2132,26 @@ st.markdown(
 )
 
 # --- TOPO DA PÁGINA: MENU DE NAVEGAÇÃO + LOGIN ADMIN ---
+if st.session_state["pagina_atual"] == "torneios":
+  if st.button("⬅️ Voltar ao Winning Wars", key="ww_torneio_voltar"):
+    st.session_state["pagina_atual"] = "principal"
+    st.rerun()
+  from ww_competicao.consultas import ler as ww_ler_consultas_torneio
+  from ww_competicao.torneios import renderizar as ww_renderizar_torneios
+  try:
+    documentos_torneio = ww_ler_consultas_torneio(planilha_competicao)
+  except Exception:
+    documentos_torneio = {}
+  ww_renderizar_torneios(st, documentos_torneio, st.session_state.get("admin_logado"))
+  st.stop()
+
 col_nav, col_admin_top = st.columns([6, 1])
 
 with col_nav:
   # Container com chave própria para que as animações atinjam somente
   # os botões de direcionamento do topo da página.
   with st.container(key="top_nav_menu"):
-    b1, b2, b3 = st.columns(3)
+    b1, b2, b3, b4 = st.columns(4)
     with b1:
       if st.button("⚔️ LAYOUTS PARA GUERRA", use_container_width=True):
         st.session_state["pagina_atual"] = "layouts_guerra"
@@ -2148,6 +2161,10 @@ with col_nav:
         st.session_state["pagina_atual"] = "layouts_rankeada"
         st.rerun()
     with b3:
+      if st.button("🎥 TORNEIOS · BETA", use_container_width=True):
+        st.session_state["pagina_atual"] = "torneios"
+        st.rerun()
+    with b4:
       st.markdown(
           '<a'
           ' href="https://link.clashofclans.com/pt?action=OpenClanProfile&tag=2YPL9GU8Y"'

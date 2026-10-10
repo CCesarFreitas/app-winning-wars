@@ -79,23 +79,39 @@ def executar():
     temporada = estado_mes.get('temporada_atual_id')
     inscritos = {r['PlayerTag'] for r in linhas_registros(fotos['InscricoesTemporada'])
                  if r.get('Temporada') == temporada and r.get('Status') == 'ATIVO'}
-    # Consulta independente da Supercell a cada oito horas. Não executa a sincronização de cadastro.
-    membros = arquivo.ultimos('roster').get('principal')
+    # Consultas independentes da Supercell; nunca executam sincronização de cadastro.
+    rosters = arquivo.ultimos('roster')
     erro_membros = False
-    if not membros or agora - datetime.fromisoformat(membros['consultado_em']) >= timedelta(hours=8):
+    def obter_roster(chave, tag, validade):
+        nonlocal erro_membros
+        anterior = rosters.get(chave)
+        if anterior and agora - datetime.fromisoformat(anterior['consultado_em']) < validade:
+            return anterior
         try:
             from supercell import supercell_get
-            clan = supercell_get('/clans/%23YVLGUJQY')
-            if clan.get('tag') != '#YVLGUJQY' or not isinstance(clan.get('memberList'), list):
+            clan = supercell_get('/clans/' + tag.replace('#', '%23'))
+            lista = clan.get('memberList')
+            if (clan.get('tag') != tag or not isinstance(lista, list) or not lista
+                    or clan.get('members') != len(lista)):
                 raise ValueError('Lista de membros inválida')
-            membros = {'consultado_em': agora.isoformat(), 'contas': [
+            roster = {'consultado_em': agora.isoformat(), 'clan': clan.get('name', ''),
+                      'tag': tag, 'contas': [
                 {'tag': m['tag'], 'nome': m['name'], 'cv': m.get('townHallLevel'),
-                 'cargo': m.get('role')} for m in clan['memberList']]}
-            if len({m['tag'] for m in membros['contas']}) != len(membros['contas']):
-                raise ValueError('Membros duplicados')
-            arquivo.guardar('roster', 'principal', membros, agora.isoformat())
+                 'cargo': m.get('role')} for m in lista]}
+            if (len({m['tag'] for m in roster['contas']}) != len(roster['contas'])
+                    or any(type(m['cv']) is not int or m['cv'] < 1 for m in roster['contas'])):
+                raise ValueError('Membros duplicados ou incompletos')
+            arquivo.guardar('roster', chave, roster, agora.isoformat())
+            rosters[chave] = roster
+            return roster
         except Exception:
             erro_membros = True
+            return anterior
+
+    # O elenco principal muda pouco para a consulta pública. O clã da prova de
+    # conceito é atualizado em intervalos curtos para permitir sorteios ao vivo.
+    membros = obter_roster('principal', '#YVLGUJQY', timedelta(hours=8))
+    roster_teste = obter_roster('torneio_teste', '#2YPL9GU8Y', timedelta(minutes=2))
     documentos = {}
     if membros:
         documentos['membros'] = {'consultado_em': membros['consultado_em'], 'temporada': temporada,
@@ -103,6 +119,12 @@ def executar():
                        'permissao': ('Bloqueada' if contas.get(m['tag'], {}).get('Habilitada') == 'FALSE'
                                     else 'Habilitada' if m['tag'] in contas else 'Sem decisão registrada')}
                       for m in membros['contas']]}
+    if roster_teste:
+        documentos['torneio_roster'] = {
+            'modo': 'PROVA_DE_CONCEITO', 'consultado_em': roster_teste['consultado_em'],
+            'clan': roster_teste['clan'], 'tag': roster_teste['tag'],
+            'contas': [{k: m[k] for k in ('tag', 'nome', 'cv')} for m in roster_teste['contas']],
+        }
     # Revisões entram também na reconstrução do detalhe: uma correção auditada
     # pode incluir uma conta que o lançamento original omitiu.
     try:
