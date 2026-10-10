@@ -2296,15 +2296,8 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
   )
   eh_admin = "admin_logado" in st.session_state
 
-  cv_map = {
-      "CV 18": "https://i.ibb.co/fGLhwj76/Town-Hall18.webp",
-      "CV 17": "https://i.ibb.co/yc4LCWmS/cv17.webp",
-      "CV 16": "https://i.ibb.co/ym8MH1Q8/Giga-Inferno16.webp",
-      "CV 15": "https://i.ibb.co/7dzVK5L7/Giga-Inferno15.webp",
-      "CV 14": "https://i.ibb.co/x4LsVdM/Giga-Inferno14.webp",
-      "CV 13": "https://i.ibb.co/HTPNQtyp/TH-13-4-Clash-GFX.png",
-      "CV 12": "https://i.ibb.co/hFHnz1GW/TH-12-Clash-GFX.png",
-  }
+  from ww_competicao.torneios import IMAGENS_CV
+  cv_map = {f"CV {cv}": IMAGENS_CV[cv] for cv in range(18, 8, -1)}
 
   cv_list = list(cv_map.keys())
   tabs_cv = st.tabs(cv_list)
