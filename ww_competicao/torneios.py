@@ -7,7 +7,7 @@ import random
 import re
 
 
-CHAVE_SESSAO = "ww_torneio_poc_v1"
+CHAVE_SESSAO = "ww_torneio_poc_v2"
 
 
 def validar_roster(documento):
@@ -57,7 +57,10 @@ def _propagar_automaticos(torneio):
         for ri, rodada in enumerate(torneio["rodadas"]):
             for mi, partida in enumerate(rodada):
                 presentes = [p for p in partida["jogadores"] if p is not None]
-                if partida["vencedor"] is None and len(presentes) == 1:
+                # Uma vaga vazia significa folga somente na primeira fase. Nas
+                # rodadas seguintes ela também pode significar que o confronto
+                # anterior do outro lado ainda não terminou.
+                if ri == 0 and partida["vencedor"] is None and len(presentes) == 1:
                     partida["vencedor"] = deepcopy(presentes[0])
                     partida["automatico"] = True
                     mudou = True

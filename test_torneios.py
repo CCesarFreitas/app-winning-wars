@@ -26,11 +26,37 @@ class Torneios(unittest.TestCase):
         self.assertEqual(torneio["tamanho_chave"], 8)
         self.assertEqual(len(torneio["rodadas"]), 3)
         self.assertEqual(sum(p["automatico"] for p in torneio["rodadas"][0]), 3)
+        self.assertEqual(torneio["status"], "EM_ANDAMENTO")
+        self.assertIsNone(torneio["campeao"])
         while torneio["status"] == "EM_ANDAMENTO":
             ri, mi, partida = partidas_pendentes(torneio)[0]
             torneio = selecionar_vencedor(torneio, ri, mi, partida["jogadores"][0]["tag"])
         self.assertIsNotNone(torneio["campeao"])
         self.assertIn("CAMPEÃO", html_chaveamento(torneio))
+
+    def test_quatro_jogadores_so_tem_campeao_depois_da_final(self):
+        torneio = criar_torneio("Copa CV 9", jogadores(4, 9), 9, random.Random(3))
+        semifinais = partidas_pendentes(torneio)
+        self.assertEqual(len(semifinais), 2)
+
+        ri, mi, confronto = semifinais[0]
+        torneio = selecionar_vencedor(torneio, ri, mi, confronto["jogadores"][0]["tag"])
+        self.assertEqual(torneio["status"], "EM_ANDAMENTO")
+        self.assertIsNone(torneio["campeao"])
+        self.assertEqual(len(partidas_pendentes(torneio)), 1)
+
+        ri, mi, confronto = partidas_pendentes(torneio)[0]
+        torneio = selecionar_vencedor(torneio, ri, mi, confronto["jogadores"][0]["tag"])
+        self.assertEqual(torneio["status"], "EM_ANDAMENTO")
+        self.assertIsNone(torneio["campeao"])
+        final = partidas_pendentes(torneio)
+        self.assertEqual(len(final), 1)
+        self.assertEqual(final[0][0], 1)
+
+        ri, mi, confronto = final[0]
+        torneio = selecionar_vencedor(torneio, ri, mi, confronto["jogadores"][0]["tag"])
+        self.assertEqual(torneio["status"], "FINALIZADO")
+        self.assertIsNotNone(torneio["campeao"])
 
     def test_vencedor_invalido_e_cv_divergente(self):
         with self.assertRaises(ValueError):
