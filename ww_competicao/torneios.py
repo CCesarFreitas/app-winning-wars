@@ -1,4 +1,4 @@
-"""Prova de conceito de torneios eliminatórios para transmissão ao vivo."""
+"""Torneios eliminatórios oficiais para transmissão ao vivo."""
 from copy import deepcopy
 from datetime import datetime, timezone
 from html import escape
@@ -7,25 +7,39 @@ import random
 import re
 
 
-CHAVE_SESSAO = "ww_torneio_poc_v2"
+CHAVE_SESSAO = "ww_torneio_oficial_v1"
+
+IMAGENS_CV = {
+    18: "https://i.ibb.co/fGLhwj76/Town-Hall18.webp",
+    17: "https://i.ibb.co/yc4LCWmS/cv17.webp",
+    16: "https://i.ibb.co/ym8MH1Q8/Giga-Inferno16.webp",
+    15: "https://i.ibb.co/7dzVK5L7/Giga-Inferno15.webp",
+    14: "https://i.ibb.co/x4LsVdM/Giga-Inferno14.webp",
+    13: "https://i.ibb.co/HTPNQtyp/TH-13-4-Clash-GFX.png",
+    12: "https://i.ibb.co/hFHnz1GW/TH-12-Clash-GFX.png",
+    11: "https://www.clash.ninja/images/entities/1_11.png",
+    10: "https://www.clash.ninja/images/entities/1_10.png",
+    9: "https://www.clash.ninja/images/entities/1_9.png",
+}
 
 
 def validar_roster(documento):
-    if not isinstance(documento, dict) or documento.get("modo") != "PROVA_DE_CONCEITO":
-        raise ValueError("Elenco de teste indisponível")
-    if documento.get("tag") != "#2YPL9GU8Y" or documento.get("clan") != "Vastaya":
-        raise ValueError("Clã de teste divergente")
+    if not isinstance(documento, dict) or documento.get("modo") != "OFICIAL":
+        raise ValueError("Elenco do torneio indisponível")
+    if (not re.fullmatch(r"#[0289PYLQGRJCUV]+", str(documento.get("tag", "")))
+            or not str(documento.get("clan", "")).strip()):
+        raise ValueError("Clã do torneio inválido")
     contas, tags = [], set()
     for conta in documento.get("contas", []):
         tag = conta.get("tag")
         if (not isinstance(tag, str) or not re.fullmatch(r"#[0289PYLQGRJCUV]+", tag)
                 or tag in tags or not str(conta.get("nome", "")).strip()
                 or type(conta.get("cv")) is not int or conta["cv"] < 1):
-            raise ValueError("Elenco de teste inválido")
+            raise ValueError("Elenco do torneio inválido")
         tags.add(tag)
         contas.append({"tag": tag, "nome": str(conta["nome"]).strip(), "cv": conta["cv"]})
     if len(contas) < 2:
-        raise ValueError("O clã de teste precisa de pelo menos duas contas")
+        raise ValueError("O clã do torneio precisa de pelo menos duas contas")
     return sorted(contas, key=lambda c: (-c["cv"], c["nome"].casefold(), c["tag"]))
 
 
@@ -115,7 +129,8 @@ def criar_torneio(nome, participantes, cv, sorteio=None, criado_em=None):
         rodadas.append([{"jogadores": [None, None], "vencedor": None, "automatico": False}
                         for _ in range(quantidade)])
     torneio = {
-        "versao": 1, "nome": nome.strip(), "clan": "Vastaya", "clan_tag": "#2YPL9GU8Y",
+        "versao": 2, "nome": nome.strip(), "clan": participantes[0].get("clan", ""),
+        "clan_tag": participantes[0].get("clan_tag", ""),
         "cv": cv, "status": "EM_ANDAMENTO", "criado_em": criado_em or datetime.now(timezone.utc).isoformat(),
         "participantes": jogadores, "tamanho_chave": tamanho, "rotulos": _rotulos(len(rodadas), tamanho),
         "rodadas": rodadas, "campeao": None, "ultima_transicao": None,
@@ -161,7 +176,10 @@ def _cartao_jogador(jogador, vencedor, perdedor):
         classes += " winner pulse"
     elif jogador["tag"] == perdedor:
         classes += " loser"
-    return (f'<div class="{classes}"><span class="wwt-avatar">{jogador["cv"]}</span>'
+    imagem = IMAGENS_CV.get(jogador["cv"])
+    avatar = (f'<span class="wwt-avatar"><img src="{escape(imagem)}" alt="CV {jogador["cv"]}"></span>'
+              if imagem else f'<span class="wwt-avatar wwt-avatar-number">{jogador["cv"]}</span>')
+    return (f'<div class="{classes}">{avatar}'
             f'<div><b>{escape(jogador["nome"])}</b><small>{escape(jogador["tag"])} · CV {jogador["cv"]}</small></div></div>')
 
 
@@ -193,7 +211,8 @@ def html_chaveamento(torneio):
       .wwt-match:after{{content:"";position:absolute;right:-21px;top:50%;width:20px;height:2px;background:#7c3aed}}.wwt-round:last-child .wwt-match:after{{display:none}}
       .wwt-match-title{{display:flex;justify-content:space-between;color:#818cf8;font-size:.62rem;font-weight:900;letter-spacing:.12em;margin:0 5px 6px}}.wwt-match-title em{{color:#64748b;letter-spacing:0;font-weight:600}}
       .wwt-player{{display:flex;align-items:center;gap:9px;border:1px solid #2d3143;border-radius:11px;padding:8px;background:#111522;min-height:53px}}.wwt-player b{{display:block;max-width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.86rem}}.wwt-player small{{display:block;color:#94a3b8;font-size:.61rem;margin-top:2px}}
-      .wwt-avatar{{display:grid;place-items:center;min-width:34px;height:34px;border-radius:50%;background:linear-gradient(145deg,#f59e0b,#7c2d12);border:2px solid #fde68a;font-weight:950;font-size:.75rem}}
+      .wwt-avatar{{display:grid;place-items:center;min-width:46px;width:46px;height:46px}}.wwt-avatar img{{display:block;max-width:46px;max-height:46px;object-fit:contain;filter:drop-shadow(0 3px 4px #000a)}}
+      .wwt-avatar-number{{border-radius:50%;background:linear-gradient(145deg,#f59e0b,#7c2d12);border:2px solid #fde68a;font-weight:950;font-size:.75rem}}
       .wwt-versus{{height:12px;text-align:center;color:#475569;font-size:.55rem;font-weight:950;line-height:12px}}.wwt-player.bye{{justify-content:center;color:#64748b;border-style:dashed;background:#0b0d15}}
       .wwt-player.winner{{border-color:#fbbf24;background:linear-gradient(100deg,#422006,#171625);box-shadow:0 0 18px #f59e0b55}}.wwt-player.loser{{filter:grayscale(1);opacity:.35;animation:wwtLose .7s ease both}}
       .pulse{{animation:wwtWin 1.1s ease both}}@keyframes wwtWin{{0%{{transform:scale(.92)}}45%{{transform:scale(1.06);box-shadow:0 0 34px #fbbf24}}100%{{transform:scale(1)}}}}@keyframes wwtLose{{to{{transform:scale(.96);opacity:.35}}}}
@@ -203,7 +222,7 @@ def html_chaveamento(torneio):
     </style></head><body><main class="wwt-stage"><header class="wwt-brand"><div><small>WINNING WARS APRESENTA</small><h1>{escape(torneio['nome'])}</h1></div><div class="wwt-badge">{len(torneio['participantes'])} competidores · CV {torneio['cv']}</div></header><div class="wwt-bracket">{"".join(colunas)}</div>{trofeu}</main></body></html>'''
 
 
-def renderizar(st, documentos, admin_usuario=None):
+def renderizar(st, documentos, admin_usuario=None, carregar_torneio=None, salvar_torneio=None):
     import streamlit.components.v1 as components
     st.markdown("""
       <style>
@@ -211,7 +230,7 @@ def renderizar(st, documentos, admin_usuario=None):
         .wwt-kicker{color:#fbbf24;font-weight:900;letter-spacing:.18em;font-size:.72rem}.wwt-hero h1{margin:.25rem 0;font-size:clamp(2rem,5vw,4rem);line-height:.95;text-transform:uppercase}.wwt-hero p{color:#cbd5e1;max-width:760px}
         .wwt-roster{display:flex;gap:7px;flex-wrap:wrap}.wwt-chip{border:1px solid #475569;border-radius:999px;padding:5px 9px;color:#e2e8f0;background:#1e293b;font-size:.76rem}
       </style>
-      <div class="wwt-hero"><div class="wwt-kicker">PROVA DE CONCEITO · LIVE ARENA</div><h1>⚔️ Torneios W.Wars</h1><p>Mata-mata 1 × 1 com sorteio de chaves, avanço automático e visual seguro para transmissão. Nesta fase, nada é salvo na competição oficial.</p></div>
+      <div class="wwt-hero"><div class="wwt-kicker">LIVE ARENA</div><h1>⚔️ Torneios Winning Wars</h1><p>Confrontos eliminatórios 1 × 1, da primeira batalha à grande final.</p></div>
     """, unsafe_allow_html=True)
     documento = documentos.get("torneio_roster")
     try:
@@ -219,7 +238,10 @@ def renderizar(st, documentos, admin_usuario=None):
     except ValueError as erro:
         st.warning(str(erro) + ". A Oracle fará uma nova leitura automaticamente.")
         return
-    st.caption(f"Elenco de teste: Vastaya · {len(roster)} contas · consultado em {documento['consultado_em']}")
+    for conta in roster:
+        conta["clan"] = documento["clan"]
+        conta["clan_tag"] = documento["tag"]
+    st.caption(f"Elenco: {documento['clan']} · {len(roster)} contas · atualizado em {documento['consultado_em']}")
     dist = {}
     for conta in roster:
         dist[conta["cv"]] = dist.get(conta["cv"], 0) + 1
@@ -227,14 +249,14 @@ def renderizar(st, documentos, admin_usuario=None):
         f'<span class="wwt-chip">CV {cv}: {qtd}</span>' for cv, qtd in sorted(dist.items(), reverse=True)
     ) + '</div>', unsafe_allow_html=True)
 
-    torneio = st.session_state.get(CHAVE_SESSAO)
+    torneio = carregar_torneio() if carregar_torneio else st.session_state.get(CHAVE_SESSAO)
     if torneio is None:
         if not admin_usuario:
-            st.info("Entre como administrador no app principal para criar o torneio de teste.")
+            st.info("Entre como administrador no app principal para criar um torneio.")
             return
         with st.container(border=True):
             st.markdown("### Console do organizador")
-            nome = st.text_input("Nome da transmissão", "Copa Vastaya · Teste ao Vivo", max_chars=80)
+            nome = st.text_input("Nome do torneio", "Torneio Winning Wars", max_chars=80)
             cvs = ["Todos"] + sorted(dist, reverse=True)
             cv = st.selectbox("Centro de Vila do torneio", cvs,
                               format_func=lambda valor: "Todos os CVs" if valor == "Todos" else f"Somente CV {valor}")
@@ -244,7 +266,11 @@ def renderizar(st, documentos, admin_usuario=None):
                 format_func=lambda tag: f"{mapa[tag]['nome']} · CV {mapa[tag]['cv']} · {tag}")
             st.caption("O sorteio aceita de 2 a 32 contas. Quando necessário, algumas recebem folga na primeira fase.")
             if st.button("🎲 Sortear chaveamento", type="primary", use_container_width=True):
-                st.session_state[CHAVE_SESSAO] = criar_torneio(nome, [mapa[t] for t in selecionadas], cv)
+                novo = criar_torneio(nome, [mapa[t] for t in selecionadas], cv)
+                if salvar_torneio:
+                    salvar_torneio(novo)
+                else:
+                    st.session_state[CHAVE_SESSAO] = novo
                 st.rerun()
         return
 
@@ -268,12 +294,19 @@ def renderizar(st, documentos, admin_usuario=None):
                 vencedor = st.radio("Vencedor", [p["tag"] for p in jogadores], horizontal=True,
                                      format_func=lambda tag: next(p["nome"] for p in jogadores if p["tag"] == tag))
                 if st.button("⚡ Confirmar vencedor e avançar", type="primary", use_container_width=True):
-                    st.session_state[CHAVE_SESSAO] = selecionar_vencedor(torneio, escolha[0], escolha[1], vencedor)
+                    atualizado = selecionar_vencedor(torneio, escolha[0], escolha[1], vencedor)
+                    if salvar_torneio:
+                        salvar_torneio(atualizado)
+                    else:
+                        st.session_state[CHAVE_SESSAO] = atualizado
                     st.rerun()
             else:
                 st.info("Não há partidas pendentes.")
-            if st.button("↻ Encerrar esta prova e criar outro sorteio", use_container_width=True):
-                del st.session_state[CHAVE_SESSAO]
+            if st.button("↻ Encerrar torneio e criar outro", use_container_width=True):
+                if salvar_torneio:
+                    salvar_torneio(None)
+                else:
+                    st.session_state.pop(CHAVE_SESSAO, None)
                 st.rerun()
     else:
         st.caption("Modo transmissão: somente nomes, CVs e resultados do chaveamento são exibidos.")

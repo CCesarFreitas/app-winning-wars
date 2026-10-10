@@ -588,6 +588,17 @@ def conectar_banco():
         "BackupID", "DataHora", "Admin", "Acao", "Aba", "Parte", "ConteudoJSON"
     ])
 
+  # Estado e histórico imutável da plataforma oficial de torneios.
+  try:
+    sheet_torneios = spreadsheet.worksheet("Torneios")
+  except gspread.WorksheetNotFound:
+    sheet_torneios = spreadsheet.add_worksheet(
+        title="Torneios", rows="2000", cols="5"
+    )
+    sheet_torneios.append_row([
+        "TorneioID", "AtualizadoEm", "Admin", "Status", "ConteudoJSON"
+    ])
+
   # Migração suave: adiciona nível de permissão aos admins antigos.
   try:
     headers_admin = sheet_admins.row_values(1)
@@ -614,6 +625,7 @@ def conectar_banco():
       sheet_historico_mensal,
       sheet_temporadas,
       sheet_backups,
+      sheet_torneios,
       spreadsheet,
   )
 
@@ -633,6 +645,7 @@ try:
       sheet_historico_mensal,
       sheet_temporadas,
       sheet_backups,
+      sheet_torneios,
       planilha_competicao,
   ) = conectar_banco()
 except Exception:
@@ -653,6 +666,44 @@ def registrar_log(admin: str, acao: str):
       pass
   except Exception:
     pass
+
+
+@st.cache_data(ttl=5, show_spinner=False)
+def obter_torneio_atual_cached():
+  linhas = sheet_torneios.get_all_values()
+  if len(linhas) < 2:
+    return None
+  registro = linhas[-1]
+  if len(registro) != 5:
+    raise ValueError("Registro de torneio incompleto")
+  conteudo = json.loads(registro[4])
+  if not isinstance(conteudo, dict):
+    raise ValueError("Registro de torneio inválido")
+  return None if conteudo.get("status") == "SEM_TORNEIO" else conteudo
+
+
+def salvar_torneio_oficial(torneio):
+  admin = st.session_state.get("admin_logado")
+  if not admin:
+    raise PermissionError("Apenas administradores podem alterar o torneio")
+  agora = datetime.now().astimezone().isoformat()
+  if torneio is None:
+    torneio_id = ""
+    status = "SEM_TORNEIO"
+    conteudo = {"versao": 2, "status": status, "atualizado_em": agora}
+    acao = "Encerrou o torneio atual"
+  else:
+    conteudo = json.loads(json.dumps(torneio, ensure_ascii=False))
+    conteudo["atualizado_em"] = agora
+    torneio_id = str(conteudo.get("criado_em", ""))
+    status = str(conteudo.get("status", "EM_ANDAMENTO"))
+    acao = f"Atualizou torneio: {conteudo.get('nome', torneio_id)} ({status})"
+  sheet_torneios.append_row([
+      torneio_id, agora, admin, status,
+      json.dumps(conteudo, ensure_ascii=False, separators=(",", ":")),
+  ], value_input_option="RAW")
+  obter_torneio_atual_cached.clear()
+  registrar_log(admin, acao)
 
 
 def criar_backup_automatico(acao: str, planilhas) -> bool:
@@ -2142,7 +2193,11 @@ if st.session_state["pagina_atual"] == "torneios":
     documentos_torneio = ww_ler_consultas_torneio(planilha_competicao)
   except Exception:
     documentos_torneio = {}
-  ww_renderizar_torneios(st, documentos_torneio, st.session_state.get("admin_logado"))
+  ww_renderizar_torneios(
+      st, documentos_torneio, st.session_state.get("admin_logado"),
+      carregar_torneio=obter_torneio_atual_cached,
+      salvar_torneio=salvar_torneio_oficial,
+  )
   st.stop()
 
 col_nav, col_admin_top = st.columns([6, 1])
@@ -2161,7 +2216,7 @@ with col_nav:
         st.session_state["pagina_atual"] = "layouts_rankeada"
         st.rerun()
     with b3:
-      if st.button("🎥 TORNEIOS · BETA", use_container_width=True):
+      if st.button("🎥 TORNEIOS", use_container_width=True):
         st.session_state["pagina_atual"] = "torneios"
         st.rerun()
     with b4:

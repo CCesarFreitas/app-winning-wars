@@ -12,7 +12,7 @@ def jogadores(qtd, cv=16):
 
 class Torneios(unittest.TestCase):
     def test_roster_publico_validado(self):
-        doc = {"modo": "PROVA_DE_CONCEITO", "tag": "#2YPL9GU8Y", "clan": "Vastaya",
+        doc = {"modo": "OFICIAL", "tag": "#2YPL9GU8Y", "clan": "Vastaya",
                "contas": [{"tag": "#P2Y", "nome": "A", "cv": 16},
                            {"tag": "#P8Y", "nome": "B", "cv": 16}]}
         self.assertEqual(len(validar_roster(doc)), 2)
@@ -64,6 +64,13 @@ class Torneios(unittest.TestCase):
         torneio = criar_torneio("Teste", jogadores(2), 16, random.Random(1))
         with self.assertRaises(ValueError):
             selecionar_vencedor(torneio, 0, 0, "#Q2Y")
+
+    def test_visual_oficial_exibe_imagem_do_cv(self):
+        torneio = criar_torneio("Torneios Winning Wars", jogadores(2, 9), 9, random.Random(1))
+        pagina = html_chaveamento(torneio)
+        self.assertIn('src="https://www.clash.ninja/images/entities/1_9.png"', pagina)
+        self.assertIn('alt="CV 9"', pagina)
+        self.assertNotIn('<span class="wwt-avatar">9</span>', pagina)
 
 
 if __name__ == "__main__":

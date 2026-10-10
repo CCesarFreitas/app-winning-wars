@@ -17,6 +17,7 @@ from ww_competicao.detalhes_atividade import detalhar
 from ww_competicao.participacao_competicao import pc_ler_eventos, pc_estado
 
 SHEET = '1QTfVjrfSCVZ3JlqIDbhLHHBc2-anz8XhK9WzxU3v0oA'
+TORNEIO_TAG = os.environ.get('WW_TORNEIO_CLAN_TAG', '#2YPL9GU8Y').strip().upper()
 
 
 def linhas_registros(linhas):
@@ -85,6 +86,8 @@ def executar():
     def obter_roster(chave, tag, validade):
         nonlocal erro_membros
         anterior = rosters.get(chave)
+        if anterior and anterior.get('tag') != tag:
+            anterior = None
         if anterior and agora - datetime.fromisoformat(anterior['consultado_em']) < validade:
             return anterior
         try:
@@ -108,10 +111,10 @@ def executar():
             erro_membros = True
             return anterior
 
-    # O elenco principal muda pouco para a consulta pública. O clã da prova de
-    # conceito é atualizado em intervalos curtos para permitir sorteios ao vivo.
+    # O elenco principal muda pouco para a consulta pública. O clã de torneios
+    # é parametrizado no servidor e atualizado em intervalos curtos para lives.
     membros = obter_roster('principal', '#YVLGUJQY', timedelta(hours=8))
-    roster_teste = obter_roster('torneio_teste', '#2YPL9GU8Y', timedelta(minutes=2))
+    roster_torneio = obter_roster('torneio_teste', TORNEIO_TAG, timedelta(minutes=2))
     documentos = {}
     if membros:
         documentos['membros'] = {'consultado_em': membros['consultado_em'], 'temporada': temporada,
@@ -119,11 +122,11 @@ def executar():
                        'permissao': ('Bloqueada' if contas.get(m['tag'], {}).get('Habilitada') == 'FALSE'
                                     else 'Habilitada' if m['tag'] in contas else 'Sem decisão registrada')}
                       for m in membros['contas']]}
-    if roster_teste:
+    if roster_torneio:
         documentos['torneio_roster'] = {
-            'modo': 'PROVA_DE_CONCEITO', 'consultado_em': roster_teste['consultado_em'],
-            'clan': roster_teste['clan'], 'tag': roster_teste['tag'],
-            'contas': [{k: m[k] for k in ('tag', 'nome', 'cv')} for m in roster_teste['contas']],
+            'modo': 'OFICIAL', 'consultado_em': roster_torneio['consultado_em'],
+            'clan': roster_torneio['clan'], 'tag': roster_torneio['tag'],
+            'contas': [{k: m[k] for k in ('tag', 'nome', 'cv')} for m in roster_torneio['contas']],
         }
     # Revisões entram também na reconstrução do detalhe: uma correção auditada
     # pode incluir uma conta que o lançamento original omitiu.
