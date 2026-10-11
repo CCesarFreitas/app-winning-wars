@@ -8,6 +8,10 @@ import re
 
 
 CHAVE_SESSAO = "ww_torneio_oficial_v1"
+CLA_OFICIAL_TAG = "#2CY88CCYU"
+CLA_OFICIAL_NOME = "TorneiosWWars"
+CANAL_YOUTUBE = "@winningwarscoc"
+URL_YOUTUBE = "https://www.youtube.com/@winningwarscoc"
 
 IMAGENS_CV = {
     18: "https://i.ibb.co/fGLhwj76/Town-Hall18.webp",
@@ -49,9 +53,10 @@ def html_regras_oficiais():
 def validar_roster(documento):
     if not isinstance(documento, dict) or documento.get("modo") != "OFICIAL":
         raise ValueError("Elenco do torneio indisponível")
-    if (not re.fullmatch(r"#[0289PYLQGRJCUV]+", str(documento.get("tag", "")))
+    if (documento.get("tag") != CLA_OFICIAL_TAG
+            or not re.fullmatch(r"#[0289PYLQGRJCUV]+", str(documento.get("tag", "")))
             or not str(documento.get("clan", "")).strip()):
-        raise ValueError("Clã do torneio inválido")
+        raise ValueError("Fonte do elenco diferente do clã oficial de torneios")
     contas, tags = [], set()
     for conta in documento.get("contas", []):
         tag = conta.get("tag")
@@ -61,8 +66,6 @@ def validar_roster(documento):
             raise ValueError("Elenco do torneio inválido")
         tags.add(tag)
         contas.append({"tag": tag, "nome": str(conta["nome"]).strip(), "cv": conta["cv"]})
-    if len(contas) < 2:
-        raise ValueError("O clã do torneio precisa de pelo menos duas contas")
     return sorted(contas, key=lambda c: (-c["cv"], c["nome"].casefold(), c["tag"]))
 
 
@@ -227,10 +230,13 @@ def html_chaveamento(torneio):
     campeao = torneio.get("campeao")
     trofeu = (f'<div class="wwt-champion"><span>🏆</span><div><small>CAMPEÃO</small><b>{escape(campeao["nome"])}</b><em>CV {campeao["cv"]}</em></div></div>'
               if campeao else '')
+    clan = torneio.get("clan") or CLA_OFICIAL_NOME
+    clan_tag = torneio.get("clan_tag") or CLA_OFICIAL_TAG
     return f'''<!doctype html><html><head><meta charset="utf-8"><style>
       *{{box-sizing:border-box}}body{{margin:0;background:radial-gradient(circle at 50% 0,#251046,#070910 52%);color:#f8fafc;font-family:Inter,Arial,sans-serif}}
-      .wwt-stage{{padding:22px;min-height:560px;overflow-x:auto}}.wwt-brand{{display:flex;justify-content:space-between;align-items:end;gap:20px;margin-bottom:18px}}
+      .wwt-stage{{padding:22px;min-height:560px;overflow-x:auto}}.wwt-brand{{display:flex;justify-content:space-between;align-items:end;gap:20px;margin-bottom:7px}}
       .wwt-brand small{{color:#fbbf24;font-weight:900;letter-spacing:.18em}}.wwt-brand h1{{margin:4px 0 0;font-size:clamp(1.5rem,3vw,2.7rem);text-transform:uppercase}}
+      .wwt-livebar{{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 18px;padding:8px 11px;border:1px solid #312e81;border-radius:10px;background:#11132a;color:#c4b5fd;font-size:.72rem;font-weight:850;letter-spacing:.04em}}.wwt-livebar b{{color:#f8fafc}}.wwt-livebar span:last-child{{color:#fca5a5}}
       .wwt-badge{{border:1px solid #7c3aed;border-radius:999px;padding:8px 13px;color:#c4b5fd;white-space:nowrap}}
       .wwt-bracket{{display:flex;gap:20px;min-width:max-content;align-items:stretch}}.wwt-round{{width:260px;display:flex;flex-direction:column}}
       .wwt-round h3{{text-align:center;color:#fbbf24;text-transform:uppercase;font-size:.78rem;letter-spacing:.14em;margin:0 0 12px}}
@@ -246,7 +252,7 @@ def html_chaveamento(torneio):
       .wwt-champion{{margin:22px auto 0;max-width:520px;display:flex;align-items:center;justify-content:center;gap:16px;border:2px solid #fbbf24;border-radius:22px;padding:15px;background:linear-gradient(120deg,#451a03,#23113f);box-shadow:0 0 45px #f59e0b55;animation:wwtWin 1.2s ease}}
       .wwt-champion>span{{font-size:3rem;animation:float 2s ease-in-out infinite}}.wwt-champion small,.wwt-champion b,.wwt-champion em{{display:block}}.wwt-champion small{{color:#fbbf24;letter-spacing:.2em}}.wwt-champion b{{font-size:1.35rem}}.wwt-champion em{{color:#c4b5fd}}@keyframes float{{50%{{transform:translateY(-6px)}}}}
       @media(max-width:600px){{.wwt-stage{{padding:13px}}.wwt-round{{width:225px}}.wwt-brand{{align-items:start;flex-direction:column;gap:8px}}}}
-    </style></head><body><main class="wwt-stage"><header class="wwt-brand"><div><small>WINNING WARS APRESENTA</small><h1>{escape(torneio['nome'])}</h1></div><div class="wwt-badge">{len(torneio['participantes'])} competidores · CV {torneio['cv']} · {escape(torneio.get('modo', 'Desafio amistoso'))}</div></header><div class="wwt-bracket">{"".join(colunas)}</div>{trofeu}</main></body></html>'''
+    </style></head><body><main class="wwt-stage"><header class="wwt-brand"><div><small>WINNING WARS APRESENTA</small><h1>{escape(torneio['nome'])}</h1></div><div class="wwt-badge">{len(torneio['participantes'])} competidores · CV {torneio['cv']} · {escape(torneio.get('modo', 'Desafio amistoso'))}</div></header><div class="wwt-livebar"><span><b>{escape(clan)}</b> · {escape(clan_tag)}</span><span>▶ YOUTUBE {escape(CANAL_YOUTUBE)}</span></div><div class="wwt-bracket">{"".join(colunas)}</div>{trofeu}</main></body></html>'''
 
 
 def renderizar(st, documentos, admin_usuario=None, carregar_torneio=None, salvar_torneio=None):
@@ -254,13 +260,13 @@ def renderizar(st, documentos, admin_usuario=None, carregar_torneio=None, salvar
     st.markdown("""
       <style>
         .wwt-hero{border:1px solid #7c3aed;border-radius:22px;padding:22px;background:radial-gradient(circle at 85% 0,#4c1d9555,transparent 42%),linear-gradient(145deg,#111827,#090b12);margin:8px 0 18px;box-shadow:0 18px 45px #0007}
-        .wwt-kicker{color:#fbbf24;font-weight:900;letter-spacing:.18em;font-size:.72rem}.wwt-hero h1{margin:.25rem 0;font-size:clamp(2rem,5vw,4rem);line-height:.95;text-transform:uppercase}.wwt-hero p{color:#cbd5e1;max-width:760px}
+        .wwt-kicker{color:#fbbf24;font-weight:900;letter-spacing:.18em;font-size:.72rem}.wwt-hero h1{margin:.25rem 0;font-size:clamp(2rem,5vw,4rem);line-height:.95;text-transform:uppercase}.wwt-hero p{color:#cbd5e1;max-width:760px}.wwt-live-links{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.wwt-live-links span,.wwt-live-links a{border:1px solid #7c3aed;border-radius:999px;padding:7px 11px;background:#1e1b4b;color:#e0e7ff;text-decoration:none;font-weight:850;font-size:.82rem}.wwt-live-links a{border-color:#dc2626;background:#450a0a;color:#fecaca}
         .wwt-roster{display:flex;gap:7px;flex-wrap:wrap}.wwt-chip{border:1px solid #475569;border-radius:999px;padding:5px 9px;color:#e2e8f0;background:#1e293b;font-size:.76rem}
         .wwt-rules-summary{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}.wwt-rules-summary b{border:1px solid #a16207;background:#422006;color:#fde68a;border-radius:999px;padding:6px 10px;font-size:.78rem}
         .wwt-rules-list{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.wwt-rules-list li{display:flex;gap:10px;align-items:flex-start;border:1px solid #334155;border-radius:12px;padding:10px;background:#0f172a}.wwt-rules-list span{color:#fbbf24;font-weight:950;font-size:.76rem}.wwt-rules-list p{margin:0;color:#e2e8f0;font-size:.84rem;line-height:1.35}
         @media(max-width:700px){.wwt-rules-list{grid-template-columns:1fr}}
       </style>
-      <div class="wwt-hero"><div class="wwt-kicker">LIVE ARENA</div><h1>⚔️ Torneios Winning Wars</h1><p>Confrontos eliminatórios 1 × 1, da primeira batalha à grande final.</p></div>
+      <div class="wwt-hero"><div class="wwt-kicker">ARENA OFICIAL PARA LIVES</div><h1>⚔️ Torneios Winning Wars</h1><p>Confrontos eliminatórios 1 × 1, da primeira batalha à grande final.</p><div class="wwt-live-links"><span>🏰 TorneiosWWars · #2CY88CCYU</span><a href="https://www.youtube.com/@winningwarscoc" target="_blank" rel="noopener noreferrer">▶ YouTube @winningwarscoc</a></div></div>
     """, unsafe_allow_html=True)
     with st.expander("📜 Regras oficiais do torneio", expanded=True):
         st.markdown(html_regras_oficiais(), unsafe_allow_html=True)
@@ -281,14 +287,19 @@ def renderizar(st, documentos, admin_usuario=None, carregar_torneio=None, salvar
         f'<span class="wwt-chip">CV {cv}: {qtd}</span>' for cv, qtd in sorted(dist.items(), reverse=True)
     ) + '</div>', unsafe_allow_html=True)
 
+    if len(roster) < 2:
+        st.info("A arena está conectada ao clã oficial. O chaveamento poderá ser criado quando houver pelo menos dois participantes no elenco.")
     torneio = carregar_torneio() if carregar_torneio else st.session_state.get(CHAVE_SESSAO)
+    if torneio is not None and torneio.get("clan_tag") != documento["tag"]:
+        st.info("A chave de homologação do clã anterior foi ocultada. O próximo torneio usará somente o elenco oficial do TorneiosWWars.")
+        torneio = None
     if torneio is None:
         if not admin_usuario:
-            st.info("Entre como administrador no app principal para criar um torneio.")
+            st.info("A arena está pronta. O chaveamento aparecerá quando a organização iniciar o próximo torneio.")
             return
         with st.container(border=True):
             st.markdown("### Console do organizador")
-            nome = st.text_input("Nome do torneio", "Torneio Winning Wars", max_chars=80)
+            nome = st.text_input("Nome do torneio", "Torneios Winning Wars", max_chars=80)
             modo = st.text_input("Modo de jogo", "Desafio amistoso", max_chars=80,
                                  help="Será exibido no chaveamento e deverá ser seguido em todos os desafios.")
             cvs = ["Todos"] + sorted(dist, reverse=True)
@@ -299,7 +310,8 @@ def renderizar(st, documentos, admin_usuario=None, carregar_torneio=None, salvar
             selecionadas = st.multiselect("Participantes do sorteio", list(mapa), default=list(mapa),
                 format_func=lambda tag: f"{mapa[tag]['nome']} · CV {mapa[tag]['cv']} · {tag}")
             st.caption("O sorteio aceita de 2 a 32 contas. Quando necessário, algumas recebem folga na primeira fase.")
-            if st.button("🎲 Sortear chaveamento", type="primary", use_container_width=True):
+            if st.button("🎲 Sortear chaveamento", type="primary", use_container_width=True,
+                         disabled=len(selecionadas) < 2):
                 novo = criar_torneio(nome, [mapa[t] for t in selecionadas], cv, modo=modo)
                 if salvar_torneio:
                     salvar_torneio(novo)

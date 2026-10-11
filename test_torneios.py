@@ -3,7 +3,7 @@ import unittest
 
 from ww_competicao.torneios import (criar_torneio, partidas_pendentes,
                                     selecionar_vencedor, validar_roster, html_chaveamento,
-                                    html_regras_oficiais)
+                                    html_regras_oficiais, CLA_OFICIAL_TAG)
 
 
 def jogadores(qtd, cv=16):
@@ -13,11 +13,16 @@ def jogadores(qtd, cv=16):
 
 class Torneios(unittest.TestCase):
     def test_roster_publico_validado(self):
-        doc = {"modo": "OFICIAL", "tag": "#2YPL9GU8Y", "clan": "Vastaya",
+        doc = {"modo": "OFICIAL", "tag": CLA_OFICIAL_TAG, "clan": "TorneiosWWars",
                "contas": [{"tag": "#P2Y", "nome": "A", "cv": 16},
                            {"tag": "#P8Y", "nome": "B", "cv": 16}]}
         self.assertEqual(len(validar_roster(doc)), 2)
         doc["contas"][1]["tag"] = "#P2Y"
+        with self.assertRaises(ValueError):
+            validar_roster(doc)
+
+    def test_roster_rejeita_cla_antigo(self):
+        doc = {"modo": "OFICIAL", "tag": "#2YPL9GU8Y", "clan": "Vastaya", "contas": []}
         with self.assertRaises(ValueError):
             validar_roster(doc)
 
@@ -74,6 +79,8 @@ class Torneios(unittest.TestCase):
         self.assertIn('alt="CV 9"', pagina)
         self.assertNotIn('<span class="wwt-avatar">9</span>', pagina)
         self.assertIn("Duelo amistoso CV 9", pagina)
+        self.assertIn("#2CY88CCYU", pagina)
+        self.assertIn("@winningwarscoc", pagina)
 
     def test_regras_oficiais_expoem_criterios_objetivos(self):
         regras = html_regras_oficiais()

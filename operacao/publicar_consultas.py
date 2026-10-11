@@ -18,7 +18,7 @@ from ww_competicao.participacao_competicao import pc_ler_eventos, pc_estado
 from ww_competicao.situacao_membros import montar as montar_situacao_membros
 
 SHEET = '1QTfVjrfSCVZ3JlqIDbhLHHBc2-anz8XhK9WzxU3v0oA'
-TORNEIO_TAG = os.environ.get('WW_TORNEIO_CLAN_TAG', '#2YPL9GU8Y').strip().upper()
+TORNEIO_TAG = os.environ.get('WW_TORNEIO_CLAN_TAG', '#2CY88CCYU').strip().upper()
 
 
 def linhas_registros(linhas):
@@ -115,7 +115,7 @@ def executar():
     # O elenco principal muda pouco para a consulta pública. O clã de torneios
     # é parametrizado no servidor e atualizado em intervalos curtos para lives.
     membros = obter_roster('principal', '#YVLGUJQY', timedelta(minutes=30))
-    roster_torneio = obter_roster('torneio_teste', TORNEIO_TAG, timedelta(minutes=2))
+    roster_torneio = obter_roster('torneio_oficial', TORNEIO_TAG, timedelta(minutes=2))
     documentos = {}
     if membros:
         documentos['membros'] = {'consultado_em': membros['consultado_em'], 'temporada': temporada,
