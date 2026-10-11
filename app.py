@@ -5113,8 +5113,13 @@ def nv_linhas_ids(linhas):
 # Nomes de exibicao; o dataframe original continua sendo a referencia do legado.
 @st.cache_data(ttl=60)
 def carregar_nomes_vinculados():
-  linhas_nomes = ww_aba_painel(planilha_competicao.id, NV_ABA).get_all_values(value_render_option="FORMULA")
-  nomes = nv_ler(linhas_nomes)
+  try:
+    linhas_nomes = ww_aba_painel(planilha_competicao.id, NV_ABA).get_all_values(value_render_option="FORMULA")
+    nomes = nv_ler(linhas_nomes)
+  except gspread.WorksheetNotFound:
+    # NomesVilas é apenas um enriquecimento visual. A ausência dessa aba não
+    # pode descartar os vínculos nem as decisões de participação.
+    nomes = {}
   try:
     foto = ww_foto_vinculos_exibicao(planilha_competicao.id)
   except gspread.WorksheetNotFound:
