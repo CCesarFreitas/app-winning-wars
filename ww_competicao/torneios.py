@@ -22,6 +22,29 @@ IMAGENS_CV = {
     9: "https://www.clash.ninja/images/entities/1_9.png",
 }
 
+REGRAS_OFICIAIS = (
+    "Respeite os participantes, o juiz e as normas do torneio. Ofensas, provocações abusivas ou comportamento antidesportivo podem causar eliminação.",
+    "É proibido enviar spam no chat do clã. O chat deve permanecer livre para convocações, desafios e orientações do juiz.",
+    "Cada participante deve competir com a conta e a tag inscritas. Compartilhar a conta ou permitir que outra pessoa realize o ataque causa eliminação.",
+    "O sorteio e as folgas são definidos pela plataforma. Depois do primeiro duelo, a chave só poderá ser refeita se o juiz comprovar erro técnico ou participante inelegível.",
+    "O juiz convocará cada duelo e informará a ordem. Os dois participantes deverão publicar e aceitar os desafios conforme a convocação.",
+    "Todo desafio deve usar exatamente o modo de jogo anunciado para o torneio. Publicar ou disputar em modo diferente poderá causar eliminação.",
+    "O ataque deve começar em até 30 segundos após o desafio ser publicado no chat, conforme a contagem do juiz. Quem exceder esse prazo poderá ser eliminado por ausência.",
+    "Vence o duelo quem obtiver mais estrelas. Persistindo o empate, vence quem alcançar o maior percentual de destruição; permanecendo o empate, vence o ataque concluído em menor tempo.",
+    "Quando os dois ataques fizerem três estrelas, avança quem concluir o ataque em menor tempo.",
+    "Falhas de conexão, bateria ou aparelho são responsabilidade do participante. Um novo duelo só poderá ser autorizado pelo juiz quando houver falha geral comprovada antes da confirmação do resultado.",
+    "Somente o juiz registra o vencedor na plataforma. O resultado exibido no jogo, na transmissão ou em captura de tela poderá ser usado para conferência.",
+    "Contestações devem ser apresentadas ao juiz antes do início da rodada seguinte. A decisão registrada pelo juiz encerra o confronto.",
+)
+
+
+def html_regras_oficiais():
+    regras = "".join(f"<li><span>{indice:02d}</span><p>{escape(regra)}</p></li>"
+                     for indice, regra in enumerate(REGRAS_OFICIAIS, 1))
+    return f'''<div class="wwt-rules-summary">
+      <b>⏱️ 30 s para iniciar</b><b>⭐ Estrelas</b><b>💥 Destruição</b><b>⚡ Menor tempo</b>
+    </div><ol class="wwt-rules-list">{regras}</ol>'''
+
 
 def validar_roster(documento):
     if not isinstance(documento, dict) or documento.get("modo") != "OFICIAL":
@@ -92,11 +115,14 @@ def _propagar_automaticos(torneio):
     return torneio
 
 
-def criar_torneio(nome, participantes, cv, sorteio=None, criado_em=None):
+def criar_torneio(nome, participantes, cv, sorteio=None, criado_em=None,
+                  modo="Desafio amistoso"):
     if not isinstance(nome, str) or not 3 <= len(nome.strip()) <= 80:
         raise ValueError("Nome do torneio inválido")
     if not isinstance(participantes, list) or not 2 <= len(participantes) <= 32:
         raise ValueError("Selecione de 2 a 32 participantes")
+    if not isinstance(modo, str) or not 3 <= len(modo.strip()) <= 80:
+        raise ValueError("Modo do torneio inválido")
     tags = [p.get("tag") for p in participantes]
     if len(tags) != len(set(tags)) or any(not isinstance(tag, str) or not re.fullmatch(r"#[0289PYLQGRJCUV]+", tag)
                                               for tag in tags):
@@ -131,7 +157,8 @@ def criar_torneio(nome, participantes, cv, sorteio=None, criado_em=None):
     torneio = {
         "versao": 2, "nome": nome.strip(), "clan": participantes[0].get("clan", ""),
         "clan_tag": participantes[0].get("clan_tag", ""),
-        "cv": cv, "status": "EM_ANDAMENTO", "criado_em": criado_em or datetime.now(timezone.utc).isoformat(),
+        "cv": cv, "modo": modo.strip(), "status": "EM_ANDAMENTO",
+        "criado_em": criado_em or datetime.now(timezone.utc).isoformat(),
         "participantes": jogadores, "tamanho_chave": tamanho, "rotulos": _rotulos(len(rodadas), tamanho),
         "rodadas": rodadas, "campeao": None, "ultima_transicao": None,
     }
@@ -219,7 +246,7 @@ def html_chaveamento(torneio):
       .wwt-champion{{margin:22px auto 0;max-width:520px;display:flex;align-items:center;justify-content:center;gap:16px;border:2px solid #fbbf24;border-radius:22px;padding:15px;background:linear-gradient(120deg,#451a03,#23113f);box-shadow:0 0 45px #f59e0b55;animation:wwtWin 1.2s ease}}
       .wwt-champion>span{{font-size:3rem;animation:float 2s ease-in-out infinite}}.wwt-champion small,.wwt-champion b,.wwt-champion em{{display:block}}.wwt-champion small{{color:#fbbf24;letter-spacing:.2em}}.wwt-champion b{{font-size:1.35rem}}.wwt-champion em{{color:#c4b5fd}}@keyframes float{{50%{{transform:translateY(-6px)}}}}
       @media(max-width:600px){{.wwt-stage{{padding:13px}}.wwt-round{{width:225px}}.wwt-brand{{align-items:start;flex-direction:column;gap:8px}}}}
-    </style></head><body><main class="wwt-stage"><header class="wwt-brand"><div><small>WINNING WARS APRESENTA</small><h1>{escape(torneio['nome'])}</h1></div><div class="wwt-badge">{len(torneio['participantes'])} competidores · CV {torneio['cv']}</div></header><div class="wwt-bracket">{"".join(colunas)}</div>{trofeu}</main></body></html>'''
+    </style></head><body><main class="wwt-stage"><header class="wwt-brand"><div><small>WINNING WARS APRESENTA</small><h1>{escape(torneio['nome'])}</h1></div><div class="wwt-badge">{len(torneio['participantes'])} competidores · CV {torneio['cv']} · {escape(torneio.get('modo', 'Desafio amistoso'))}</div></header><div class="wwt-bracket">{"".join(colunas)}</div>{trofeu}</main></body></html>'''
 
 
 def renderizar(st, documentos, admin_usuario=None, carregar_torneio=None, salvar_torneio=None):
@@ -229,9 +256,14 @@ def renderizar(st, documentos, admin_usuario=None, carregar_torneio=None, salvar
         .wwt-hero{border:1px solid #7c3aed;border-radius:22px;padding:22px;background:radial-gradient(circle at 85% 0,#4c1d9555,transparent 42%),linear-gradient(145deg,#111827,#090b12);margin:8px 0 18px;box-shadow:0 18px 45px #0007}
         .wwt-kicker{color:#fbbf24;font-weight:900;letter-spacing:.18em;font-size:.72rem}.wwt-hero h1{margin:.25rem 0;font-size:clamp(2rem,5vw,4rem);line-height:.95;text-transform:uppercase}.wwt-hero p{color:#cbd5e1;max-width:760px}
         .wwt-roster{display:flex;gap:7px;flex-wrap:wrap}.wwt-chip{border:1px solid #475569;border-radius:999px;padding:5px 9px;color:#e2e8f0;background:#1e293b;font-size:.76rem}
+        .wwt-rules-summary{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}.wwt-rules-summary b{border:1px solid #a16207;background:#422006;color:#fde68a;border-radius:999px;padding:6px 10px;font-size:.78rem}
+        .wwt-rules-list{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.wwt-rules-list li{display:flex;gap:10px;align-items:flex-start;border:1px solid #334155;border-radius:12px;padding:10px;background:#0f172a}.wwt-rules-list span{color:#fbbf24;font-weight:950;font-size:.76rem}.wwt-rules-list p{margin:0;color:#e2e8f0;font-size:.84rem;line-height:1.35}
+        @media(max-width:700px){.wwt-rules-list{grid-template-columns:1fr}}
       </style>
       <div class="wwt-hero"><div class="wwt-kicker">LIVE ARENA</div><h1>⚔️ Torneios Winning Wars</h1><p>Confrontos eliminatórios 1 × 1, da primeira batalha à grande final.</p></div>
     """, unsafe_allow_html=True)
+    with st.expander("📜 Regras oficiais do torneio", expanded=True):
+        st.markdown(html_regras_oficiais(), unsafe_allow_html=True)
     documento = documentos.get("torneio_roster")
     try:
         roster = validar_roster(documento)
@@ -257,6 +289,8 @@ def renderizar(st, documentos, admin_usuario=None, carregar_torneio=None, salvar
         with st.container(border=True):
             st.markdown("### Console do organizador")
             nome = st.text_input("Nome do torneio", "Torneio Winning Wars", max_chars=80)
+            modo = st.text_input("Modo de jogo", "Desafio amistoso", max_chars=80,
+                                 help="Será exibido no chaveamento e deverá ser seguido em todos os desafios.")
             cvs = ["Todos"] + sorted(dist, reverse=True)
             cv = st.selectbox("Centro de Vila do torneio", cvs,
                               format_func=lambda valor: "Todos os CVs" if valor == "Todos" else f"Somente CV {valor}")
@@ -266,7 +300,7 @@ def renderizar(st, documentos, admin_usuario=None, carregar_torneio=None, salvar
                 format_func=lambda tag: f"{mapa[tag]['nome']} · CV {mapa[tag]['cv']} · {tag}")
             st.caption("O sorteio aceita de 2 a 32 contas. Quando necessário, algumas recebem folga na primeira fase.")
             if st.button("🎲 Sortear chaveamento", type="primary", use_container_width=True):
-                novo = criar_torneio(nome, [mapa[t] for t in selecionadas], cv)
+                novo = criar_torneio(nome, [mapa[t] for t in selecionadas], cv, modo=modo)
                 if salvar_torneio:
                     salvar_torneio(novo)
                 else:

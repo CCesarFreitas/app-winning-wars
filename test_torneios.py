@@ -2,7 +2,8 @@ import random
 import unittest
 
 from ww_competicao.torneios import (criar_torneio, partidas_pendentes,
-                                    selecionar_vencedor, validar_roster, html_chaveamento)
+                                    selecionar_vencedor, validar_roster, html_chaveamento,
+                                    html_regras_oficiais)
 
 
 def jogadores(qtd, cv=16):
@@ -66,11 +67,24 @@ class Torneios(unittest.TestCase):
             selecionar_vencedor(torneio, 0, 0, "#Q2Y")
 
     def test_visual_oficial_exibe_imagem_do_cv(self):
-        torneio = criar_torneio("Torneios Winning Wars", jogadores(2, 9), 9, random.Random(1))
+        torneio = criar_torneio("Torneios Winning Wars", jogadores(2, 9), 9,
+                                random.Random(1), modo="Duelo amistoso CV 9")
         pagina = html_chaveamento(torneio)
         self.assertIn('src="https://www.clash.ninja/images/entities/1_9.png"', pagina)
         self.assertIn('alt="CV 9"', pagina)
         self.assertNotIn('<span class="wwt-avatar">9</span>', pagina)
+        self.assertIn("Duelo amistoso CV 9", pagina)
+
+    def test_regras_oficiais_expoem_criterios_objetivos(self):
+        regras = html_regras_oficiais()
+        for trecho in ("30 segundos", "mais estrelas", "percentual de destruição",
+                       "menor tempo", "modo de jogo", "Compartilhar a conta"):
+            self.assertIn(trecho, regras)
+        self.assertEqual(regras.count("<li>"), 12)
+
+    def test_modo_invalido_bloqueado(self):
+        with self.assertRaises(ValueError):
+            criar_torneio("Teste", jogadores(2), 16, random.Random(1), modo="")
 
 
 if __name__ == "__main__":
