@@ -2187,13 +2187,17 @@ if st.session_state["pagina_atual"] == "torneios":
   if st.button("⬅️ Voltar ao Winning Wars", key="ww_torneio_voltar"):
     st.session_state["pagina_atual"] = "principal"
     st.rerun()
+  import importlib
   from ww_competicao.consultas import ler as ww_ler_consultas_torneio
-  from ww_competicao.torneios import renderizar as ww_renderizar_torneios
+  from ww_competicao import torneios as ww_torneios
+  # O Streamlit pode atualizar os arquivos sem reiniciar o processo Python.
+  # Recarregar este módulo evita manter uma versão anterior da arena em memória.
+  ww_torneios = importlib.reload(ww_torneios)
   try:
     documentos_torneio = ww_ler_consultas_torneio(planilha_competicao)
   except Exception:
     documentos_torneio = {}
-  ww_renderizar_torneios(
+  ww_torneios.renderizar(
       st, documentos_torneio, st.session_state.get("admin_logado"),
       carregar_torneio=obter_torneio_atual_cached,
       salvar_torneio=salvar_torneio_oficial,
