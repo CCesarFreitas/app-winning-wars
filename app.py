@@ -4259,10 +4259,63 @@ def renderizar_permissoes_competicao():
   if not contas:
     st.info("Nenhuma conta cadastrada ainda.")
     return
+  situacoes = {}
+  revisar_tags = []
+  try:
+    documento_situacao = ww_consultas_disponiveis().get("situacao_competicao", {})
+    situacoes = {c["tag"]: c for c in documento_situacao.get("contas", [])}
+  except Exception:
+    documento_situacao = {}
+  if situacoes:
+    rotulos_situacao = {
+        "MEMBRO_ATUAL": "No clã",
+        "ENTROU_APOS_INICIO_DO_HISTORICO": "Entrada recente",
+        "RETORNOU_AO_CLA": "Retornou ao clã",
+        "AUSENTE_AGORA": "Fora do clã agora",
+        "SEM_REGISTRO_NO_CLA": "Sem presença registrada",
+    }
+    revisar_tags = [tag for tag, c in contas.items()
+        if c["Habilitada"] == "TRUE" and not situacoes.get(tag, {}).get("no_cla", False)]
+    with st.expander(f"Revisão de elegibilidade · {len(revisar_tags)} habilitadas fora do clã", expanded=bool(revisar_tags)):
+      st.write("A primeira pontuação positiva inclui a conta no ranking. A ausência no clã gera revisão, mas não bloqueia automaticamente: visitantes, contas secundárias e saídas definitivas precisam da decisão da liderança.")
+      st.caption("Pontos e histórico são preservados quando uma conta é bloqueada. O bloqueio impede novos lançamentos automáticos.")
+      filtro_presenca = st.selectbox("Mostrar", ["Habilitadas fora do clã", "Todas fora do clã", "No clã", "Todas"], key="ww_pc_filtro_presenca")
+      def incluir_situacao(tag):
+        s = situacoes.get(tag, {})
+        if filtro_presenca == "Habilitadas fora do clã":
+          return not s.get("no_cla", False) and contas[tag]["Habilitada"] == "TRUE"
+        if filtro_presenca == "Todas fora do clã":
+          return not s.get("no_cla", False)
+        if filtro_presenca == "No clã":
+          return s.get("no_cla", False)
+        return True
+      linhas_revisao = []
+      for tag in sorted((t for t in contas if incluir_situacao(t)), key=lambda t: (nomes[t].casefold(), t)):
+        s = situacoes.get(tag, {})
+        linhas_revisao.append({
+            "Conta": nomes[tag], "Tag": tag,
+            "Situação": rotulos_situacao.get(s.get("situacao"), "Sem informação"),
+            "Pontos": s.get("pontos", 0),
+            "Participação": "Habilitada" if contas[tag]["Habilitada"] == "TRUE" else "Bloqueada",
+            "Decisão": "Administrador" if contas[tag]["Origem"] == "ADMIN" else "Automática",
+            "Primeira presença": s.get("primeira_vista") or "Não registrada",
+            "Última presença": s.get("ultima_vista") or "Não registrada",
+        })
+      if linhas_revisao:
+        st.dataframe(pd.DataFrame(linhas_revisao), hide_index=True, use_container_width=True)
+      else:
+        st.success("Nenhuma conta corresponde a este filtro.")
+      st.caption("Histórico de presença disponível desde " + str(documento_situacao.get("historico_desde") or "data ainda indisponível") + ".")
   acao = st.radio("Ação do lote", ["Bloquear participação", "Habilitar participação"], horizontal=True)
   habilitar = acao == "Habilitar participação"
+  somente_revisao = False
+  if not habilitar and revisar_tags:
+    somente_revisao = st.checkbox(
+        f"Mostrar somente as {len(revisar_tags)} contas habilitadas que estão fora do clã",
+        value=False, key="ww_pc_somente_revisao")
   busca = st.text_input("Buscar por nome ou tag", key="ww_pc_lote_busca").strip().casefold()
   elegiveis = sorted([tag for tag,c in contas.items() if (c["Habilitada"] == "TRUE") != habilitar
+      and (not somente_revisao or tag in revisar_tags)
       and (not busca or busca in nomes[tag].casefold() or busca in tag.casefold())],
       key=lambda tag: (nomes[tag].casefold(), tag))
   st.caption("A lista mostra somente contas que precisam da alteração escolhida. Ao mudar a busca ou a ação, confira novamente sua seleção.")
@@ -5065,18 +5118,18 @@ def carregar_nomes_vinculados():
   try:
     foto = ww_foto_vinculos_exibicao(planilha_competicao.id)
   except gspread.WorksheetNotFound:
-    return {}, nomes
+    return {}, nomes, {}
   estado = vc_estado(*foto)
-  return estado["por_id"], nomes
+  return estado["por_id"], nomes, estado["contas"]
 
 try:
-  nomes_vinculos, nomes_api = carregar_nomes_vinculados()
+  nomes_vinculos, nomes_api, participacao_atual = carregar_nomes_vinculados()
   nomes_aviso = ""
 except gspread.WorksheetNotFound:
-  nomes_vinculos, nomes_api = {}, {}
+  nomes_vinculos, nomes_api, participacao_atual = {}, {}, {}
   nomes_aviso = "Os nomes da Supercell aguardam a primeira sincronização."
 except Exception:
-  nomes_vinculos, nomes_api = {}, {}
+  nomes_vinculos, nomes_api, participacao_atual = {}, {}, {}
   nomes_aviso = "Não foi possível conferir os nomes da Supercell. Os nomes anteriores serão exibidos nesta consulta."
 
 def nome_exibicao(row):
@@ -5248,7 +5301,13 @@ else:
 
     cols_somar = [c for c in colunas_pontos if c in df.columns]
     df["Total"] = df[cols_somar].sum(axis=1) if cols_somar else 0
-    df_rank = df.sort_values(by="Total", ascending=False).reset_index(drop=True)
+    from ww_competicao.situacao_membros import visivel_no_ranking
+    def conta_visivel_no_ranking(row):
+      return visivel_no_ranking(row.get("ID", ""), nomes_vinculos, participacao_atual)
+    # O bloqueio preserva os dados brutos e o histórico, mas retira a conta da
+    # classificação oficial enquanto a decisão administrativa estiver ativa.
+    df_rank = df[df.apply(conta_visivel_no_ranking, axis=1)].copy()
+    df_rank = df_rank.sort_values(by="Total", ascending=False).reset_index(drop=True)
     df_rank.index = df_rank.index + 1
 
     posicoes = []

@@ -15,6 +15,7 @@ sys.path[:0] = [str(RAIZ), str(MOTOR), str(BASE)]
 from ww_competicao.armazenamento import Arquivo, empacotar
 from ww_competicao.detalhes_atividade import detalhar
 from ww_competicao.participacao_competicao import pc_ler_eventos, pc_estado
+from ww_competicao.situacao_membros import montar as montar_situacao_membros
 
 SHEET = '1QTfVjrfSCVZ3JlqIDbhLHHBc2-anz8XhK9WzxU3v0oA'
 TORNEIO_TAG = os.environ.get('WW_TORNEIO_CLAN_TAG', '#2YPL9GU8Y').strip().upper()
@@ -113,7 +114,7 @@ def executar():
 
     # O elenco principal muda pouco para a consulta pública. O clã de torneios
     # é parametrizado no servidor e atualizado em intervalos curtos para lives.
-    membros = obter_roster('principal', '#YVLGUJQY', timedelta(hours=8))
+    membros = obter_roster('principal', '#YVLGUJQY', timedelta(minutes=30))
     roster_torneio = obter_roster('torneio_teste', TORNEIO_TAG, timedelta(minutes=2))
     documentos = {}
     if membros:
@@ -122,6 +123,12 @@ def executar():
                        'permissao': ('Bloqueada' if contas.get(m['tag'], {}).get('Habilitada') == 'FALSE'
                                     else 'Habilitada' if m['tag'] in contas else 'Sem decisão registrada')}
                       for m in membros['contas']]}
+        versoes_roster = [(json.loads(conteudo), registrado_em) for conteudo, registrado_em
+                           in arquivo.db.execute('''SELECT conteudo,registrado_em FROM versoes
+                              WHERE tipo='roster' AND chave='principal' ORDER BY sequencia''')]
+        documentos['situacao_competicao'] = montar_situacao_membros(
+            temporada, fotos['Página1'], fotos['VinculosParticipantes'], inscritos,
+            contas, membros, versoes_roster, agora.isoformat())
     if roster_torneio:
         documentos['torneio_roster'] = {
             'modo': 'OFICIAL', 'consultado_em': roster_torneio['consultado_em'],

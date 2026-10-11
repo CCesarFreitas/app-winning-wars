@@ -8,7 +8,7 @@ def renderizar_regulamento(st):
 - Entrar no clã, por si só, não coloca a conta no ranking. A primeira **pontuação válida e positiva** cria a participação na temporada e já inclui esses pontos, mesmo para quem chegou durante o mês.
 - A identificação é feita pela **tag da vila**. O nome pode mudar; contas com nomes diferentes não são automaticamente reconhecidas como sendo da mesma pessoa.
 - A competição é destinada à conta principal. Os administradores habilitam ou bloqueiam contas pelo painel de participação, inclusive em lote, para administrar contas secundárias.
-- Conta bloqueada não recebe novos lançamentos pela integração. O bloqueio **não apaga pontos anteriores**; habilitar também não concede pontos retroativos por si só.
+- Conta bloqueada não recebe novos lançamentos pela integração e deixa de aparecer no ranking oficial ativo. O bloqueio **não apaga pontos nem auditorias anteriores**; habilitar também não concede pontos retroativos por si só.
 - Somente atividades do **Winning Wars (#YVLGUJQY)** pontuam nesta integração. Atividades de outro clã, inclusive do clã secundário, não pontuam aqui.
 - Guerra, Liga e Raide são lançados automaticamente **após o encerramento**, a validação dos dados e uma consulta do motor. Resultados em andamento são parciais e não são lançados automaticamente.
 - A temporada dessas atividades é definida pela **data de início no horário de Brasília**. Uma atividade iniciada em setembro não pontua em outubro só porque terminou depois da virada. A temporada correspondente precisa estar aberta.
