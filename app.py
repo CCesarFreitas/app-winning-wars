@@ -4275,7 +4275,9 @@ def renderizar_permissoes_competicao():
         "SEM_REGISTRO_NO_CLA": "Sem presença registrada",
     }
     revisar_tags = [tag for tag, c in contas.items()
-        if c["Habilitada"] == "TRUE" and not situacoes.get(tag, {}).get("no_cla", False)]
+        if c["Habilitada"] == "TRUE"
+        and not situacoes.get(tag, {}).get("no_cla", False)
+        and (situacoes.get(tag, {}).get("inscrita") or situacoes.get(tag, {}).get("pontos", 0) > 0)]
     with st.expander(f"Revisão de elegibilidade · {len(revisar_tags)} habilitadas fora do clã", expanded=bool(revisar_tags)):
       st.write("A primeira pontuação positiva inclui a conta no ranking. A ausência no clã gera revisão, mas não bloqueia automaticamente: visitantes, contas secundárias e saídas definitivas precisam da decisão da liderança.")
       st.caption("Pontos e histórico são preservados quando uma conta é bloqueada. O bloqueio impede novos lançamentos automáticos.")
@@ -4283,7 +4285,7 @@ def renderizar_permissoes_competicao():
       def incluir_situacao(tag):
         s = situacoes.get(tag, {})
         if filtro_presenca == "Habilitadas fora do clã":
-          return not s.get("no_cla", False) and contas[tag]["Habilitada"] == "TRUE"
+          return tag in revisar_tags
         if filtro_presenca == "Todas fora do clã":
           return not s.get("no_cla", False)
         if filtro_presenca == "No clã":
