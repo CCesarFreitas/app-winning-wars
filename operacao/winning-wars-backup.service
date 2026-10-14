@@ -1,0 +1,16 @@
+[Unit]
+Description=Winning Wars - backup comprimido e verificado do historico
+RequiresMountsFor=/var/oled
+
+[Service]
+Type=oneshot
+User=opc
+ExecStart=/opt/winning-wars-api/venv/bin/python -B /opt/winning-wars-api/consultas_app_20261002/operacao/backup_historico.py
+TimeoutStartSec=3600
+UMask=0077
+Nice=10
+IOSchedulingClass=idle
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/oled/winning-wars-backups /opt/winning-wars-api/dados_consulta

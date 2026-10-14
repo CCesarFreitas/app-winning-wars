@@ -1,0 +1,11 @@
+[Unit]
+Description=Winning Wars - backup diario as 03h15 de Brasilia
+
+[Timer]
+OnCalendar=*-*-* 06:15:00 UTC
+Persistent=true
+RandomizedDelaySec=300
+Unit=winning-wars-backup.service
+
+[Install]
+WantedBy=timers.target

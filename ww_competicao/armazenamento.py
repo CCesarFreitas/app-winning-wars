@@ -23,11 +23,24 @@ class Arquivo:
                 chave TEXT NOT NULL, sha256 TEXT NOT NULL, conteudo TEXT NOT NULL,
                 registrado_em TEXT NOT NULL);
             CREATE INDEX IF NOT EXISTS por_chave ON versoes(tipo,chave,sequencia);
+            CREATE TABLE IF NOT EXISTS estados_operacionais (
+                tipo TEXT NOT NULL, chave TEXT NOT NULL, sha256 TEXT NOT NULL,
+                conteudo TEXT NOT NULL, registrado_em TEXT NOT NULL,
+                PRIMARY KEY(tipo,chave));
         ''')
 
     def guardar(self, tipo, chave, valor, agora):
         texto = serializar(valor)
         resumo = hashlib.sha256(texto.encode()).hexdigest()
+        # Projeções/cache/saúde são estados atuais, não eventos de auditoria.
+        # As versões históricas já existentes permanecem intactas.
+        if tipo in {'planejamento', 'planejamento_cache', 'saude'}:
+            with self.db:
+                self.db.execute('''INSERT INTO estados_operacionais VALUES(?,?,?,?,?)
+                    ON CONFLICT(tipo,chave) DO UPDATE SET sha256=excluded.sha256,
+                    conteudo=excluded.conteudo, registrado_em=excluded.registrado_em''',
+                    (tipo, chave, resumo, texto, agora))
+            return resumo
         with self.db:
             self.db.execute('BEGIN IMMEDIATE')
             ultimo = self.db.execute('SELECT sha256 FROM versoes WHERE tipo=? AND chave=? ORDER BY sequencia DESC LIMIT 1',
@@ -38,10 +51,13 @@ class Arquivo:
         return resumo
 
     def ultimos(self, tipo):
-        return {k: json.loads(v) for k, v in self.db.execute('''
+        valores = {k: json.loads(v) for k, v in self.db.execute('''
             SELECT chave,conteudo FROM versoes WHERE sequencia IN
             (SELECT MAX(sequencia) FROM versoes WHERE tipo=? GROUP BY chave)
         ''', (tipo,))}
+        valores.update({k: json.loads(v) for k,v in self.db.execute(
+            'SELECT chave,conteudo FROM estados_operacionais WHERE tipo=?',(tipo,))})
+        return valores
 
     def backup(self, destino):
         with closing(sqlite3.connect(destino)) as copia:

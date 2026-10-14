@@ -216,9 +216,7 @@ def executar():
     planilha.batch_update({'requests': requisicoes})
     if destino.get_all_values() != linhas:
         raise ValueError('Publicação não conferida')
-    backup = dados_dir / ('backup_' + agora.strftime('%Y%m%d') + '.sqlite3')
-    if not backup.exists():
-        arquivo.backup(backup)
+    # Backup independente no volume secundário: winning-wars-backup.timer.
     arquivo.close()
     print('Consultas publicadas; ranking, inscrições e permissões preservados.', flush=True)
 
