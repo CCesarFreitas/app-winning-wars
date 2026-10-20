@@ -158,6 +158,8 @@ def renderizar(st, pd, documentos, admins, usuario):
         return
     st.markdown('### Desempenho e colaboração dos membros')
     st.caption('Somente atividades encerradas. Análise por conta/tag; nomes não agrupam contas de uma mesma pessoa.')
+    from .ultima_guerra_sem_ataques import renderizar as renderizar_ultima_guerra
+    renderizar_ultima_guerra(st, pd, documentos, admins, usuario)
     lista, _ = selecionar(documentos)
     if not lista:
         st.info('Ainda não há atividades encerradas disponíveis para este relatório.')
