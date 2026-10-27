@@ -5751,8 +5751,11 @@ else:
         except Exception:
           st.info("Relatório disponível para a liderança autorizada. Se necessário, atualize sua sessão.")
         else:
-          from ww_competicao.carregar_desempenho import obter_renderizador
-          renderizar_relatorio_desempenho = obter_renderizador()
+          import importlib
+          from ww_competicao import carregar_desempenho
+          if not hasattr(carregar_desempenho, 'obter_renderizador_feedback'):
+            carregar_desempenho = importlib.reload(carregar_desempenho)
+          renderizar_relatorio_desempenho = carregar_desempenho.obter_renderizador_feedback()
           renderizar_relatorio_desempenho(st, pd, ww_consultas_disponiveis(),
               admins_desempenho, st.session_state['admin_logado'],
               carregar_manuais=lambda: ww_lancamentos_manuais_exibicao(planilha_competicao.id))

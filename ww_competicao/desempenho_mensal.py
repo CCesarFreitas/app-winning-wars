@@ -10,6 +10,7 @@ CORES = {3: '#168775', 2: '#438ac4', 1: '#e8ad42', 0: '#c97170'}
 NOMES = {'guerra': 'Guerras normais', 'liga': 'Liga', 'raide': 'Raides'}
 MESES = ('janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro')
 PLOT_LOCK = Lock()
+FEEDBACK_VERSAO = 2
 
 
 def periodo(mes):
@@ -207,7 +208,8 @@ def renderizar(st,pd,documentos,admins,usuario,carregar_manuais=None):
         st.warning('O histórico está desatualizado ou incompleto. Confira a integração antes de tomar decisões.')
     if len(escolhidos)==1:
         from .desempenho_individual import renderizar as individual
-        individual(st,pd,contas[0],mes,stamp,carregar_manuais)
+        individual(st,pd,contas[0],mes,stamp,carregar_manuais,
+                   total_raides=sum(a['tipo']=='raide' for a in completo['atividades']))
         return
     contas=[modelo['contas'][c['tag']] for c in contas
             if c['tag'] in modelo['contas'] and modelo['contas'][c['tag']]['registros']]

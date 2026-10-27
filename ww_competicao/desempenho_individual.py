@@ -41,7 +41,9 @@ def exportar(conta, mes, stamp):
     return saida.getvalue()
 
 
-def renderizar(st,pd,conta,mes,stamp,carregar_manuais=None):
+FEEDBACK_VERSAO = 2
+
+def renderizar(st,pd,conta,mes,stamp,carregar_manuais=None,total_raides=None):
     from .relatorio_desempenho import data_fim, faixas_cv, csv_seguro
     from .consultas import FUSO
     st.subheader(conta['nome'])
@@ -80,6 +82,8 @@ def renderizar(st,pd,conta,mes,stamp,carregar_manuais=None):
             if ataques:st.dataframe(pd.DataFrame(ataques),hide_index=True,use_container_width=True)
             st.download_button('Baixar detalhes CSV',csv_seguro(tabela),file_name=f'{mes}_{tipo}_individual.csv',key='di_csv_'+tipo)
     st.markdown('#### Jogos do Clã')
+    jogos=None
+    jogos_estado='pendente'
     try:
         jogos=jogos_do_mes(carregar_manuais(),conta['tag'],mes) if carregar_manuais else None
         if jogos is None:st.info('Sem lançamento confirmado neste mês. O resultado aparecerá após o registro no painel de Jogos do Clã.')
@@ -88,8 +92,10 @@ def renderizar(st,pd,conta,mes,stamp,carregar_manuais=None):
             c1.metric('Pontos feitos nos Jogos',jogos['jogo']);c2.metric('Pontos na competição',jogos['competicao'])
             st.caption('Último lançamento auditado: '+jogos['data'])
     except Exception:
+        jogos_estado='erro'
         st.warning('Não foi possível conferir o lançamento dos Jogos do Clã. Isso não significa zero pontos.')
-    gerar=st.cache_data(show_spinner=False,max_entries=16)(exportar)
-    st.download_button('Baixar análise de guerras, liga e raides — PNG',gerar(conta,mes,stamp),
+    from .feedback_imagem import exportar as ficha
+    gerar=st.cache_data(show_spinner=False,max_entries=16)(ficha)
+    st.download_button('Baixar feedback completo — guerras, liga, raides e jogos (PNG)',gerar(conta,mes,stamp,jogos,jogos_estado,total_raides),
         file_name=f"WinningWars_{mes}_{conta['tag'].lstrip('#')}_individual.png",mime='image/png',key='di_png')
     st.caption('Imagem com 3.000 pixels de largura. Participações e faltas consideram apenas atividades com registro individual; ausência no histórico não é falta de ataque. Compare também os níveis dos CVs antes do feedback.')
