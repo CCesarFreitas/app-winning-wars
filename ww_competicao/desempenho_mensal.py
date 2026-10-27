@@ -123,6 +123,56 @@ def imagem(rows, tipo, mes, atualizado, pagina=1, paginas=1, escopo='Participant
         return buffer.getvalue()
 
 
+def grafico_interativo(st, pd, rows, tipo):
+    """Mesmos dados do PNG, com proporções e números consultáveis no gráfico."""
+    raid = tipo == 'raide'
+    ordem = [r['nome']+' · '+r['tag'] for r in rows]
+    valores = []
+    for r in rows:
+        base = {'Vila': r['nome']+' · '+r['tag'], 'Ataques': r['ataques'],
+                'Atividades': r['atividades'], 'Não usados': r['faltas'],
+                'Taxa de 3 estrelas (%)': r['taxa3'], 'Saque por ataque': r['saque_medio']}
+        disponivel = r['uso'] is not None if raid else r['ataques'] > 0 and r['completos']
+        if not disponivel:
+            valores.append({**base, 'Resultado': 'Sem dados', 'Percentual': 0, 'Quantidade': 0,
+                            'Ordem': 0, 'Aviso': 'Sem ataques' if not r['ataques'] else 'Dados incompletos'})
+            continue
+        if raid:
+            segmentos = [('Utilizados', r['uso'], r['ataques']),
+                         ('Não utilizados', 100-r['uso'], r['faltas'])]
+        else:
+            segmentos = [(f'{n} estrela'+('s' if n != 1 else ''),
+                          100*r['estrelas'][n]/r['ataques'], r['estrelas'][n]) for n in (3,2,1,0)]
+        for i, (nome, percentual, quantidade) in enumerate(segmentos):
+            valores.append({**base, 'Resultado': nome, 'Percentual': percentual,
+                            'Quantidade': quantidade, 'Ordem': i, 'Aviso': ''})
+    dominio = ['Utilizados','Não utilizados'] if raid else ['3 estrelas','2 estrelas','1 estrela','0 estrelas']
+    cores = ['#168775','#d2dbe5'] if raid else [CORES[n] for n in (3,2,1,0)]
+    tooltip = [{'field':'Vila','type':'nominal'}, {'field':'Resultado','type':'nominal'},
+               {'field':'Quantidade','type':'quantitative'},
+               {'field':'Percentual','type':'quantitative','format':'.1f'},
+               {'field':'Ataques','type':'quantitative'}, {'field':'Atividades','type':'quantitative'},
+               {'field':'Não usados','type':'quantitative'},
+               {'field':'Saque por ataque' if raid else 'Taxa de 3 estrelas (%)','type':'quantitative','format':'.1f'}]
+    st.vega_lite_chart(pd.DataFrame(valores), {
+        'height': max(180, 45*len(rows)),
+        'encoding': {'y': {'field':'Vila','type':'nominal','sort':ordem,'title':None,
+                           'axis':{'labelLimit':250,'labelFontSize':12}}},
+        'layer': [
+            {'transform':[{'filter':"datum.Aviso === ''"}],
+             'mark':{'type':'bar','height':28},
+             'encoding':{'x':{'field':'Percentual','type':'quantitative','stack':'zero',
+                              'scale':{'domain':[0,100]},'title':'Ataques disponíveis (%)' if raid else 'Distribuição dos ataques realizados (%)'},
+                         'color':{'field':'Resultado','type':'nominal','scale':{'domain':dominio,'range':cores},
+                                  'legend':{'orient':'top','title':None}},
+                         'order':{'field':'Ordem','type':'quantitative'}, 'tooltip':tooltip}},
+            {'transform':[{'filter':"datum.Aviso !== ''"}],
+             'mark':{'type':'text','align':'center','color':'#64778a','fontSize':12},
+             'encoding':{'x':{'datum':50,'type':'quantitative'},'text':{'field':'Aviso'}}}
+        ]}, use_container_width=True)
+    st.caption('Passe sobre as barras para consultar quantidades, percentuais, ataques e participações.')
+
+
 def renderizar(st,pd,documentos,admins,usuario):
     from .participacao_competicao import pc_validar_admin
     from .relatorio_desempenho import selecionar, construir, data_fim, csv_seguro, faixas_cv
@@ -170,7 +220,7 @@ def renderizar(st,pd,documentos,admins,usuario):
     # Cache limitado a bytes de imagem; autorização é executada antes do acesso.
     gerar=st.cache_data(show_spinner=False,max_entries=24)(imagem)
     png=gerar(rows[(pagina-1)*10:pagina*10],tipo,mes,stamp,pagina,paginas,escopo)
-    st.image(png,use_container_width=True)
+    grafico_interativo(st,pd,rows[(pagina-1)*10:pagina*10],tipo)
     st.download_button('Baixar gráfico PNG — alta resolução',png,file_name=f'WinningWars_{mes}_{tipo}_{pagina}.png',mime='image/png',key='dm_png')
     if paginas>1 and st.button('Preparar imagens de todas as páginas',key='dm_preparar'):
         arquivo=io.BytesIO()
@@ -178,7 +228,7 @@ def renderizar(st,pd,documentos,admins,usuario):
             for p in range(1,paginas+1):
                 z.writestr(f'WinningWars_{mes}_{tipo}_{p}.png',gerar(rows[(p-1)*10:p*10],tipo,mes,stamp,p,paginas,escopo))
         st.download_button('Baixar todas as imagens (ZIP)',arquivo.getvalue(),file_name=f'WinningWars_{mes}_{tipo}.zip',mime='application/zip',key='dm_zip')
-    st.caption('PNG com 3.000 pixels de largura. A mesma seleção é usada na tela e no arquivo. '+
+    st.caption('Download em PNG com 3.000 pixels de largura. A mesma seleção é usada no gráfico e no arquivo. '+
                ('Nos raides, os dados atuais não trazem estrelas individuais.' if tipo=='raide' else 'Menos de três ataques: amostra pequena. A taxa não considera a dificuldade dos CVs; confira o detalhe individual.'))
     with st.expander('Conferir números e detalhes por membro'):
         tabela=[{'Vila':r['nome'],'Tag':r['tag'],'Atividades':r['atividades'],'Ataques':r['ataques'],

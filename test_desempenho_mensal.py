@@ -1,7 +1,7 @@
 import copy,io,unittest
 from PIL import Image
 from unittest.mock import Mock
-from ww_competicao.desempenho_mensal import linhas,periodo,imagem,renderizar
+from ww_competicao.desempenho_mensal import linhas,periodo,imagem,renderizar,grafico_interativo
 
 def conta(estrelas,limite=2,tipo='guerra'):
     return {'nome':'Vila ♤ $x','tag':'#222','registros':[{'tipo':tipo,'jogador':{
@@ -54,5 +54,23 @@ class Mensal(unittest.TestCase):
     def test_autorizacao_antes_dos_dados(self):
         st=Mock();renderizar(st,None,{},[['Usuario','Nivel']],'visitante')
         st.info.assert_called_once();st.image.assert_not_called()
+
+    def test_grafico_interativo_preserva_contagens_e_nao_exibe_imagem(self):
+        import pandas as pd
+        st=Mock()
+        grafico_interativo(st,pd,linhas([conta([3,1])],'guerra'),'guerra')
+        frame=st.vega_lite_chart.call_args.args[0]
+        self.assertEqual(frame['Percentual'].sum(),100)
+        self.assertEqual(frame['Quantidade'].sum(),2)
+        self.assertEqual(frame.loc[frame['Resultado']=='3 estrelas','Percentual'].iloc[0],50)
+        st.image.assert_not_called()
+
+    def test_grafico_sem_ataques_nao_fabrica_fatia_zero_estrelas(self):
+        import pandas as pd
+        st=Mock()
+        grafico_interativo(st,pd,linhas([conta([])],'guerra'),'guerra')
+        frame=st.vega_lite_chart.call_args.args[0]
+        self.assertEqual(frame['Aviso'].iloc[0],'Sem ataques')
+        self.assertNotIn('0 estrelas',frame['Resultado'].tolist())
 
 if __name__=='__main__':unittest.main()
