@@ -1,0 +1,13 @@
+# Relatório mensal visual — 27/10/2026
+
+Painel Admin → Desempenho dos membros agora prioriza mês, modalidade e gráfico; detalhes, seleção de membros e último zero-ataques ficam em expansores. Meses seguem a data de encerramento em Brasília, declarada no gráfico. Apenas atividades encerradas, não futuras e válidas da projeção existente. Não consulta API/Sheets por filtro nem altera pontos.
+
+Guerras e liga: barras 100% com resultados 3/2/1/0 estrelas, quantidades nos segmentos, taxa de três estrelas = triplos/ataques realizados, número de ataques/atividades, ataques não utilizados em coluna separada. Não se usa pontuação da competição como estrela. Sem ataques não equivale a zero estrela. Sem limites conhecidos não se inventa falta. Amostra inferior a três ataques sinalizada. Detalhe individual conserva comparação de CVs, ataques, regras e pontos.
+
+Raides: uso dos ataques disponíveis, número de participações, saque médio ponderado por ataques e ataques não usados. Os registros desta projeção não trazem estrelas individuais de raide; nenhuma taxa desse tipo é fabricada. Contexto do distrito/papel do ataque é indicado.
+
+Imagens PNG de 3.000 pixels de largura, 250 dpi, dez vilas por página; ZIP de todas as páginas da seleção. A prévia e download usam os mesmos bytes. Imagem registra mês/modalidade, escopo, página, fonte/data e ressalvas sobre amostra. Caracteres sem glifo na fonte são omitidos apenas na imagem; nomes originais permanecem nos filtros e tabela/CSV, e a tag sempre identifica a conta. Sem nomes reais ou dados de produção em fixtures versionadas.
+
+Dependência nova: Matplotlib >=3.8,<4 no Streamlit, sem alteração na Oracle. Renderização via Figure/Agg isolada e trava; cache de no máximo 24 imagens. Autorização administrativa vem antes da leitura/renderização/cache. CSV mantém proteção contra fórmulas. Lista de todas as contas com participação é padrão; filtro permite somente membros atuais ou contas específicas.
+
+Validação: 54 testes de unidade/regressão passaram. AppTest com dados reais conferiu guerra/liga/raide, troca entre páginas com diferentes tamanhos, seleção individual e preparação de ZIP. Imagens de guerra e raide inspecionadas e ajustadas para não cortar colunas. Leitura de 27/10: 18 atividades, 54 contas com registros de guerras, 33 de liga e 72 de raides; números incluem participantes que já saíram do clã, conforme escopo. Fontes e PNGs de conferência ficam fora do Git em `relatorio_mensal_20261027`.

@@ -152,6 +152,11 @@ def csv_seguro(rows):
 
 
 def renderizar(st, pd, documentos, admins, usuario):
+    from .desempenho_mensal import renderizar as mensal
+    return mensal(st, pd, documentos, admins, usuario)
+
+
+def renderizar_detalhado(st, pd, documentos, admins, usuario):
     try: pc_validar_admin(admins, usuario)
     except (PermissionError, ValueError, KeyError, TypeError):
         st.info('Relatório disponível apenas para administradores autorizados.')
