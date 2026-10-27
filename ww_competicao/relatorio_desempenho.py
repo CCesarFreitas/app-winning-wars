@@ -151,9 +151,9 @@ def csv_seguro(rows):
     return s.getvalue().encode('utf-8-sig')
 
 
-def renderizar(st, pd, documentos, admins, usuario):
+def renderizar(st, pd, documentos, admins, usuario, carregar_manuais=None):
     from .desempenho_mensal import renderizar as mensal
-    return mensal(st, pd, documentos, admins, usuario)
+    return mensal(st, pd, documentos, admins, usuario, carregar_manuais)
 
 
 def renderizar_detalhado(st, pd, documentos, admins, usuario):

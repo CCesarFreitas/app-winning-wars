@@ -173,7 +173,7 @@ def grafico_interativo(st, pd, rows, tipo):
     st.caption('Passe sobre as barras para consultar quantidades, percentuais, ataques e participações.')
 
 
-def renderizar(st,pd,documentos,admins,usuario):
+def renderizar(st,pd,documentos,admins,usuario,carregar_manuais=None):
     from .participacao_competicao import pc_validar_admin
     from .relatorio_desempenho import selecionar, construir, data_fim, csv_seguro, faixas_cv
     from .consultas import FUSO, horario
@@ -181,7 +181,7 @@ def renderizar(st,pd,documentos,admins,usuario):
     except (PermissionError,ValueError,KeyError,TypeError):
         st.info('Relatório disponível apenas para administradores autorizados.');return
     st.markdown('### Desempenho mensal dos membros')
-    st.caption('Selecione o mês e a modalidade. Os gráficos podem ser baixados em PNG de alta resolução.')
+    st.caption('Selecione o mês e a modalidade para comparar o grupo. Em Filtrar membros, escolha uma única vila para ver todas as atividades dela. Os gráficos podem ser baixados em PNG.')
     atividades, invalidos=selecionar(documentos)
     if not atividades:st.info('Ainda não há atividades encerradas disponíveis.');return
     meses=sorted({data_fim(a).astimezone(FUSO).strftime('%Y-%m') for a in atividades},reverse=True)
@@ -190,7 +190,8 @@ def renderizar(st,pd,documentos,admins,usuario):
     tipo=c2.radio('Atividade',list(NOMES),format_func=NOMES.get,horizontal=True,key='dm_tipo')
     inicio,fim=periodo(mes)
     modelo=construir(documentos,inicio,fim,[tipo])
-    contas=[c for c in modelo['contas'].values() if c['registros']]
+    completo=construir(documentos,inicio,fim,list(NOMES))
+    contas=list(completo['contas'].values())
     with st.expander('Filtrar membros'):
         atuais=st.checkbox('Somente membros da última consulta do clã',key='dm_atuais')
         if atuais:contas=[c for c in contas if c['atual']]
@@ -204,6 +205,12 @@ def renderizar(st,pd,documentos,admins,usuario):
     except (KeyError,TypeError,ValueError):atraso=True
     if atraso or invalidos or saude.get('falhas_historico') or saude.get('atividades_sem_detalhe'):
         st.warning('O histórico está desatualizado ou incompleto. Confira a integração antes de tomar decisões.')
+    if len(escolhidos)==1:
+        from .desempenho_individual import renderizar as individual
+        individual(st,pd,contas[0],mes,stamp,carregar_manuais)
+        return
+    contas=[modelo['contas'][c['tag']] for c in contas
+            if c['tag'] in modelo['contas'] and modelo['contas'][c['tag']]['registros']]
     rows=linhas(contas,tipo)
     if not rows:st.info('Nenhuma participação nesta seleção. Ausência de registro não comprova inatividade.');return
     total=sum(r['ataques'] for r in rows)
