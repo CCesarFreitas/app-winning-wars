@@ -4366,7 +4366,16 @@ def ww_outubro_integrado():
 
 
 def ww_lancamento_integrado():
-  from ww_competicao.painel import renderizar
+  envio_pendente = bool(st.session_state.get('ww_jogos_lote_v1', {}).get('pendente') or st.session_state.get('ww_manual_integrado_v1', {}).get('pendente'))
+  if st.session_state.get('ww_manual_integrado_v1', {}).get('pendente'):
+    st.session_state['ww_forma_manual'] = 'Lançamento individual / Eventos'
+  elif st.session_state.get('ww_jogos_lote_v1', {}).get('pendente'):
+    st.session_state['ww_forma_manual'] = 'Jogos do Clã em lote'
+  modo = st.radio('Forma de lançamento', ['Jogos do Clã em lote', 'Lançamento individual / Eventos'], horizontal=True, key='ww_forma_manual', disabled=envio_pendente)
+  if modo == 'Jogos do Clã em lote':
+    from ww_competicao.jogos_lote import renderizar
+  else:
+    from ww_competicao.painel import renderizar
   def salvar_backup():
     abas = [("Ranking", sheet_dados)]
     for titulo in ("InscricoesTemporada", "VinculosParticipantes", "ParticipacaoCompeticao"):
