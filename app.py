@@ -2300,8 +2300,8 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
   )
   eh_admin = "admin_logado" in st.session_state
 
-  from ww_competicao.torneios import IMAGENS_CV
-  cv_map = {f"CV {cv}": IMAGENS_CV[cv] for cv in range(18, 8, -1)}
+  from ww_competicao.imagens_cv import imagem_cv
+  cv_map = {f"CV {cv}": imagem_cv(cv) for cv in range(18, 8, -1)}
 
   cv_list = list(cv_map.keys())
   tabs_cv = st.tabs(cv_list)
@@ -2313,7 +2313,7 @@ def renderizar_pagina_layouts(tipo_layout: str, titulo: str):
       st.markdown(
           f"""
             <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-top: 15px; margin-bottom: 20px;">
-                <img src="{th_img_url}" width="90" style="filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.5));">
+                <img src="{th_img_url}" alt="Centro de Vila {cv_nome}" width="90" style="filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.5));">
                 <h2 style="margin: 0; font-size: 2rem;">Bases de {tipo_layout} - {cv_nome}</h2>
             </div>
             """,
