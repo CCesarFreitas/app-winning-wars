@@ -41,14 +41,14 @@ def exportar(conta, mes, stamp):
     return saida.getvalue()
 
 
-FEEDBACK_VERSAO = 2
+FEEDBACK_VERSAO = 3
 
-def renderizar(st,pd,conta,mes,stamp,carregar_manuais=None,total_raides=None):
+def renderizar(st,pd,conta,mes,stamp,carregar_manuais=None,total_raides=None,chave='di',publico=False):
     from .relatorio_desempenho import data_fim, faixas_cv, csv_seguro
     from .consultas import FUSO
     st.subheader(conta['nome'])
     st.caption(conta['tag']+' · Análise completa de '+mes+' · Atualização: '+stamp)
-    st.caption('A seleção de uma única vila reúne todas as modalidades, independentemente do filtro Atividade.')
+    if not publico:st.caption('A seleção de uma única vila reúne todas as modalidades, independentemente do filtro Atividade.')
     for tipo,titulo in NOMES.items():
         st.markdown('#### '+titulo)
         regs=[r for r in conta['registros'] if r['tipo']==tipo]
@@ -80,7 +80,7 @@ def renderizar(st,pd,conta,mes,stamp,carregar_manuais=None,total_raides=None):
             if faixas:st.dataframe(pd.DataFrame(faixas),hide_index=True,use_container_width=True)
             ataques=[{'Atividade':x['coluna'] or x['id'],**a} for x in regs for a in x['jogador']['ataques']]
             if ataques:st.dataframe(pd.DataFrame(ataques),hide_index=True,use_container_width=True)
-            st.download_button('Baixar detalhes CSV',csv_seguro(tabela),file_name=f'{mes}_{tipo}_individual.csv',key='di_csv_'+tipo)
+            st.download_button('Baixar detalhes CSV',csv_seguro(tabela),file_name=f'{mes}_{tipo}_individual.csv',key=chave+'_csv_'+tipo)
     st.markdown('#### Jogos do Clã')
     jogos=None
     jogos_estado='pendente'
@@ -97,5 +97,5 @@ def renderizar(st,pd,conta,mes,stamp,carregar_manuais=None,total_raides=None):
     from .feedback_imagem import exportar as ficha
     gerar=st.cache_data(show_spinner=False,max_entries=16)(ficha)
     st.download_button('Baixar feedback completo — guerras, liga, raides e jogos (PNG)',gerar(conta,mes,stamp,jogos,jogos_estado,total_raides),
-        file_name=f"WinningWars_{mes}_{conta['tag'].lstrip('#')}_individual.png",mime='image/png',key='di_png')
+        file_name=f"WinningWars_{mes}_{conta['tag'].lstrip('#')}_individual.png",mime='image/png',key=chave+'_png')
     st.caption('Imagem com 3.000 pixels de largura. Participações e faltas consideram apenas atividades com registro individual; ausência no histórico não é falta de ataque. Compare também os níveis dos CVs antes do feedback.')

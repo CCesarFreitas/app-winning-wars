@@ -5345,7 +5345,7 @@ else:
   st.write("")
 
   tab_ranking, tab_tabela, tab_historico_mes, tab_perfil, tab_agenda, tab_atividades, tab_planejamento, tab_membros, tab_admin = st.tabs([
-      "🏆 Ranking ao Vivo", "📋 Tabela Detalhada", "🗂️ Meses Anteriores", "👤 Meu Perfil",
+      "🏆 Ranking ao Vivo", "📋 Tabela Detalhada", "🗂️ Meses Anteriores", "👤 Desempenho individual",
       "📅 Agenda", "📚 Atividades encerradas", "⚔️ Planejamento de guerras", "👥 Membros do clã", "🔐 Painel Admin",
   ])
 
@@ -5713,9 +5713,13 @@ else:
 
   # ABA 4: PERFIL INDIVIDUAL / CONQUISTAS
   with tab_perfil:
-    renderizar_perfil_membro(df_rank, colunas_guerras, colunas_liga, colunas_raides)
-    from ww_competicao.consultas import renderizar_trajetoria
-    renderizar_trajetoria(st, ww_consultas_disponiveis(), pd)
+    from ww_competicao.desempenho_publico import renderizar as renderizar_desempenho_publico
+    renderizar_desempenho_publico(st, pd, ww_consultas_disponiveis(),
+        carregar_manuais=lambda: ww_lancamentos_manuais_exibicao(planilha_competicao.id))
+    with st.expander('Conquistas e trajetória na competição'):
+      renderizar_perfil_membro(df_rank, colunas_guerras, colunas_liga, colunas_raides)
+      from ww_competicao.consultas import renderizar_trajetoria
+      renderizar_trajetoria(st, ww_consultas_disponiveis(), pd)
 
   # ABA 4: AGENDA DO CLÃ
   with tab_agenda:
