@@ -27,7 +27,7 @@ class KeepAliveStreamlit(unittest.TestCase):
         sessao = self.sessao(
             self.resposta(base),
             self.resposta(base + "~/+/"),
-            self.resposta(base + "_stcore/health", "ok"),
+            self.resposta(base + "~/+/_stcore/health", "ok"),
         )
         resultado = verificar(base, sessao)
         self.assertEqual(resultado["status"], "STREAMLIT_ATIVO")
@@ -40,21 +40,25 @@ class KeepAliveStreamlit(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "autenticação"):
             verificar("https://exemplo.streamlit.app/", sessao)
 
-    def test_login_intermediario_nao_e_sucesso(self):
+    def test_sessao_anonima_intermediaria_e_aceita(self):
         base = "https://exemplo.streamlit.app/"
         resposta = self.resposta(base)
         resposta.history = [self.resposta(
             "https://share.streamlit.io/-/auth/app?redirect_uri=x"
         )]
-        with self.assertRaisesRegex(RuntimeError, "autenticação"):
-            verificar(base, self.sessao(resposta))
+        sessao = self.sessao(
+            resposta,
+            self.resposta(base + "~/+/"),
+            self.resposta(base + "~/+/_stcore/health", "ok"),
+        )
+        self.assertEqual(verificar(base, sessao)["status"], "STREAMLIT_ATIVO")
 
     def test_saude_precisa_confirmar_processo(self):
         base = "https://exemplo.streamlit.app/"
         sessao = self.sessao(
             self.resposta(base),
             self.resposta(base + "~/+/"),
-            self.resposta(base + "_stcore/health", "pagina inesperada"),
+            self.resposta(base + "~/+/_stcore/health", "pagina inesperada"),
         )
         with self.assertRaisesRegex(RuntimeError, "não confirmou"):
             verificar(base, sessao)

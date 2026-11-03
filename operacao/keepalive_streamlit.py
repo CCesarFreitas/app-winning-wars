@@ -42,7 +42,9 @@ def verificar(url: str = APP_URL, session=None) -> dict:
     alvos = {
         "pagina": url,
         "aplicacao": urljoin(url, "~/+/"),
-        "saude": urljoin(url, "_stcore/health"),
+        # O Community Cloud hospeda o processo real dentro de /~/+/.
+        # O endereço /_stcore/health na raiz retorna apenas o shell externo.
+        "saude": urljoin(url, "~/+/_stcore/health"),
     }
     resultados = {}
     for nome, alvo in alvos.items():
@@ -54,10 +56,13 @@ def verificar(url: str = APP_URL, session=None) -> dict:
         resultados[nome] = {
             "status": resposta.status_code,
             "url_final": final,
-            "redirecionamentos": cadeia_redirecionamentos[:-1],
+            # Não registrar URLs intermediárias: a sessão anônima do Streamlit
+            # inclui um token temporário no endereço de retorno.
+            "quantidade_redirecionamentos": len(cadeia_redirecionamentos) - 1,
         }
-        if any(_bloqueado_por_autenticacao(item)
-               for item in cadeia_redirecionamentos):
+        # Apps públicos também passam por /auth/app para receber uma sessão
+        # anônima. Só é bloqueio quando o destino final permanece em login.
+        if _bloqueado_por_autenticacao(final):
             raise RuntimeError(
                 f"{nome}: autenticação do Streamlit impediu o acesso ao app"
             )

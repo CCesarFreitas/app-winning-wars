@@ -17,7 +17,7 @@ sem exceção. Uma visita anônima não chegava ao processo Streamlit.
 - confirmação de que o iframe do processo Streamlit foi carregado;
 - tentativa de reativação pela tela pública quando o app já estiver dormindo;
 - monitor HTTP independente na Oracle a cada 30 minutos;
-- validação dos endereços externo, interno e `/_stcore/health`;
+- validação dos endereços externo, interno e `/~/+/_stcore/health`;
 - logs no `journalctl` e status de erro quando o app não estiver acessível.
 
 ## Requisito de visibilidade
