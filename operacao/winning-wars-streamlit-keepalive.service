@@ -1,0 +1,17 @@
+[Unit]
+Description=Winning Wars - keep-alive e saude do Streamlit
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=opc
+WorkingDirectory=/opt/winning-wars-api
+Environment=WW_STREAMLIT_URL=https://app-winning-wars-jwjuzibnwyejvqmcwyvge8.streamlit.app/
+Environment=WW_STREAMLIT_TIMEOUT=45
+ExecStart=/opt/winning-wars-api/venv/bin/python -B /opt/winning-wars-api/consultas_app_20261002/operacao/keepalive_streamlit.py
+TimeoutStartSec=3min
+UMask=0077
+Nice=10
+StandardOutput=journal
+StandardError=journal

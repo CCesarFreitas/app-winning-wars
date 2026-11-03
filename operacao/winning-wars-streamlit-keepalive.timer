@@ -1,0 +1,13 @@
+[Unit]
+Description=Winning Wars - acesso periódico ao Streamlit
+
+[Timer]
+OnBootSec=3min
+OnUnitInactiveSec=30min
+AccuracySec=1min
+RandomizedDelaySec=2min
+Persistent=true
+Unit=winning-wars-streamlit-keepalive.service
+
+[Install]
+WantedBy=timers.target
