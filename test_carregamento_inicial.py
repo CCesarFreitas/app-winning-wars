@@ -30,6 +30,13 @@ class CarregamentoInicial(unittest.TestCase):
         self.assertIn("df_novidades = pd.DataFrame()", trecho_inicial)
         self.assertIn("df_eventos = pd.DataFrame()", trecho_inicial)
 
+    def test_metadados_das_abas_sao_lidos_uma_vez(self):
+        conexao = self.codigo.split("def conectar_banco():", 1)[1].split(
+            "\n\ntry:\n  (", 1
+        )[0]
+        self.assertIn("abas_existentes = spreadsheet.worksheets()", conexao)
+        self.assertNotIn("spreadsheet.worksheet(", conexao)
+
 
 if __name__ == "__main__":
     unittest.main()

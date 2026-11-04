@@ -411,11 +411,23 @@ def conectar_banco():
   )
   if spreadsheet.title != "WinningWars_DB":
     raise RuntimeError("Planilha oficial diferente da configuração prevista.")
-  sheet_dados = spreadsheet.sheet1
+  # Uma única leitura de metadados substitui as consultas sequenciais de cada
+  # aba durante a inicialização.
+  abas_existentes = spreadsheet.worksheets()
+  if not abas_existentes:
+    raise RuntimeError("A planilha oficial não possui abas.")
+  abas_por_titulo = {aba.title: aba for aba in abas_existentes}
+  sheet_dados = abas_existentes[0]
+
+  def aba_existente(titulo):
+    aba = abas_por_titulo.get(titulo)
+    if aba is None:
+      raise gspread.WorksheetNotFound(titulo)
+    return aba
 
   # Aba de Admins
   try:
-    sheet_admins = spreadsheet.worksheet("Admins")
+    sheet_admins = aba_existente("Admins")
   except gspread.WorksheetNotFound:
     if not SENHA_ADMIN_INICIAL:
       raise RuntimeError(
@@ -429,7 +441,7 @@ def conectar_banco():
 
   # Aba de Estado e Recados
   try:
-    sheet_estado = spreadsheet.worksheet("EstadoMes")
+    sheet_estado = aba_existente("EstadoMes")
   except gspread.WorksheetNotFound:
     sheet_estado = spreadsheet.add_worksheet(
         title="EstadoMes", rows="10", cols="2"
@@ -470,7 +482,7 @@ def conectar_banco():
 
   # Aba de Layouts
   try:
-    sheet_layouts = spreadsheet.worksheet("Layouts")
+    sheet_layouts = aba_existente("Layouts")
   except gspread.WorksheetNotFound:
     sheet_layouts = spreadsheet.add_worksheet(
         title="Layouts", rows="500", cols="7"
@@ -490,14 +502,14 @@ def conectar_banco():
 
   # Aba de Logs
   try:
-    sheet_logs = spreadsheet.worksheet("Logs")
+    sheet_logs = aba_existente("Logs")
   except gspread.WorksheetNotFound:
     sheet_logs = spreadsheet.add_worksheet(title="Logs", rows="1000", cols="3")
     sheet_logs.append_row(["DataHora", "Admin", "Acao"])
 
   # Aba de Galeria da Fama
   try:
-    sheet_fama = spreadsheet.worksheet("GaleriaFama")
+    sheet_fama = aba_existente("GaleriaFama")
   except gspread.WorksheetNotFound:
     sheet_fama = spreadsheet.add_worksheet(
         title="GaleriaFama", rows="100", cols="4"
@@ -506,7 +518,7 @@ def conectar_banco():
 
   # Aba de Novidades e Notícias
   try:
-    sheet_novidades = spreadsheet.worksheet("Novidades")
+    sheet_novidades = aba_existente("Novidades")
   except gspread.WorksheetNotFound:
     sheet_novidades = spreadsheet.add_worksheet(
         title="Novidades", rows="200", cols="6"
@@ -530,21 +542,21 @@ def conectar_banco():
 
   # Winning Wars 2.0 - histórico de temporadas e evolução
   try:
-    sheet_historico = spreadsheet.worksheet("Historico")
+    sheet_historico = aba_existente("Historico")
   except gspread.WorksheetNotFound:
     sheet_historico = spreadsheet.add_worksheet(title="Historico", rows="3000", cols="7")
     sheet_historico.append_row(["DataHora", "Temporada", "Jogador", "Pontos", "Posicao", "Tipo", "Detalhe"])
 
   # Winning Wars 2.0 - agenda/eventos do clã
   try:
-    sheet_eventos = spreadsheet.worksheet("EventosCla")
+    sheet_eventos = aba_existente("EventosCla")
   except gspread.WorksheetNotFound:
     sheet_eventos = spreadsheet.add_worksheet(title="EventosCla", rows="500", cols="7")
     sheet_eventos.append_row(["ID", "Data", "Tipo", "Titulo", "Descricao", "Status", "Autor"])
 
   # Winning Wars 2.0 - auditoria detalhada de pontuações
   try:
-    sheet_auditoria = spreadsheet.worksheet("AuditoriaPontos")
+    sheet_auditoria = aba_existente("AuditoriaPontos")
   except gspread.WorksheetNotFound:
     sheet_auditoria = spreadsheet.add_worksheet(title="AuditoriaPontos", rows="5000", cols="7")
     sheet_auditoria.append_row(["DataHora", "Admin", "Jogador", "Atividade", "Antes", "Depois", "Motivo"])
@@ -553,7 +565,7 @@ def conectar_banco():
   # Cada jogador recebe uma linha por temporada e o JSON preserva TODAS as
   # colunas dinâmicas daquele mês (Guerra_*, Liga_*, Raide_*).
   try:
-    sheet_historico_mensal = spreadsheet.worksheet("HistoricoMensal")
+    sheet_historico_mensal = aba_existente("HistoricoMensal")
   except gspread.WorksheetNotFound:
     sheet_historico_mensal = spreadsheet.add_worksheet(
         title="HistoricoMensal", rows="10000", cols="13"
@@ -566,7 +578,7 @@ def conectar_banco():
 
   # Índice das temporadas para saber qual ciclo está aberto/fechado.
   try:
-    sheet_temporadas = spreadsheet.worksheet("Temporadas")
+    sheet_temporadas = aba_existente("Temporadas")
   except gspread.WorksheetNotFound:
     sheet_temporadas = spreadsheet.add_worksheet(
         title="Temporadas", rows="500", cols="11"
@@ -579,7 +591,7 @@ def conectar_banco():
 
   # Winning Wars 3.1 - backups automáticos antes de ações destrutivas
   try:
-    sheet_backups = spreadsheet.worksheet("BackupsSeguranca")
+    sheet_backups = aba_existente("BackupsSeguranca")
   except gspread.WorksheetNotFound:
     sheet_backups = spreadsheet.add_worksheet(
         title="BackupsSeguranca", rows="5000", cols="7"
@@ -590,7 +602,7 @@ def conectar_banco():
 
   # Estado e histórico imutável da plataforma oficial de torneios.
   try:
-    sheet_torneios = spreadsheet.worksheet("Torneios")
+    sheet_torneios = aba_existente("Torneios")
   except gspread.WorksheetNotFound:
     sheet_torneios = spreadsheet.add_worksheet(
         title="Torneios", rows="2000", cols="5"
