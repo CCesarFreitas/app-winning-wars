@@ -65,6 +65,8 @@ O FastAPI deixará de ouvir publicamente. Somente Caddy deverá expor as portas 
 
 ## Estratégia de migração sem interromper a produção
 
+O objetivo desta estratégia é a substituição integral do Streamlit. A prova de conceito da Etapa 1 é apenas uma validação da fundação técnica; o inventário completo de equivalência está em `MATRIZ_EQUIVALENCIA_STREAMLIT.md`.
+
 ### Etapa 1 — fundação e prova de conceito, somente leitura
 
 - criar `web/` no repositório com React, TypeScript e Vite;
