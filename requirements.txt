@@ -1,6 +1,6 @@
 # Fixado para impedir que um rebuild troque silenciosamente os bundles JS.
-# Os hashes do frontend publicados em 2026-11-03 pertencem à versão 1.66.1.
-streamlit==1.66.1
+# 1.64.0 mantém abas preguiçosas e gera novos hashes para IFrame/TextInput.
+streamlit==1.64.0
 gspread
 oauth2client
 pandas
