@@ -33,7 +33,7 @@ async function getJson<T>(path: string): Promise<T> {
 }
 
 export const api = {
-  ranking: () => getJson<RankingEntry[]>("/ranking"),
+  ranking: () => getJson<RankingEntry[]>("/v1/ranking"),
   atividades: (limite = 50) =>
     getJson<AuditActivitiesResponse>(`/audit/activities?limite=${limite}`),
   jogador: (tag: string, limite = 100) =>

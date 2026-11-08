@@ -1,5 +1,6 @@
 export interface RankingEntry {
   posicao: number;
+  participante_id?: string;
   tag: string;
   nome: string;
   guerra: number;
@@ -7,6 +8,7 @@ export interface RankingEntry {
   jogos: number;
   eventos: number;
   total: number;
+  temporada?: string;
 }
 
 export interface AuditActivity {
