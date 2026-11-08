@@ -19,8 +19,13 @@ A fundacao da plataforma fora do Streamlit esta ativa em homologacao:
 - SELinux continua `Enforcing`;
 - `httpd_can_network_relay=on` e `httpd_can_network_connect=off`;
 - somente a porta TCP 8000 foi classificada como `http_port_t` para o proxy;
+- o proxy acessa a API pelo IP privado `10.0.0.106`, dentro da VCN;
 - firewall do servidor novo libera SSH e HTTP; nao ha processo ouvindo em 8000;
 - regra OCI adicionada para TCP 80, identificada como `Winning Wars homologacao web`;
+- a antiga regra publica TCP 8000 foi substituida por origem privada
+  `10.0.0.0/24` (`Winning Wars API privada`);
+- `164.152.253.100:8000` nao responde mais pela internet; o proxy continua
+  alcançando `10.0.0.106:8000` dentro da VCN;
 - HTTPS ainda nao esta configurado. O IP HTTP e temporario e nao deve ser tratado como endereco oficial.
 
 ## Backups e rollback
