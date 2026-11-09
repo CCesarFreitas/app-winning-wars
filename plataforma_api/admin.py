@@ -18,6 +18,7 @@ from fastapi import HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from .conteudo import _linhas_planilha
+from .manual_admin import montar_manual_admin, propor_lancamento
 from .participacao_admin import montar_participacao_admin
 from .ranking_atual import montar_ranking_atual
 
@@ -31,6 +32,12 @@ _LOCK = threading.Lock()
 class Credenciais(BaseModel):
     usuario: str = Field(min_length=1, max_length=80)
     senha: str = Field(min_length=1, max_length=256)
+
+
+class PropostaManual(BaseModel):
+    tag: str = Field(min_length=4, max_length=20)
+    atividade: str = Field(min_length=4, max_length=20)
+    valor: int = Field(ge=0, le=1_000_000)
 
 
 def _segredo() -> bytes:
@@ -221,3 +228,19 @@ def instalar_rotas_admin(app, caminho_sqlite: str) -> None:
             return montar_participacao_admin(caminho_sqlite)
         except (OSError, ValueError, sqlite3.Error) as erro:
             raise HTTPException(status_code=503, detail="participacao_indisponivel") from erro
+
+    @app.get("/v1/admin/manual")
+    def manual_admin(request: Request):
+        _sessao(request)
+        try:
+            return montar_manual_admin(caminho_sqlite)
+        except (OSError, ValueError, sqlite3.Error) as erro:
+            raise HTTPException(status_code=503, detail="manual_indisponivel") from erro
+
+    @app.post("/v1/admin/manual/proposal")
+    def proposta_manual(dados: PropostaManual, request: Request):
+        _sessao(request)
+        try:
+            return propor_lancamento(caminho_sqlite, dados.tag, dados.atividade, dados.valor)
+        except ValueError as erro:
+            raise HTTPException(status_code=422, detail="proposta_manual_invalida") from erro

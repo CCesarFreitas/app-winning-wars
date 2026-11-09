@@ -4,7 +4,7 @@ import { api } from "./api";
 import { ErrorState, Loading, PageHeader, PlayerAvatar } from "./components";
 import { dataAtividade, numero, rotuloTipo, temporadaLabel } from "./format";
 import { useRanking } from "./RankingContext";
-import type { AdminParticipationAccount, AdminParticipationResponse, AdminSummary, AuditActivity, LayoutEntry, PlayerAuditResponse, TournamentMatch, TournamentPlayer } from "./types";
+import type { AdminManualProposal, AdminManualResponse, AdminParticipationAccount, AdminParticipationResponse, AdminSummary, AuditActivity, LayoutEntry, PlayerAuditResponse, TournamentMatch, TournamentPlayer } from "./types";
 import { CREST_URL, townHallUrl } from "./assets";
 import { useAdmin } from "./AdminContext";
 
@@ -426,7 +426,7 @@ export function AdminPage() {
         <article><small>Nível de acesso</small><strong>{summary.admin.nivel}</strong><span>{summary.admin.usuario}</span></article>
       </section>
       <section className="admin-modules"><div className="section-title"><div><span className="eyebrow">Próximas migrações</span><h2>Controles administrativos</h2><p>Cada módulo será liberado somente depois da validação em paralelo com o app oficial.</p></div></div><div>
-        {["Participação e vínculos", "Jogos do Clã e eventos", "Revisões de pontuação", "Layouts e torneios", "Comunicação e agenda", "Fechamento mensal"].map((label, index) => <article key={label}><span>{String(index + 1).padStart(2, "0")}</span><strong>{index === 0 ? <Link to="/admin/participacao">{label}</Link> : label}</strong><small>{index === 0 ? "Disponível para consulta" : "Aguardando migração"}</small></article>)}
+        {["Participação e vínculos", "Jogos do Clã e eventos", "Revisões de pontuação", "Layouts e torneios", "Comunicação e agenda", "Fechamento mensal"].map((label, index) => <article key={label}><span>{String(index + 1).padStart(2, "0")}</span><strong>{index === 0 ? <Link to="/admin/participacao">{label}</Link> : index === 1 ? <Link to="/admin/lancamentos">{label}</Link> : label}</strong><small>{index <= 1 ? "Disponível para consulta" : "Aguardando migração"}</small></article>)}
       </div></section>
     </>}
   </div>;
@@ -495,6 +495,60 @@ export function AdminParticipationPage() {
         <b>{account.pontos}<small> pts</small></b>
       </article>)}</section>
       {!accounts.length && <div className="state-card"><strong>Nenhuma conta encontrada</strong><span>Altere a busca ou o filtro selecionado.</span></div>}
+    </>}
+  </div>;
+}
+
+export function AdminManualPage() {
+  const { session, loading: sessionLoading } = useAdmin();
+  const [data, setData] = useState<AdminManualResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [tag, setTag] = useState("");
+  const [activity, setActivity] = useState<"JogosCla" | "Eventos">("JogosCla");
+  const [value, setValue] = useState("");
+  const [proposal, setProposal] = useState<AdminManualProposal | null>(null);
+  const [simulating, setSimulating] = useState(false);
+  const [historySearch, setHistorySearch] = useState("");
+  const secure = window.isSecureContext;
+
+  useEffect(() => {
+    if (sessionLoading || !session.autenticado) return;
+    setLoading(true); setError(null);
+    api.adminManual().then((result) => { setData(result); setTag(result.contas.find((account) => account.habilitada === "TRUE")?.tag || result.contas[0]?.tag || ""); }).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Falha ao carregar lançamentos.")).finally(() => setLoading(false));
+  }, [session.autenticado, sessionLoading]);
+
+  const history = useMemo(() => {
+    const term = historySearch.trim().toLocaleLowerCase("pt-BR");
+    return (data?.historico || []).filter((item) => !term || Object.values(item).join(" ").toLocaleLowerCase("pt-BR").includes(term));
+  }, [data, historySearch]);
+
+  const simulate = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const number = Number(value);
+    if (!secure || !Number.isInteger(number)) return;
+    setSimulating(true); setError(null); setProposal(null);
+    try { setProposal(await api.adminManualProposal(tag, activity, number)); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "Não foi possível simular."); }
+    finally { setSimulating(false); }
+  };
+
+  if (sessionLoading) return <div className="page"><Loading label="Conferindo sessão administrativa…" /></div>;
+  if (!session.autenticado) return <div className="page admin-page"><PageHeader eyebrow="Lançamentos manuais" title="Acesso protegido" description="Jogos do Clã, eventos e auditoria exigem autenticação." /><div className="state-card"><strong>Sessão administrativa necessária</strong><Link className="primary-button" to="/admin/login">Entrar como administrador</Link></div></div>;
+
+  return <div className="page admin-page manual-admin-page">
+    <div className="admin-subnav"><Link to="/admin">← Voltar ao painel</Link><span>Simulação sem envio</span></div>
+    <PageHeader eyebrow="Pontuação manual integrada" title="Jogos do Clã e eventos" description="Confira a conversão, o total anterior e a inscrição automática antes de qualquer futura gravação." />
+    {loading && <Loading label="Carregando contas e auditoria manual…" />}
+    {error && <ErrorState message={error} />}
+    {data && <>
+      <section className="manual-rules"><article><span>♟</span><div><small>Regra dos Jogos do Clã</small><strong>{data.regras.jogos}</strong></div></article><article><span>↻</span><div><small>Operação segura</small><strong>{data.regras.operacao}</strong></div></article></section>
+      {!secure && <div className="security-warning"><strong>Simulação aguardando HTTPS</strong><span>Os dados podem ser consultados após o login, mas nenhuma proposta será transmitida por uma conexão HTTP.</span></div>}
+      <section className="manual-workspace">
+        <form className="manual-form" onSubmit={simulate}><span className="eyebrow">Nova proposta</span><h2>Simular lançamento</h2><label><span>Conta</span><select value={tag} onChange={(event) => { setTag(event.target.value); setProposal(null); }} disabled={!secure}>{data.contas.map((account) => <option value={account.tag} key={account.tag}>{account.nome} · {account.tag}{account.habilitada === "FALSE" ? " · bloqueada" : ""}</option>)}</select></label><label><span>Atividade</span><select value={activity} onChange={(event) => { setActivity(event.target.value as "JogosCla" | "Eventos"); setProposal(null); }} disabled={!secure}><option value="JogosCla">Jogos do Clã</option><option value="Eventos">Evento manual</option></select></label><label><span>{activity === "JogosCla" ? "Pontos feitos no jogo" : "Pontos na competição"}</span><input type="number" min="0" max={activity === "JogosCla" ? "10000" : "1000000"} step="1" value={value} onChange={(event) => { setValue(event.target.value); setProposal(null); }} disabled={!secure} /></label><button className="primary-button" type="submit" disabled={!secure || !tag || value === "" || simulating}>{simulating ? "Conferindo…" : "Gerar proposta sem enviar"}</button><small>Nenhum botão de gravação existe nesta versão.</small></form>
+        <div className="manual-proposal">{proposal ? <><span className={`proposal-status ${proposal.status.toLowerCase()}`}>{proposal.status === "BLOQUEADO" ? "Lançamento bloqueado" : proposal.status === "ZERO_SEM_INSCRICAO" ? "Zero sem inscrição" : "Proposta conferida"}</span><div className="proposal-player">{proposal.conta.cv ? <img src={townHallUrl(proposal.conta.cv)} alt={`CV ${proposal.conta.cv}`} /> : <span>?</span>}<div><strong>{proposal.conta.nome}</strong><small>{proposal.conta.tag}</small></div></div><div className="proposal-numbers"><span><small>Informado</small><b>{proposal.informado}</b></span><span><small>Antes</small><b>{proposal.antes}</b></span><span><small>Depois</small><b>{proposal.depois}</b></span></div>{proposal.inscreveria && <div className="proposal-enrollment">Primeira pontuação positiva: criaria inscrição e vínculo automaticamente.</div>}{proposal.motivo && <div className="proposal-block">Motivo: {proposal.motivo}</div>}<footer>Simulação somente leitura · nenhum dado foi enviado</footer></> : <div className="proposal-empty"><span>◇</span><strong>A proposta aparecerá aqui</strong><small>Selecione a conta, atividade e valor para conferir o resultado.</small></div>}</div>
+      </section>
+      <section className="manual-history"><div className="section-title"><div><span className="eyebrow">Auditoria integrada</span><h2>Histórico de lançamentos</h2><p>{data.historico.length} registros com hash conferido.</p></div><label className="search-box"><span>⌕</span><input value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} placeholder="Buscar tag, atividade ou admin" /></label></div><div className="manual-history-list"><header><span>Data</span><span>Conta</span><span>Atividade</span><span>Informado</span><span>Antes → Depois</span><span>Administrador</span></header>{history.slice(0, 100).map((item) => <article key={item.EventoID}><time>{dataAtividade(item.RegistradoEm)}</time><strong>{item.PlayerTag}</strong><span>{item.Atividade === "JogosCla" ? "Jogos do Clã" : "Evento"}</span><span>{item.ValorInformado}</span><b>{item.Antes} → {item.Depois}</b><small>{item.Administrador}</small></article>)}</div>{!history.length && <div className="state-card"><strong>Nenhum lançamento encontrado</strong></div>}</section>
     </>}
   </div>;
 }

@@ -3,6 +3,8 @@ import type {
   AdminSession,
   AdminSummary,
   AdminParticipationResponse,
+  AdminManualProposal,
+  AdminManualResponse,
   LayoutsResponse,
   PlayerAuditResponse,
   RankingEntry,
@@ -74,4 +76,7 @@ export const api = {
   adminLogout: () => postJson<AdminSession>("/v1/admin/logout"),
   adminSummary: () => getJson<AdminSummary>("/v1/admin/summary"),
   adminParticipation: () => getJson<AdminParticipationResponse>("/v1/admin/participation"),
+  adminManual: () => getJson<AdminManualResponse>("/v1/admin/manual"),
+  adminManualProposal: (tag: string, atividade: "JogosCla" | "Eventos", valor: number) =>
+    postJson<AdminManualProposal>("/v1/admin/manual/proposal", { tag, atividade, valor }),
 };

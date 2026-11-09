@@ -35,7 +35,7 @@
 
 - [ ] Autenticação e níveis de acesso — fundação implementada; ativação depende de HTTPS
 - [ ] Participação e vínculos — consulta protegida implementada; escrita aguarda HTTPS
-- [ ] Jogos do Clã e eventos manuais
+- [ ] Jogos do Clã e eventos manuais — histórico e simulador implementados; gravação aguarda HTTPS
 - [ ] Revisões de pontuação
 - [ ] Fechamento mensal
 - [ ] Publicação de layouts

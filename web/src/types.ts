@@ -173,3 +173,48 @@ export interface AdminParticipationResponse {
   };
   contas: AdminParticipationAccount[];
 }
+
+export interface AdminManualAccount {
+  tag: string;
+  nome: string;
+  cv?: number | null;
+  participante_id?: string | null;
+  habilitada?: "TRUE" | "FALSE" | null;
+  inscrita: boolean;
+  no_cla: boolean;
+  jogos: number;
+  eventos: number;
+}
+
+export interface AdminManualHistory {
+  EventoID: string;
+  Temporada: string;
+  PlayerTag: string;
+  ParticipanteID: string;
+  Atividade: "JogosCla" | "Eventos";
+  ValorInformado: string;
+  Antes: string;
+  Depois: string;
+  Administrador: string;
+  RegistradoEm: string;
+}
+
+export interface AdminManualResponse {
+  temporada: string;
+  temporada_nome: string;
+  regras: { jogos: string; operacao: string };
+  contas: AdminManualAccount[];
+  historico: AdminManualHistory[];
+  modo: "SOMENTE_LEITURA";
+}
+
+export interface AdminManualProposal {
+  status: "BLOQUEADO" | "ZERO_SEM_INSCRICAO" | "PROPOSTA_SEM_ENVIO";
+  motivo?: string;
+  conta: AdminManualAccount;
+  atividade: "JogosCla" | "Eventos";
+  informado: number;
+  antes: number;
+  depois: number;
+  inscreveria: boolean;
+}
