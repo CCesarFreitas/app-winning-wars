@@ -7,6 +7,7 @@ import hashlib
 import hmac
 import json
 import os
+import sqlite3
 import threading
 import time
 import unicodedata
@@ -17,6 +18,7 @@ from fastapi import HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from .conteudo import _linhas_planilha
+from .participacao_admin import montar_participacao_admin
 from .ranking_atual import montar_ranking_atual
 
 
@@ -211,3 +213,11 @@ def instalar_rotas_admin(app, caminho_sqlite: str) -> None:
             "participacao": _resumo_participacao(),
             "modo": "SOMENTE_LEITURA",
         }
+
+    @app.get("/v1/admin/participation")
+    def participacao_admin(request: Request):
+        _sessao(request)
+        try:
+            return montar_participacao_admin(caminho_sqlite)
+        except (OSError, ValueError, sqlite3.Error) as erro:
+            raise HTTPException(status_code=503, detail="participacao_indisponivel") from erro

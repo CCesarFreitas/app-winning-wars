@@ -31,7 +31,7 @@ def validar_fontes() -> None:
         raise RuntimeError("Destino inesperado")
     if not APP.is_file() or not ORIGEM.is_dir():
         raise FileNotFoundError("Aplicacao ou pacote de origem ausente")
-    for nome in ("__init__.py", "admin.py", "conteudo.py", "ranking_atual.py", "router.py"):
+    for nome in ("__init__.py", "admin.py", "conteudo.py", "participacao_admin.py", "ranking_atual.py", "router.py"):
         texto = (ORIGEM / nome).read_text(encoding="utf-8")
         ast.parse(texto, filename=nome)
 

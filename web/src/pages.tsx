@@ -4,7 +4,7 @@ import { api } from "./api";
 import { ErrorState, Loading, PageHeader, PlayerAvatar } from "./components";
 import { dataAtividade, numero, rotuloTipo, temporadaLabel } from "./format";
 import { useRanking } from "./RankingContext";
-import type { AdminSummary, AuditActivity, LayoutEntry, PlayerAuditResponse, TournamentMatch, TournamentPlayer } from "./types";
+import type { AdminParticipationAccount, AdminParticipationResponse, AdminSummary, AuditActivity, LayoutEntry, PlayerAuditResponse, TournamentMatch, TournamentPlayer } from "./types";
 import { CREST_URL, townHallUrl } from "./assets";
 import { useAdmin } from "./AdminContext";
 
@@ -426,8 +426,75 @@ export function AdminPage() {
         <article><small>Nível de acesso</small><strong>{summary.admin.nivel}</strong><span>{summary.admin.usuario}</span></article>
       </section>
       <section className="admin-modules"><div className="section-title"><div><span className="eyebrow">Próximas migrações</span><h2>Controles administrativos</h2><p>Cada módulo será liberado somente depois da validação em paralelo com o app oficial.</p></div></div><div>
-        {["Participação e vínculos", "Jogos do Clã e eventos", "Revisões de pontuação", "Layouts e torneios", "Comunicação e agenda", "Fechamento mensal"].map((label, index) => <article key={label}><span>{String(index + 1).padStart(2, "0")}</span><strong>{label}</strong><small>{index === 0 ? "Próximo módulo" : "Aguardando migração"}</small></article>)}
+        {["Participação e vínculos", "Jogos do Clã e eventos", "Revisões de pontuação", "Layouts e torneios", "Comunicação e agenda", "Fechamento mensal"].map((label, index) => <article key={label}><span>{String(index + 1).padStart(2, "0")}</span><strong>{index === 0 ? <Link to="/admin/participacao">{label}</Link> : label}</strong><small>{index === 0 ? "Disponível para consulta" : "Aguardando migração"}</small></article>)}
       </div></section>
+    </>}
+  </div>;
+}
+
+const PARTICIPATION_STATUS: Record<AdminParticipationAccount["situacao"], string> = {
+  MEMBRO_ATUAL: "No clã",
+  AUSENTE_AGORA: "Ausente agora",
+  RETORNOU_AO_CLA: "Retornou ao clã",
+  ENTROU_APOS_INICIO_DO_HISTORICO: "Entrada recente",
+  SEM_REGISTRO_NO_CLA: "Sem registro no clã",
+};
+
+export function AdminParticipationPage() {
+  const { session, loading: sessionLoading } = useAdmin();
+  const [data, setData] = useState<AdminParticipationResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("todas");
+
+  useEffect(() => {
+    if (sessionLoading || !session.autenticado) return;
+    setLoading(true); setError(null);
+    api.adminParticipation().then(setData).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Falha ao carregar participação.")).finally(() => setLoading(false));
+  }, [session.autenticado, sessionLoading]);
+
+  const accounts = useMemo(() => {
+    const term = search.trim().toLocaleLowerCase("pt-BR");
+    return (data?.contas || []).filter((account) => {
+      const matchesTerm = !term || `${account.nome} ${account.tag} ${account.participante_id || ""}`.toLocaleLowerCase("pt-BR").includes(term);
+      const matchesFilter = filter === "todas"
+        || (filter === "no_cla" && account.no_cla)
+        || (filter === "ausentes" && !account.no_cla)
+        || (filter === "habilitadas" && account.habilitada === "TRUE")
+        || (filter === "bloqueadas" && account.habilitada === "FALSE")
+        || (filter === "sem_decisao" && !account.habilitada);
+      return matchesTerm && matchesFilter;
+    });
+  }, [data, filter, search]);
+
+  if (sessionLoading) return <div className="page"><Loading label="Conferindo sessão administrativa…" /></div>;
+  if (!session.autenticado) return <div className="page admin-page"><PageHeader eyebrow="Participação e vínculos" title="Acesso protegido" description="Esta relação contém decisões administrativas e exige autenticação." /><div className="state-card"><strong>Sessão administrativa necessária</strong><Link className="primary-button" to="/admin/login">Entrar como administrador</Link></div></div>;
+
+  return <div className="page admin-page participation-page">
+    <div className="admin-subnav"><Link to="/admin">← Voltar ao painel</Link><span>Somente leitura</span></div>
+    <PageHeader eyebrow="Controle da competição" title="Participação e vínculos" description="Presença no clã é um alerta operacional. Somente uma decisão administrativa pode bloquear uma conta." />
+    {loading && <Loading label="Conferindo contas, vínculos e presença…" />}
+    {error && <ErrorState message={error} />}
+    {data && <>
+      <section className="participation-stats">
+        <article><small>Contas monitoradas</small><strong>{data.contagens.total}</strong></article>
+        <article><small>No clã agora</small><strong>{data.contagens.no_cla}</strong></article>
+        <article><small>Fora do clã</small><strong>{data.contagens.ausentes}</strong></article>
+        <article className="success"><small>Habilitadas</small><strong>{data.contagens.habilitadas}</strong></article>
+        <article className="danger"><small>Bloqueadas</small><strong>{data.contagens.bloqueadas}</strong></article>
+        <article><small>Sem decisão</small><strong>{data.contagens.sem_decisao}</strong></article>
+      </section>
+      <div className="participation-note"><strong>Critério oficial</strong><span>{data.criterio}</span></div>
+      <div className="participation-toolbar"><label className="search-box"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar nome, tag ou ID" /></label><select value={filter} onChange={(event) => setFilter(event.target.value)}><option value="todas">Todas as contas</option><option value="no_cla">No clã</option><option value="ausentes">Fora do clã</option><option value="habilitadas">Habilitadas</option><option value="bloqueadas">Bloqueadas</option><option value="sem_decisao">Sem decisão</option></select><span>{accounts.length} resultados</span></div>
+      <section className="participation-list"><header><span>Conta</span><span>Presença</span><span>Competição</span><span>Última decisão</span><span>Pontos</span></header>{accounts.map((account) => <article key={account.tag}>
+        <div className="participation-player">{account.cv ? <img src={townHallUrl(account.cv)} alt={`CV ${account.cv}`} /> : <span>?</span>}<div><strong>{account.nome}</strong><small>{account.tag} · ID {account.participante_id || "—"}{account.cv ? ` · CV ${account.cv}` : ""}</small></div></div>
+        <div><span className={`status-chip ${account.no_cla ? "online" : "away"}`}>{PARTICIPATION_STATUS[account.situacao]}</span><small>{account.ultima_vista ? `Última presença: ${dataAtividade(account.ultima_vista)}` : "Sem histórico de presença"}</small></div>
+        <div><span className={`status-chip ${account.habilitada === "FALSE" ? "blocked" : account.habilitada === "TRUE" ? "enabled" : "neutral"}`}>{account.habilitada === "FALSE" ? "Bloqueada" : account.habilitada === "TRUE" ? "Habilitada" : "Sem decisão"}</span><small>{account.inscrita ? "Inscrita na temporada" : "Ainda não inscrita"}</small></div>
+        <div className="decision-cell"><strong>{account.administrador || (account.origem_decisao === "CADASTRO" ? "Automática" : "—")}</strong><small>{account.motivo || "Nenhuma decisão administrativa"}</small></div>
+        <b>{account.pontos}<small> pts</small></b>
+      </article>)}</section>
+      {!accounts.length && <div className="state-card"><strong>Nenhuma conta encontrada</strong><span>Altere a busca ou o filtro selecionado.</span></div>}
     </>}
   </div>;
 }

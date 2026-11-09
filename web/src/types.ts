@@ -134,3 +134,42 @@ export interface AdminSummary {
   participacao: { total: number; habilitadas: number; bloqueadas: number };
   modo: "SOMENTE_LEITURA";
 }
+
+export interface AdminParticipationAccount {
+  tag: string;
+  nome: string;
+  pontos: number;
+  inscrita: boolean;
+  habilitada?: "TRUE" | "FALSE" | null;
+  origem_decisao?: string | null;
+  situacao: "MEMBRO_ATUAL" | "AUSENTE_AGORA" | "RETORNOU_AO_CLA" | "ENTROU_APOS_INICIO_DO_HISTORICO" | "SEM_REGISTRO_NO_CLA";
+  no_cla: boolean;
+  primeira_vista?: string | null;
+  ultima_vista?: string | null;
+  participante_id?: string | null;
+  cv?: number | null;
+  cargo?: string | null;
+  administrador?: string;
+  motivo?: string;
+  decidido_em?: string;
+  evento_id?: string;
+}
+
+export interface AdminParticipationResponse {
+  temporada: string;
+  temporada_nome: string;
+  consultado_em: string;
+  roster_em: string;
+  criterio: string;
+  contagens: {
+    total: number;
+    no_cla: number;
+    ausentes: number;
+    habilitadas: number;
+    bloqueadas: number;
+    sem_decisao: number;
+    inscritas: number;
+    com_pontos: number;
+  };
+  contas: AdminParticipationAccount[];
+}

@@ -2,6 +2,7 @@ import type {
   AuditActivitiesResponse,
   AdminSession,
   AdminSummary,
+  AdminParticipationResponse,
   LayoutsResponse,
   PlayerAuditResponse,
   RankingEntry,
@@ -72,4 +73,5 @@ export const api = {
     postJson<AdminSession>("/v1/admin/login", { usuario, senha }),
   adminLogout: () => postJson<AdminSession>("/v1/admin/logout"),
   adminSummary: () => getJson<AdminSummary>("/v1/admin/summary"),
+  adminParticipation: () => getJson<AdminParticipationResponse>("/v1/admin/participation"),
 };

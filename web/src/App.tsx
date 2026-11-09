@@ -2,7 +2,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Shell } from "./components";
 import { RankingProvider } from "./RankingContext";
 import { AdminProvider } from "./AdminContext";
-import { AdminLoginPage, AdminPage, AuditPage, HomePage, IdentityLabPage, LayoutsPage, NotFoundPage, PlayerPage, RankingPage, TournamentPage } from "./pages";
+import { AdminLoginPage, AdminPage, AdminParticipationPage, AuditPage, HomePage, IdentityLabPage, LayoutsPage, NotFoundPage, PlayerPage, RankingPage, TournamentPage } from "./pages";
 
 export default function App() {
   return (
@@ -20,6 +20,7 @@ export default function App() {
               <Route path="/conceitos" element={<IdentityLabPage />} />
               <Route path="/admin/login" element={<AdminLoginPage />} />
               <Route path="/admin" element={<AdminPage />} />
+              <Route path="/admin/participacao" element={<AdminParticipationPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>

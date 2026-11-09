@@ -34,7 +34,7 @@
 ## Administração
 
 - [ ] Autenticação e níveis de acesso — fundação implementada; ativação depende de HTTPS
-- [ ] Participação e vínculos
+- [ ] Participação e vínculos — consulta protegida implementada; escrita aguarda HTTPS
 - [ ] Jogos do Clã e eventos manuais
 - [ ] Revisões de pontuação
 - [ ] Fechamento mensal
