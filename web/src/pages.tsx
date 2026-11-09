@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "./api";
 import { ErrorState, Loading, PageHeader, PlayerAvatar } from "./components";
@@ -64,6 +64,7 @@ export function HomePage() {
               <Link to="/layouts/guerra"><span>⬢</span><div><small>Defesas</small><strong>Layouts de guerra</strong><p>Bases organizadas por Centro de Vila para copiar no Clash.</p></div><b>→</b></Link>
               <Link to="/layouts/rankeada"><span>⌁</span><div><small>Rankeadas</small><strong>Layouts de rankeada</strong><p>Seleção oficial para proteger troféus e subir no ranking.</p></div><b>→</b></Link>
               <Link to="/torneios"><span>⚡</span><div><small>Arena ao vivo</small><strong>Torneios Winning Wars</strong><p>Chaveamento eliminatório oficial para as lives do clã.</p></div><b>→</b></Link>
+              <Link to="/conceitos"><span>✦</span><div><small>Nova identidade</small><strong>Laboratório visual</strong><p>Compare diferentes formas de navegar e acompanhar o ranking ao vivo.</p></div><b>→</b></Link>
             </div>
           </section>
         </>
@@ -263,6 +264,53 @@ export function TournamentPage() {
     {!loading && !error && !torneio && <div className="state-card tournament-empty"><strong>A arena está preparada para o próximo torneio</strong><span>O chaveamento aparecerá aqui assim que a organização iniciar a competição.</span></div>}
     {torneio && <><section className="tournament-title"><div><span className="eyebrow">Chaveamento oficial</span><h2>{torneio.nome}</h2><p>{torneio.participantes.length} competidores · CV {torneio.cv} · {torneio.modo}</p></div>{torneio.campeao && <div className="champion-chip">🏆 {torneio.campeao.nome}</div>}</section><div className="bracket">{torneio.rodadas.map((round, roundIndex) => <section className="bracket-round" key={roundIndex}><h3>{torneio.rotulos[roundIndex]}</h3><div>{round.map((match, index) => <TournamentMatchCard key={index} match={match} index={index} />)}</div></section>)}</div></>}
   </div>;
+}
+
+type IdentityConcept = "fortaleza" | "mapa" | "liga";
+
+const CONCEPTS: Array<{ id: IdentityConcept; title: string; subtitle: string }> = [
+  { id: "fortaleza", title: "Fortaleza Real", subtitle: "Solene, premium e orientada ao campeão" },
+  { id: "mapa", title: "Mapa de Guerra", subtitle: "Lúdica, territorial e muito Clash" },
+  { id: "liga", title: "Liga Imperial", subtitle: "Esportiva, objetiva e rica em dados" },
+];
+
+const CONCEPT_TABS = ["Quartel-general", "Ranking ao vivo", "Planejamento", "Layouts", "Torneios", "Membros", "Admin"];
+
+export function IdentityLabPage() {
+  const { ranking, loading, error, recarregar } = useRanking();
+  const [concept, setConcept] = useState<IdentityConcept>("fortaleza");
+  const leader = ranking[0];
+  const active = CONCEPTS.find((item) => item.id === concept)!;
+  return <div className="page identity-lab-page">
+    <PageHeader eyebrow="Estúdio de identidade" title="Três visões para o Winning Wars" description="Compare navegação, presença dos elementos de Clash of Clans e formas de acompanhar a competição em tempo real." />
+    <div className="concept-switcher" role="tablist" aria-label="Conceitos visuais">
+      {CONCEPTS.map((item, index) => <button key={item.id} className={concept === item.id ? "active" : ""} onClick={() => setConcept(item.id)}><b>0{index + 1}</b><span><strong>{item.title}</strong><small>{item.subtitle}</small></span></button>)}
+    </div>
+    {loading && <Loading label="Carregando o ranking para as propostas…" />}
+    {error && <ErrorState message={error} onRetry={recarregar} />}
+    {!loading && !error && <section className={`concept-stage concept-${concept}`}>
+      <header className="concept-brandbar"><div><img src={CREST_URL} alt="Brasão Winning Wars" /><span><small>Clash · Compete · Conquer</small><strong>Winning Wars</strong></span></div><span className="concept-live"><i className="live-dot" /> Ranking em tempo real</span></header>
+      <nav className="concept-tabs" aria-label="Prévia das abas principais">{CONCEPT_TABS.map((tab, index) => <button className={index === 1 ? "active" : ""} key={tab}><span>{["⌂","♛","⚔","⬢","⚡","♟","◆"][index]}</span>{tab}</button>)}</nav>
+      <div className="concept-intro"><div><span className="eyebrow">{active.title}</span><h2>{concept === "mapa" ? "O mapa da conquista" : concept === "liga" ? "A corrida pelo topo" : "O salão dos campeões"}</h2><p>{active.subtitle}. Dados oficiais processados pelo motor Winning Wars.</p></div>{leader && <div className="concept-leader"><PlayerAvatar nome={leader.nome} position={1} /><span><small>Líder atual</small><strong>{leader.nome}</strong><b>{leader.total} pts</b></span></div>}</div>
+      {concept === "fortaleza" && <FortressRanking ranking={ranking.slice(0, 8)} />}
+      {concept === "mapa" && <WarMapRanking ranking={ranking.slice(0, 8)} />}
+      {concept === "liga" && <LeagueRanking ranking={ranking.slice(0, 10)} />}
+      <footer className="concept-foot"><span>Atualização única compartilhada entre todas as visões</span><b>Zero consulta adicional à Oracle</b></footer>
+    </section>}
+  </div>;
+}
+
+function FortressRanking({ ranking }: { ranking: ReturnType<typeof useRanking>["ranking"] }) {
+  return <div className="fortress-ranking"><div className="fortress-podium">{ranking.slice(0, 3).map((player) => <article key={player.tag} className={`fortress-place place-${player.posicao}`}><span>{player.posicao}º</span><PlayerAvatar nome={player.nome} position={player.posicao} /><strong>{player.nome}</strong><small>{player.tag}</small><b>{player.total} pontos</b></article>)}</div><div className="fortress-list">{ranking.slice(3).map((player) => <div key={player.tag}><span>{player.posicao}</span><PlayerAvatar nome={player.nome} /><strong>{player.nome}</strong><small>⚔ {player.guerra} · ☄ {player.raides} · ♟ {player.jogos}</small><b>{player.total}</b></div>)}</div></div>;
+}
+
+function WarMapRanking({ ranking }: { ranking: ReturnType<typeof useRanking>["ranking"] }) {
+  const max = Math.max(1, ...ranking.map((item) => item.total));
+  return <div className="war-map-ranking"><div className="map-path" />{ranking.map((player, index) => <article key={player.tag} style={{ "--progress": `${Math.max(12, (player.total / max) * 100)}%` } as CSSProperties}><div className="map-rank">{player.posicao}</div><div className="map-player"><strong>{player.nome}</strong><small>{player.tag}</small></div><div className="map-bar"><i /><span>{index === 0 ? "Fortaleza do líder" : `${player.total} pontos conquistados`}</span></div><img src={townHallUrl(18 - (index % 5))} alt="" /><b>{player.total}</b></article>)}</div>;
+}
+
+function LeagueRanking({ ranking }: { ranking: ReturnType<typeof useRanking>["ranking"] }) {
+  return <div className="league-ranking"><header><span>Pos.</span><span>Guerreiro</span><span>Guerras</span><span>Raides</span><span>Jogos</span><span>Total</span></header>{ranking.map((player) => <article key={player.tag}><span className="league-position">{player.posicao}</span><span className="league-player"><PlayerAvatar nome={player.nome} position={player.posicao} /><span><strong>{player.nome}</strong><small>{player.tag}</small></span></span><span data-label="Guerras">{player.guerra}</span><span data-label="Raides">{player.raides}</span><span data-label="Jogos">{player.jogos}</span><b>{player.total}</b></article>)}</div>;
 }
 
 export function NotFoundPage() {

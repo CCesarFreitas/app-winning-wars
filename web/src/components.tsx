@@ -11,6 +11,7 @@ const nav = [
   { to: "/layouts/guerra", icon: "⬢", label: "Layouts de guerra" },
   { to: "/layouts/rankeada", icon: "⌁", label: "Layouts de rankeada" },
   { to: "/torneios", icon: "⚡", label: "Torneios Winning Wars" },
+  { to: "/conceitos", icon: "✦", label: "Laboratório visual" },
 ];
 
 export function Shell() {
