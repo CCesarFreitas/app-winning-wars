@@ -14,7 +14,6 @@ const nav = [
   { to: "/layouts/rankeada", icon: "⌁", label: "Layouts de rankeada" },
   { to: "/torneios", icon: "⚡", label: "Torneios Winning Wars" },
   { to: "/admin", icon: "◆", label: "Painel Admin" },
-  { to: "/conceitos", icon: "✦", label: "Laboratório visual" },
 ];
 
 export function Shell() {
@@ -22,38 +21,33 @@ export function Shell() {
   const { session } = useAdmin();
   const temporada = temporadaLabel(ranking[0]?.temporada);
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand">
+    <div className="app-shell royal-shell">
+      <header className="royal-header">
+        <div className="brand royal-brand">
           <img className="brand-crest" src={CREST_URL} alt="Brasão Winning Wars" />
           <span>
             <strong>Winning Wars</strong>
             <small>Clash · Compete · Conquer</small>
           </span>
         </div>
-        <div className="season-seal"><span>Temporada</span><strong>{temporada}</strong></div>
-        <nav className="desktop-nav" aria-label="Navegação principal">
-          {nav.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.to === "/"}>
-              <span aria-hidden="true">{item.icon}</span>
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="sidebar-note">
-          <span><i className="live-dot" />Motor Winning Wars online</span>
-          <small>Resultados validados pela Oracle</small>
+        <div className="royal-status">
+          <span className="season-chip">Temporada · {temporada}</span>
+          <span className="engine-status"><i className="live-dot" />Ranking em tempo real</span>
         </div>
-      </aside>
-      <main className="main-content">
-        <header className="topbar">
-          <div className="mobile-brand"><img src={CREST_URL} alt="" /> <span>Winning Wars</span></div>
-          <div className="topbar-actions">
-            <span className="season-chip">{temporada}</span>
-            <NavLink className="admin-access" to={session.autenticado ? "/admin" : "/admin/login"}>{session.autenticado ? `◆ ${session.usuario}` : "🔐 Entrar como administrador"}</NavLink>
-            <a className="clan-link" href="https://link.clashofclans.com/pt?action=OpenClanProfile&tag=2YPL9GU8Y" target="_blank" rel="noreferrer">Visitar clã <span>↗</span></a>
-          </div>
-        </header>
+        <div className="topbar-actions royal-actions">
+          <NavLink className="admin-access" to={session.autenticado ? "/admin" : "/admin/login"}>{session.autenticado ? `◆ ${session.usuario}` : "🔐 Entrar como administrador"}</NavLink>
+          <a className="clan-link" href="https://link.clashofclans.com/pt?action=OpenClanProfile&tag=2YPL9GU8Y" target="_blank" rel="noreferrer">Visitar clã <span>↗</span></a>
+        </div>
+      </header>
+      <nav className="royal-tabs" aria-label="Navegação principal">
+        {nav.map((item) => (
+          <NavLink key={item.to} to={item.to} end={item.to === "/"}>
+            <span aria-hidden="true">{item.icon}</span>
+            {item.label}
+          </NavLink>
+        ))}
+      </nav>
+      <main className="main-content royal-content">
         <Outlet />
       </main>
       <nav className="mobile-nav" aria-label="Navegação móvel">

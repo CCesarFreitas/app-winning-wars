@@ -40,3 +40,10 @@ Usar a Fortaleza Real 2.0 como identidade principal, preservando elementos espec
 - Mapa de Guerra como modo especial para eventos, torneios e campanhas.
 
 Essa combinação mantém personalidade sem prejudicar legibilidade. O custo para a Oracle é praticamente igual nas três opções: HTML/CSS estático no Nginx e uma única consulta compartilhada ao ranking.
+
+## Decisão aplicada
+
+Em 9 de novembro de 2026, a **Fortaleza Real 2.0** foi promovida de prova de
+conceito para identidade oficial da plataforma independente. As novas páginas
+devem preservar esse cabeçalho, navegação, pódio, imagens de CV e comportamento
+responsivo.

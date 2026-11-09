@@ -49,7 +49,7 @@ export function HomePage() {
               {ranking.slice(0, 3).map((player) => (
                 <Link to={`/jogador/${encodeURIComponent(player.tag)}`} className={`podium-card place-${player.posicao}`} key={player.tag}>
                   <span className="place-badge">{player.posicao}º</span>
-                  <PlayerAvatar nome={player.nome} position={player.posicao} />
+                  <RankingTownHall player={player} compact />
                   <div><strong>{player.nome}</strong><small>{player.tag}</small></div>
                   <b>{player.total}<small> pts</small></b>
                 </Link>
@@ -65,7 +65,6 @@ export function HomePage() {
               <Link to="/layouts/guerra"><span>⬢</span><div><small>Defesas</small><strong>Layouts de guerra</strong><p>Bases organizadas por Centro de Vila para copiar no Clash.</p></div><b>→</b></Link>
               <Link to="/layouts/rankeada"><span>⌁</span><div><small>Rankeadas</small><strong>Layouts de rankeada</strong><p>Seleção oficial para proteger troféus e subir no ranking.</p></div><b>→</b></Link>
               <Link to="/torneios"><span>⚡</span><div><small>Arena ao vivo</small><strong>Torneios Winning Wars</strong><p>Chaveamento eliminatório oficial para as lives do clã.</p></div><b>→</b></Link>
-              <Link to="/conceitos"><span>✦</span><div><small>Nova identidade</small><strong>Laboratório visual</strong><p>Compare diferentes formas de navegar e acompanhar o ranking ao vivo.</p></div><b>→</b></Link>
             </div>
           </section>
         </>
@@ -85,23 +84,12 @@ export function RankingPage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="Temporada oficial" title="Ranking de guerreiros" description="Cada estrela, ataque e conquista processada pelo motor Winning Wars forma esta classificação." />
+      <PageHeader eyebrow="Fortaleza Real" title="Ranking oficial da temporada" description="A classificação atual do Winning Wars, com Centro de Vila, desempenho por modalidade e pontuação validada pelo motor." />
       <div className="toolbar"><label className="search-box"><span>⌕</span><input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar jogador ou tag" /></label><span>{filtrado.length} jogadores · <Link to="/ranking/detalhado">ver pontos por atividade →</Link></span></div>
       {loading && <Loading />}
       {error && <ErrorState message={error} onRetry={recarregar} />}
-      {!loading && !error && (
-        <div className="ranking-table" role="table" aria-label="Ranking oficial">
-          <div className="ranking-head" role="row"><span>#</span><span>Jogador</span><span>Guerras</span><span>Raides</span><span>Jogos</span><span>Eventos</span><span>Total</span></div>
-          {filtrado.map((player) => (
-            <Link className="ranking-row" to={`/jogador/${encodeURIComponent(player.tag)}`} key={player.tag} role="row">
-              <span className="rank-number">{player.posicao}</span>
-              <span className="player-cell"><PlayerAvatar nome={player.nome} position={player.posicao} /><span><strong>{player.nome}</strong><small>{player.tag}</small></span></span>
-              <span data-label="Guerras">{player.guerra}</span><span data-label="Raides">{player.raides}</span><span data-label="Jogos">{player.jogos}</span><span data-label="Eventos">{player.eventos}</span><strong className="total-cell">{player.total}</strong>
-            </Link>
-          ))}
-          {!filtrado.length && <div className="empty-state">Nenhum jogador encontrado para “{busca}”.</div>}
-        </div>
-      )}
+      {!loading && !error && !!filtrado.length && <FortressCvRanking ranking={filtrado} />}
+      {!loading && !error && !filtrado.length && <div className="empty-state">Nenhum jogador encontrado para “{busca}”.</div>}
     </div>
   );
 }
@@ -144,7 +132,7 @@ export function DetailedRankingPage() {
         <div className="detail-head"><span>#</span><span>Jogador</span>{columns.map((column) => <span className={`kind-${column.tipo}`} key={column.chave}>{column.rotulo}</span>)}<span>Total</span></div>
         {players.map((player) => <article className="detail-row" key={player.tag}>
           <span className="rank-number">{player.posicao}</span>
-          <Link className="detail-player" to={`/jogador/${encodeURIComponent(player.tag)}`}><PlayerAvatar nome={player.nome} position={player.posicao} /><span><strong>{player.nome}</strong><small>{player.tag}</small></span></Link>
+          <Link className="detail-player" to={`/jogador/${encodeURIComponent(player.tag)}`}><RankingTownHall player={player} compact /><span><strong>{player.nome}</strong><small>{player.tag}</small></span></Link>
           <div className="detail-scores">{columns.map((column) => <span className={`kind-${column.tipo}`} key={column.chave}><small>{column.rotulo}</small><strong>{player.pontos[column.chave] ?? 0}</strong></span>)}</div>
           <strong className="detail-total"><small>Total</small>{player.total}</strong>
         </article>)}
@@ -179,8 +167,8 @@ export function PlayerPage() {
     <div className="page">
       <PageHeader eyebrow="Jornada do guerreiro" title="Ficha do jogador" description="Pontuação consolidada, modalidades disputadas e justificativa de cada resultado." />
       <label className="player-picker"><span>Selecionar jogador</span><select value={selected.tag} onChange={(event) => navigate(`/jogador/${encodeURIComponent(event.target.value)}`)}>{ranking.map((item) => <option key={item.tag} value={item.tag}>{item.posicao}º · {item.nome} · {item.tag}</option>)}</select></label>
-      <section className="player-profile">
-        <PlayerAvatar nome={selected.nome} position={selected.posicao} />
+      <section className="player-profile fortress-player-profile">
+        <RankingTownHall player={selected} />
         <div><span className="eyebrow">{selected.posicao}º lugar na temporada</span><h2>{selected.nome}</h2><small>{selected.tag}</small></div>
         <strong>{selected.total}<small> pontos</small></strong>
       </section>
@@ -361,20 +349,22 @@ function RankingTownHall({ player, compact = false }: { player: ReturnType<typeo
 
 function FortressCvRanking({ ranking }: { ranking: ReturnType<typeof useRanking>["ranking"] }) {
   const max = Math.max(1, ...ranking.map((item) => item.total));
+  const podium = ranking.filter((item) => item.posicao <= 3);
+  const list = ranking.filter((item) => item.posicao > 3);
   return <div className="fortress-cv-ranking">
     <div className="fortress-prize"><span>🎟️</span><div><small>Competição Winning Wars</small><strong>Top 3 garantem o Passe Dourado</strong></div><b>Temporada em disputa</b></div>
-    <div className="fortress-cv-podium">{ranking.slice(0, 3).map((player) => <article key={player.tag} className={`cv-podium-card place-${player.posicao}`}>
+    {!!podium.length && <div className="fortress-cv-podium">{podium.map((player) => <Link to={`/jogador/${encodeURIComponent(player.tag)}`} key={player.tag} className={`cv-podium-card place-${player.posicao}`}>
       <span className="cv-place">{player.posicao === 1 ? "🥇" : player.posicao === 2 ? "🥈" : "🥉"} {player.posicao}º lugar</span>
       <RankingTownHall player={player} />
       <div><strong>{player.nome}</strong><small>{player.tag}</small><span>⚔ {player.guerra} · ☄ {player.raides} · ♟ {player.jogos} · ◆ {player.eventos}</span></div>
       <b>{player.total}<small> pontos</small></b>
-    </article>)}</div>
-    <div className="fortress-cv-list"><header><span>Pos.</span><span>Vila e jogador</span><span>Desempenho da temporada</span><span>Total</span></header>{ranking.slice(3).map((player) => <article key={player.tag}>
+    </Link>)}</div>}
+    {!!list.length && <div className="fortress-cv-list"><header><span>Pos.</span><span>Vila e jogador</span><span>Desempenho da temporada</span><span>Total</span></header>{list.map((player) => <Link to={`/jogador/${encodeURIComponent(player.tag)}`} key={player.tag} className="fortress-cv-row">
       <span className="cv-list-position">{player.posicao}</span>
       <span className="cv-list-player"><RankingTownHall player={player} compact /><span><strong>{player.nome}</strong><small>{player.tag}</small></span></span>
       <span className="cv-list-progress"><i style={{ width: `${Math.max(8, player.total / max * 100)}%` }} /><small>⚔ {player.guerra} guerras · ☄ {player.raides} raides · ♟ {player.jogos} jogos · ◆ {player.eventos} eventos</small></span>
       <b>{player.total}<small> pts</small></b>
-    </article>)}</div>
+    </Link>)}</div>}
   </div>;
 }
 

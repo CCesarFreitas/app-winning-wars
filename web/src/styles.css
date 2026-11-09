@@ -107,6 +107,23 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
 .season-chip { padding: 0 12px; color: #b6ae9e; border: 1px solid var(--line); background: rgba(255,255,255,.025); }
 .clan-link { padding: 0 13px; gap: 8px; color: #201706; background: linear-gradient(#ffd971,#d99a22); border: 1px solid #ffe49d; box-shadow: 0 5px 20px rgba(225,153,31,.14); }
 .mobile-nav { display: none; }
+.royal-shell { min-height: 100vh; }
+.royal-header { position: sticky; top: 0; z-index: 35; min-height: 82px; padding: 10px clamp(18px,3vw,46px); display: grid; grid-template-columns: minmax(245px,1fr) auto minmax(245px,1fr); align-items: center; gap: 22px; border-bottom: 1px solid rgba(255,255,255,.055); background: linear-gradient(90deg,rgba(19,16,23,.98),rgba(12,10,15,.98)); box-shadow: 0 12px 35px rgba(0,0,0,.22); }
+.royal-brand { width: max-content; gap: 10px; padding: 0; border: 0; }
+.royal-brand .brand-crest { width: 58px; height: 58px; }
+.royal-brand strong { font-size: .96rem; }
+.royal-brand small { font-size: .5rem; }
+.royal-status { display: flex; align-items: center; justify-content: center; gap: 9px; }
+.engine-status { min-height: 34px; padding: 0 11px; display: inline-flex; align-items: center; color: #a3dfc2; border: 1px solid rgba(95,214,156,.2); border-radius: 999px; background: rgba(95,214,156,.045); font-size: .54rem; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; }
+.royal-actions { justify-content: flex-end; }
+.royal-tabs { position: sticky; top: 82px; z-index: 34; min-height: 54px; padding: 0 clamp(14px,3vw,42px); display: flex; justify-content: center; gap: 4px; overflow-x: auto; border-bottom: 1px solid var(--line); background: rgba(13,11,16,.96); backdrop-filter: blur(16px); scrollbar-width: none; }
+.royal-tabs::-webkit-scrollbar { display: none; }
+.royal-tabs a { min-width: max-content; min-height: 54px; padding: 0 12px; display: flex; align-items: center; gap: 7px; color: #938b81; border-bottom: 3px solid transparent; font-size: .62rem; font-weight: 850; }
+.royal-tabs a > span { color: #8f7132; font-size: .86rem; }
+.royal-tabs a:hover { color: #efe5d5; background: rgba(255,255,255,.02); }
+.royal-tabs a.active { color: #fff4dc; border-bottom-color: var(--gold); background: linear-gradient(180deg,rgba(240,183,53,.055),transparent); }
+.royal-tabs a.active > span { color: var(--gold); }
+.royal-content { min-height: calc(100vh - 136px); margin-left: 0; }
 .page { position: relative; width: min(1320px,100%); margin: auto; padding: 46px clamp(24px,4vw,60px) 90px; }
 
 .eyebrow { color: var(--gold); font-size: .62rem; text-transform: uppercase; letter-spacing: .19em; font-weight: 900; }
@@ -399,9 +416,10 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
 .cv-podium-card > b { color: var(--gold-light); text-align: right; font: 800 1.25rem "Cinzel"; }
 .cv-podium-card > b small { display: block; color: #777068; font: 700 .48rem "Nunito Sans"; }
 .fortress-cv-list { margin-top: 10px; overflow: hidden; border: 1px solid var(--line); border-radius: 5px; }
-.fortress-cv-list header,.fortress-cv-list article { min-height: 66px; padding: 0 13px; display: grid; grid-template-columns: 42px minmax(205px,1.1fr) 1.4fr 55px; align-items: center; gap: 10px; }
+.fortress-cv-list header,.fortress-cv-list .fortress-cv-row { min-height: 66px; padding: 0 13px; display: grid; grid-template-columns: 42px minmax(205px,1.1fr) 1.4fr 55px; align-items: center; gap: 10px; }
 .fortress-cv-list header { min-height: 37px; color: #746d65; background: rgba(255,255,255,.025); font-size: .5rem; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
-.fortress-cv-list article { border-top: 1px solid rgba(255,255,255,.065); background: rgba(255,255,255,.018); }
+.fortress-cv-list .fortress-cv-row { border-top: 1px solid rgba(255,255,255,.065); background: rgba(255,255,255,.018); transition: .15s ease; }
+.fortress-cv-list .fortress-cv-row:hover { background: linear-gradient(90deg,rgba(240,183,53,.06),rgba(140,63,181,.045)); }
 .cv-list-position { color: #9b9184; font: 800 .82rem "Cinzel"; }
 .cv-list-player { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .cv-list-player strong,.cv-list-player small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -411,8 +429,10 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
 .cv-list-progress::before { content:""; display:block; height: 6px; border-radius: 99px; background: rgba(255,255,255,.07); }
 .cv-list-progress i { position: absolute; left: 0; top: 12px; height: 6px; border-radius: 99px; background: linear-gradient(90deg,var(--purple),var(--gold)); }
 .cv-list-progress small { display: block; margin-top: 5px; color: #777067; font-size: .47rem; }
-.fortress-cv-list article > b { color: var(--gold-light); text-align: right; font: 800 1rem "Cinzel"; }
-.fortress-cv-list article > b small { display: block; color: #6e675f; font: 700 .46rem "Nunito Sans"; }
+.fortress-cv-list .fortress-cv-row > b { color: var(--gold-light); text-align: right; font: 800 1rem "Cinzel"; }
+.fortress-cv-list .fortress-cv-row > b small { display: block; color: #6e675f; font: 700 .46rem "Nunito Sans"; }
+.fortress-player-profile > .ranking-th { width: 86px; min-width: 86px; }
+.fortress-player-profile > .ranking-th img { width: 78px; height: 78px; }
 .fortress-ranking { padding: 10px 28px 30px; }
 .fortress-podium { display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 10px; }
 .fortress-place { min-height: 182px; padding: 24px 14px 17px; display: flex; position: relative; flex-direction: column; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 5px; background: linear-gradient(145deg,#242027,#131116); }
@@ -606,6 +626,8 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
 .error-state { color: #dda39f; border-color: rgba(230,109,104,.28); }
 
 @media (max-width: 1120px) {
+  .royal-header { grid-template-columns: 1fr auto; }
+  .royal-status { display: none; }
   .hero { grid-template-columns: 1.2fr .8fr; }
   .hero-emblem img { width: 290px; }
   .podium-grid { grid-template-columns: 1fr; }
@@ -619,6 +641,12 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
   body { padding-bottom: 70px; }
   .sidebar { display: none; }
   .main-content { margin-left: 0; }
+  .royal-header { min-height: 64px; padding: 6px 13px; grid-template-columns: 1fr auto; gap: 8px; }
+  .royal-brand .brand-crest { width: 43px; height: 43px; }
+  .royal-brand strong { font-size: .74rem; }
+  .royal-brand small { font-size: .4rem; }
+  .royal-tabs { display: none; }
+  .royal-actions { gap: 7px; }
   .topbar { min-height: 61px; padding: 0 15px; justify-content: space-between; }
   .mobile-brand { display: flex; gap: 8px; font: 800 .72rem "Cinzel"; color: var(--gold-light); }
   .mobile-brand img { width: 38px; height: 38px; object-fit: contain; }
@@ -702,12 +730,12 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
   .cv-podium-card .ranking-th img { width: 52px; height: 52px; }
   .fortress-cv-list { display: grid; gap: 7px; overflow: visible; border: 0; }
   .fortress-cv-list header { display: none; }
-  .fortress-cv-list article { min-height: 108px; padding: 11px; display: grid; grid-template-columns: 30px 1fr 48px; grid-template-rows: 56px 30px; border: 1px solid var(--line); border-radius: 5px; background: rgba(255,255,255,.025); }
+  .fortress-cv-list .fortress-cv-row { min-height: 108px; padding: 11px; display: grid; grid-template-columns: 30px 1fr 48px; grid-template-rows: 56px 30px; border: 1px solid var(--line); border-radius: 5px; background: rgba(255,255,255,.025); }
   .cv-list-player { grid-column: 2/3; }
   .cv-list-progress { grid-column: 2/-1; grid-row: 2; padding-top: 6px; }
   .cv-list-progress i { top: 6px; }
   .cv-list-progress small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .fortress-cv-list article > b { grid-column: 3; grid-row: 1; }
+  .fortress-cv-list .fortress-cv-row > b { grid-column: 3; grid-row: 1; }
   .fortress-podium { grid-template-columns: 1fr; }
   .fortress-place { min-height: 130px; }
   .fortress-list > div { grid-template-columns: 24px 38px 1fr 42px; }
