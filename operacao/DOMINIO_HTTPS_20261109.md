@@ -32,12 +32,14 @@
 - nenhuma credencial real foi usada;
 - redirecionamento HTTP respondeu `301`.
 
-## Pendência externa
+## Validação externa
 
-A regra de entrada da rede OCI ainda precisa permitir TCP 443 para origem
-`0.0.0.0/0`. Enquanto essa regra não for adicionada na Security List ou NSG da
-sub-rede pública, o certificado funciona internamente, mas a conexão HTTPS da
-internet expira por timeout.
+- regra de entrada OCI liberada para TCP 443 com origem `0.0.0.0/0`;
+- `https://winningwars.com.br/`: `200 OK`;
+- `https://www.winningwars.com.br/`: `200 OK`;
+- `http://winningwars.com.br/`: redirecionamento `301` para HTTPS;
+- `/api/v1/admin/session`: `200 OK` com sessão anônima;
+- domínio, aplicação e API administrativa acessíveis publicamente por HTTPS.
 
 ## Backup
 
