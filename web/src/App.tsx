@@ -5,7 +5,7 @@ import { AuditPage, HomePage, NotFoundPage, PlayerPage, RankingPage } from "./pa
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, "") || "/"}>
       <RankingProvider>
         <Routes>
           <Route element={<Shell />}>

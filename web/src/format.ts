@@ -35,3 +35,11 @@ export function iniciais(nome: string): string {
   const partes = nome.trim().split(/\s+/).filter(Boolean);
   return (partes[0]?.[0] || "W") + (partes[1]?.[0] || partes[0]?.[1] || "W");
 }
+
+export function temporadaLabel(value: string | null | undefined): string {
+  if (!value || !/^\d{4}-\d{2}$/.test(value)) return "Temporada atual";
+  const [ano, mes] = value.split("-").map(Number);
+  const data = new Date(Date.UTC(ano, mes - 1, 1));
+  const nome = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" }).format(data);
+  return nome.charAt(0).toUpperCase() + nome.slice(1);
+}

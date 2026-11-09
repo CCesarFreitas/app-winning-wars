@@ -2,28 +2,34 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "./api";
 import { ErrorState, Loading, PageHeader, PlayerAvatar } from "./components";
-import { dataAtividade, numero, rotuloTipo } from "./format";
+import { dataAtividade, numero, rotuloTipo, temporadaLabel } from "./format";
 import { useRanking } from "./RankingContext";
 import type { AuditActivity, PlayerAuditResponse } from "./types";
+import { CREST_URL } from "./assets";
 
 export function HomePage() {
   const { ranking, loading, error, recarregar } = useRanking();
   const lider = ranking[0];
   const pontos = ranking.reduce((total, player) => total + player.total, 0);
+  const temporada = temporadaLabel(lider?.temporada);
 
   return (
     <div className="page home-page">
       <section className="hero">
-        <div>
-          <span className="eyebrow">Nova experiência Winning Wars</span>
-          <h1>A competição, sem depender do Streamlit.</h1>
-          <p>Uma interface rápida, responsiva e ligada diretamente aos dados oficiais processados pela Oracle.</p>
+        <div className="hero-copy">
+          <span className="battle-status"><i className="live-dot" /> Temporada em disputa · {temporada}</span>
+          <h1>Toda batalha conta.<br /><em>Toda vitória deixa um legado.</em></h1>
+          <p>A arena oficial da competição Winning Wars. Acompanhe sua evolução, confira cada ponto e lute pelo topo do clã.</p>
           <div className="hero-actions">
-            <Link className="primary-button" to="/ranking">Ver ranking oficial <span>→</span></Link>
-            <Link className="secondary-button" to="/auditoria">Consultar auditoria</Link>
+            <Link className="primary-button" to="/ranking"><span>♛</span> Entrar no ranking</Link>
+            <Link className="secondary-button" to="/auditoria">Ver batalhas encerradas <span>→</span></Link>
           </div>
         </div>
-        <div className="hero-emblem" aria-hidden="true"><span>WW</span><small>CLASH · COMPETE · CONQUER</small></div>
+        <div className="hero-emblem" aria-hidden="true">
+          <span className="emblem-glow" />
+          <img src={CREST_URL} alt="" />
+          <div className="clan-level"><small>Nível do clã</small><strong>18</strong></div>
+        </div>
       </section>
 
       {loading && <Loading />}
@@ -31,13 +37,13 @@ export function HomePage() {
       {!loading && !error && (
         <>
           <section className="stat-grid" aria-label="Resumo da competição">
-            <article className="stat-card"><span>Competidores</span><strong>{numero(ranking.length)}</strong><small>no ranking oficial</small></article>
-            <article className="stat-card"><span>Pontos registrados</span><strong>{numero(pontos)}</strong><small>somados na temporada</small></article>
-            <article className="stat-card accent"><span>Líder atual</span><strong>{lider?.nome || "—"}</strong><small>{lider ? `${lider.total} pontos` : "Ranking vazio"}</small></article>
+            <article className="stat-card"><span className="stat-icon">⚔</span><div><small>Guerreiros na disputa</small><strong>{numero(ranking.length)}</strong><span>competidores oficiais</span></div></article>
+            <article className="stat-card"><span className="stat-icon">✦</span><div><small>Pontos conquistados</small><strong>{numero(pontos)}</strong><span>nesta temporada</span></div></article>
+            <article className="stat-card accent"><span className="stat-icon">♛</span><div><small>Líder da temporada</small><strong>{lider?.nome || "—"}</strong><span>{lider ? `${lider.total} pontos` : "Ranking vazio"}</span></div></article>
           </section>
 
           <section className="section-block">
-            <div className="section-title"><div><span className="eyebrow">Pódio em tempo real</span><h2>Os três primeiros</h2></div><Link to="/ranking">Ranking completo →</Link></div>
+            <div className="section-title"><div><span className="eyebrow">Salão dos campeões</span><h2>O pódio da temporada</h2><p>Os guerreiros que comandam a disputa neste momento.</p></div><Link to="/ranking">Ver classificação completa →</Link></div>
             <div className="podium-grid">
               {ranking.slice(0, 3).map((player) => (
                 <Link to={`/jogador/${encodeURIComponent(player.tag)}`} className={`podium-card place-${player.posicao}`} key={player.tag}>
@@ -47,6 +53,14 @@ export function HomePage() {
                   <b>{player.total}<small> pts</small></b>
                 </Link>
               ))}
+            </div>
+          </section>
+          <section className="war-room">
+            <div className="section-title"><div><span className="eyebrow">Central de comando</span><h2>Seu caminho na competição</h2></div></div>
+            <div className="war-room-grid">
+              <Link to="/ranking"><span>♛</span><div><small>Classificação</small><strong>Ranking oficial</strong><p>Veja pontos por modalidade e sua posição na temporada.</p></div><b>→</b></Link>
+              <Link to="/jogador"><span>⚔</span><div><small>Desempenho</small><strong>Ficha do jogador</strong><p>Entenda sua pontuação e acompanhe cada batalha.</p></div><b>→</b></Link>
+              <Link to="/auditoria"><span>◈</span><div><small>Transparência</small><strong>Arquivo de batalhas</strong><p>Consulte resultados processados pelo motor Winning Wars.</p></div><b>→</b></Link>
             </div>
           </section>
         </>
@@ -66,7 +80,7 @@ export function RankingPage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="Competição oficial" title="Ranking ao vivo" description="Classificação consolidada pelas atividades processadas no motor Winning Wars." />
+      <PageHeader eyebrow="Temporada oficial" title="Ranking de guerreiros" description="Cada estrela, ataque e conquista processada pelo motor Winning Wars forma esta classificação." />
       <div className="toolbar"><label className="search-box"><span>⌕</span><input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar jogador ou tag" /></label><span>{filtrado.length} jogadores</span></div>
       {loading && <Loading />}
       {error && <ErrorState message={error} onRetry={recarregar} />}
@@ -110,11 +124,11 @@ export function PlayerPage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="Transparência individual" title="Ficha do jogador" description="Pontuação consolidada e justificativas de cada atividade registrada." />
+      <PageHeader eyebrow="Jornada do guerreiro" title="Ficha do jogador" description="Pontuação consolidada, modalidades disputadas e justificativa de cada resultado." />
       <label className="player-picker"><span>Selecionar jogador</span><select value={selected.tag} onChange={(event) => navigate(`/jogador/${encodeURIComponent(event.target.value)}`)}>{ranking.map((item) => <option key={item.tag} value={item.tag}>{item.posicao}º · {item.nome} · {item.tag}</option>)}</select></label>
       <section className="player-profile">
         <PlayerAvatar nome={selected.nome} position={selected.posicao} />
-        <div><span className="eyebrow">{selected.posicao}º lugar</span><h2>{selected.nome}</h2><small>{selected.tag}</small></div>
+        <div><span className="eyebrow">{selected.posicao}º lugar na temporada</span><h2>{selected.nome}</h2><small>{selected.tag}</small></div>
         <strong>{selected.total}<small> pontos</small></strong>
       </section>
       <section className="score-grid">
@@ -124,7 +138,7 @@ export function PlayerPage() {
         <article><span>◆</span><div><small>Eventos</small><strong>{selected.eventos}</strong></div></article>
       </section>
       <section className="section-block">
-        <div className="section-title"><div><span className="eyebrow">Rastro de cálculo</span><h2>Por que recebeu estes pontos?</h2></div>{audit && <span>{audit.total} registros</span>}</div>
+        <div className="section-title"><div><span className="eyebrow">Livro de batalha</span><h2>Por que recebeu estes pontos?</h2><p>Cada registro preserva a regra aplicada pelo motor.</p></div>{audit && <span>{audit.total} registros</span>}</div>
         {loading && <Loading label="Buscando o histórico deste jogador…" />}
         {error && <ErrorState message={error} />}
         {audit && <div className="timeline">{audit.registros.map((record) => <AuditRecord key={`${record.tipo}-${record.identificador}`} record={record} />)}</div>}
@@ -161,7 +175,7 @@ export function AuditPage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="Transparência Winning Wars" title="Auditoria das atividades" description="Cada resultado preserva sua origem, participantes e pontuação calculada." />
+      <PageHeader eyebrow="Arquivo oficial" title="Batalhas encerradas" description="Resultados preservados com origem, participantes e pontuação calculada pelo motor Winning Wars." />
       <div className="filter-tabs" role="tablist">{[["todos", "Todas"], ["guerra", "Guerras"], ["raid", "Raides"], ["liga", "Ligas"]].map(([value, label]) => <button className={filter === value ? "active" : ""} onClick={() => setFilter(value)} key={value}>{label}</button>)}</div>
       {loading && <Loading label="Carregando o arquivo de auditoria…" />}
       {error && <ErrorState message={error} onRetry={load} />}

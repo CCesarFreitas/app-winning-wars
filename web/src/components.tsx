@@ -1,24 +1,29 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { iniciais } from "./format";
+import { iniciais, temporadaLabel } from "./format";
+import { useRanking } from "./RankingContext";
+import { CREST_URL } from "./assets";
 
 const nav = [
-  { to: "/", icon: "⌂", label: "Início" },
-  { to: "/ranking", icon: "♛", label: "Ranking" },
-  { to: "/jogador", icon: "♙", label: "Jogador" },
-  { to: "/auditoria", icon: "◎", label: "Auditoria" },
+  { to: "/", icon: "⌂", label: "Quartel-general" },
+  { to: "/ranking", icon: "♛", label: "Ranking oficial" },
+  { to: "/jogador", icon: "⚔", label: "Ficha do jogador" },
+  { to: "/auditoria", icon: "◈", label: "Arquivo de batalhas" },
 ];
 
 export function Shell() {
+  const { ranking } = useRanking();
+  const temporada = temporadaLabel(ranking[0]?.temporada);
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark">WW</span>
+          <img className="brand-crest" src={CREST_URL} alt="Brasão Winning Wars" />
           <span>
             <strong>Winning Wars</strong>
-            <small>Plataforma independente</small>
+            <small>Clash · Compete · Conquer</small>
           </span>
         </div>
+        <div className="season-seal"><span>Temporada</span><strong>{temporada}</strong></div>
         <nav className="desktop-nav" aria-label="Navegação principal">
           {nav.map((item) => (
             <NavLink key={item.to} to={item.to} end={item.to === "/"}>
@@ -28,14 +33,17 @@ export function Shell() {
           ))}
         </nav>
         <div className="sidebar-note">
-          <span className="live-dot" />
-          Dados oficiais em modo somente leitura
+          <span><i className="live-dot" />Motor Winning Wars online</span>
+          <small>Resultados validados pela Oracle</small>
         </div>
       </aside>
       <main className="main-content">
         <header className="topbar">
-          <div className="mobile-brand"><span className="brand-mark small">WW</span> Winning Wars</div>
-          <span className="readonly-chip">POC · somente leitura</span>
+          <div className="mobile-brand"><img src={CREST_URL} alt="" /> <span>Winning Wars</span></div>
+          <div className="topbar-actions">
+            <span className="season-chip">{temporada}</span>
+            <a className="clan-link" href="https://link.clashofclans.com/pt?action=OpenClanProfile&tag=2YPL9GU8Y" target="_blank" rel="noreferrer">Visitar clã <span>↗</span></a>
+          </div>
         </header>
         <Outlet />
       </main>
@@ -64,7 +72,7 @@ export function PageHeader({ eyebrow, title, description }: { eyebrow: string; t
 export function PlayerAvatar({ nome, position }: { nome: string; position?: number }) {
   return (
     <span className={`player-avatar ${position && position <= 3 ? `podium-${position}` : ""}`}>
-      {iniciais(nome).toUpperCase()}
+      {position && position <= 3 ? <b>{position}</b> : iniciais(nome).toUpperCase()}
     </span>
   );
 }
