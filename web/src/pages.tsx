@@ -266,10 +266,11 @@ export function TournamentPage() {
   </div>;
 }
 
-type IdentityConcept = "fortaleza" | "mapa" | "liga";
+type IdentityConcept = "fortaleza_cv" | "fortaleza" | "mapa" | "liga";
 
 const CONCEPTS: Array<{ id: IdentityConcept; title: string; subtitle: string }> = [
-  { id: "fortaleza", title: "Fortaleza Real", subtitle: "Solene, premium e orientada ao campeão" },
+  { id: "fortaleza_cv", title: "Fortaleza Real 2.0", subtitle: "Ranking oficial com CV e leitura moderna" },
+  { id: "fortaleza", title: "Fortaleza Clássica", subtitle: "Solene, premium e orientada ao campeão" },
   { id: "mapa", title: "Mapa de Guerra", subtitle: "Lúdica, territorial e muito Clash" },
   { id: "liga", title: "Liga Imperial", subtitle: "Esportiva, objetiva e rica em dados" },
 ];
@@ -278,7 +279,7 @@ const CONCEPT_TABS = ["Quartel-general", "Ranking ao vivo", "Planejamento", "Lay
 
 export function IdentityLabPage() {
   const { ranking, loading, error, recarregar } = useRanking();
-  const [concept, setConcept] = useState<IdentityConcept>("fortaleza");
+  const [concept, setConcept] = useState<IdentityConcept>("fortaleza_cv");
   const leader = ranking[0];
   const active = CONCEPTS.find((item) => item.id === concept)!;
   return <div className="page identity-lab-page">
@@ -291,12 +292,40 @@ export function IdentityLabPage() {
     {!loading && !error && <section className={`concept-stage concept-${concept}`}>
       <header className="concept-brandbar"><div><img src={CREST_URL} alt="Brasão Winning Wars" /><span><small>Clash · Compete · Conquer</small><strong>Winning Wars</strong></span></div><span className="concept-live"><i className="live-dot" /> Ranking em tempo real</span></header>
       <nav className="concept-tabs" aria-label="Prévia das abas principais">{CONCEPT_TABS.map((tab, index) => <button className={index === 1 ? "active" : ""} key={tab}><span>{["⌂","♛","⚔","⬢","⚡","♟","◆"][index]}</span>{tab}</button>)}</nav>
-      <div className="concept-intro"><div><span className="eyebrow">{active.title}</span><h2>{concept === "mapa" ? "O mapa da conquista" : concept === "liga" ? "A corrida pelo topo" : "O salão dos campeões"}</h2><p>{active.subtitle}. Dados oficiais processados pelo motor Winning Wars.</p></div>{leader && <div className="concept-leader"><PlayerAvatar nome={leader.nome} position={1} /><span><small>Líder atual</small><strong>{leader.nome}</strong><b>{leader.total} pts</b></span></div>}</div>
+      <div className="concept-intro"><div><span className="eyebrow">{active.title}</span><h2>{concept === "mapa" ? "O mapa da conquista" : concept === "liga" ? "A corrida pelo topo" : concept === "fortaleza_cv" ? "Ranking oficial da temporada" : "O salão dos campeões"}</h2><p>{active.subtitle}. Dados oficiais processados pelo motor Winning Wars.</p></div>{leader && <div className="concept-leader"><RankingTownHall player={leader} compact /><span><small>Líder atual</small><strong>{leader.nome}</strong><b>{leader.total} pts</b></span></div>}</div>
+      {concept === "fortaleza_cv" && <FortressCvRanking ranking={ranking.slice(0, 12)} />}
       {concept === "fortaleza" && <FortressRanking ranking={ranking.slice(0, 8)} />}
       {concept === "mapa" && <WarMapRanking ranking={ranking.slice(0, 8)} />}
       {concept === "liga" && <LeagueRanking ranking={ranking.slice(0, 10)} />}
       <footer className="concept-foot"><span>Atualização única compartilhada entre todas as visões</span><b>Zero consulta adicional à Oracle</b></footer>
     </section>}
+  </div>;
+}
+
+function RankingTownHall({ player, compact = false }: { player: ReturnType<typeof useRanking>["ranking"][number]; compact?: boolean }) {
+  const cvValido = typeof player.cv === "number" && player.cv >= 9 && player.cv <= 18;
+  return <span className={`ranking-th ${compact ? "compact" : ""} ${cvValido ? "" : "unknown"}`}>
+    {cvValido ? <img src={townHallUrl(player.cv!)} alt={`Centro de Vila ${player.cv}`} /> : <span>?</span>}
+    <small>{cvValido ? `CV ${player.cv}` : "CV —"}</small>
+  </span>;
+}
+
+function FortressCvRanking({ ranking }: { ranking: ReturnType<typeof useRanking>["ranking"] }) {
+  const max = Math.max(1, ...ranking.map((item) => item.total));
+  return <div className="fortress-cv-ranking">
+    <div className="fortress-prize"><span>🎟️</span><div><small>Competição Winning Wars</small><strong>Top 3 garantem o Passe Dourado</strong></div><b>Temporada em disputa</b></div>
+    <div className="fortress-cv-podium">{ranking.slice(0, 3).map((player) => <article key={player.tag} className={`cv-podium-card place-${player.posicao}`}>
+      <span className="cv-place">{player.posicao === 1 ? "🥇" : player.posicao === 2 ? "🥈" : "🥉"} {player.posicao}º lugar</span>
+      <RankingTownHall player={player} />
+      <div><strong>{player.nome}</strong><small>{player.tag}</small><span>⚔ {player.guerra} · ☄ {player.raides} · ♟ {player.jogos} · ◆ {player.eventos}</span></div>
+      <b>{player.total}<small> pontos</small></b>
+    </article>)}</div>
+    <div className="fortress-cv-list"><header><span>Pos.</span><span>Vila e jogador</span><span>Desempenho da temporada</span><span>Total</span></header>{ranking.slice(3).map((player) => <article key={player.tag}>
+      <span className="cv-list-position">{player.posicao}</span>
+      <span className="cv-list-player"><RankingTownHall player={player} compact /><span><strong>{player.nome}</strong><small>{player.tag}</small></span></span>
+      <span className="cv-list-progress"><i style={{ width: `${Math.max(8, player.total / max * 100)}%` }} /><small>⚔ {player.guerra} guerras · ☄ {player.raides} raides · ♟ {player.jogos} jogos · ◆ {player.eventos} eventos</small></span>
+      <b>{player.total}<small> pts</small></b>
+    </article>)}</div>
   </div>;
 }
 

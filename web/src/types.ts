@@ -3,6 +3,7 @@ export interface RankingEntry {
   participante_id?: string;
   tag: string;
   nome: string;
+  cv?: number | null;
   guerra: number;
   raides: number;
   jogos: number;

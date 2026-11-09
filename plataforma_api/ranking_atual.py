@@ -64,6 +64,29 @@ def _estado_participacao(linhas: list[list[str]]) -> dict[str, dict[str, str]]:
     return contas
 
 
+def _cvs_roster(db: sqlite3.Connection) -> dict[str, int]:
+    linha = db.execute(
+        """SELECT conteudo FROM versoes
+           WHERE tipo='roster' AND chave='principal'
+           ORDER BY sequencia DESC LIMIT 1"""
+    ).fetchone()
+    if linha is None:
+        return {}
+    try:
+        roster = json.loads(linha[0])
+    except (TypeError, json.JSONDecodeError):
+        return {}
+    resultado: dict[str, int] = {}
+    for conta in roster.get("contas", []) if isinstance(roster, dict) else []:
+        if not isinstance(conta, dict):
+            continue
+        tag = str(conta.get("tag", "")).strip().upper()
+        cv = conta.get("cv")
+        if tag and type(cv) is int and 1 <= cv <= 18:
+            resultado[tag] = cv
+    return resultado
+
+
 def montar_ranking_atual(caminho_sqlite: str | Path) -> dict[str, Any]:
     """Retorna a temporada e o ranking oficial sem modificar a fonte."""
     uri = f"file:{Path(caminho_sqlite).resolve().as_posix()}?mode=ro"
@@ -73,6 +96,7 @@ def montar_ranking_atual(caminho_sqlite: str | Path) -> dict[str, Any]:
         estado_linhas, estado_em = _fonte(db, "EstadoMes")
         vinculos_linhas, vinculos_em = _fonte(db, "VinculosParticipantes")
         participacao_linhas, participacao_em = _fonte(db, "ParticipacaoCompeticao")
+        cvs_por_tag = _cvs_roster(db)
     finally:
         db.close()
 
@@ -119,6 +143,7 @@ def montar_ranking_atual(caminho_sqlite: str | Path) -> dict[str, Any]:
                 "participante_id": participante_id,
                 "tag": tag,
                 "nome": str(linha.get("Nome", "")).strip(),
+                "cv": cvs_por_tag.get(tag),
                 "guerra": guerra,
                 "raides": raides,
                 "jogos": jogos,

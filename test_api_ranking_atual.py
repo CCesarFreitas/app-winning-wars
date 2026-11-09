@@ -48,6 +48,12 @@ class RankingAtual(unittest.TestCase):
                 "INSERT INTO versoes VALUES(?,?,?,?,?,?)",
                 (indice, "fonte", chave, "sha", json.dumps(valor), f"2026-11-08T00:0{indice}:00+00:00"),
             )
+        db.execute(
+            "INSERT INTO versoes VALUES(?,?,?,?,?,?)",
+            (10, "roster", "principal", "sha", json.dumps({
+                "contas": [{"tag": "#AAA", "nome": "Alpha", "cv": 16}]
+            }), "2026-11-08T01:00:00+00:00"),
+        )
         db.commit()
         db.close()
 
@@ -62,6 +68,8 @@ class RankingAtual(unittest.TestCase):
         self.assertEqual(saida["ranking"][0]["guerra"], 5)
         self.assertEqual(saida["ranking"][0]["raides"], 7)
         self.assertEqual(saida["ranking"][0]["total"], 18)
+        self.assertEqual(saida["ranking"][0]["cv"], 16)
+        self.assertIsNone(saida["ranking"][1]["cv"])
 
     def test_fonte_inexistente_falha_fechado(self):
         db = sqlite3.connect(self.banco)

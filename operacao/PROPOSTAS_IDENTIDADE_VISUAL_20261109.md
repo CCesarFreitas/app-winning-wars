@@ -1,22 +1,30 @@
 # Propostas de identidade visual — Winning Wars
 
-As três propostas usam o mesmo componente React, o mesmo retorno do ranking e os mesmos ativos locais. Alternar a identidade não faz nova consulta à API.
+As quatro propostas usam o mesmo componente React, o mesmo retorno do ranking e os mesmos ativos locais. Alternar a identidade não faz nova consulta à API.
 
-## 1. Fortaleza Real
+## 1. Fortaleza Real 2.0
+
+- Ênfase: formato oficial do ranking, premiação e leitura moderna.
+- Navegação: abas horizontais douradas sempre visíveis.
+- Ranking: pódio destacado, imagem real do Centro de Vila ao lado do jogador e lista responsiva para os demais colocados.
+- Integridade: o CV vem do roster confirmado; contas sem confirmação exibem `CV —`.
+- Melhor uso: identidade principal do novo site-app em computador e celular.
+
+## 2. Fortaleza Clássica
 
 - Ênfase: premiação, prestígio e Top 3.
 - Navegação: abas horizontais douradas sempre visíveis.
 - Ranking: pódio destacado e lista compacta para os demais jogadores.
 - Melhor uso: página inicial e encerramento mensal.
 
-## 2. Mapa de Guerra
+## 3. Mapa de Guerra
 
 - Ênfase: fantasia, progressão territorial e identidade Clash of Clans.
 - Navegação: abas sobre barra escura, contrastando com o mapa em pergaminho.
 - Ranking: trilhas de progresso, fortalezas e Centros de Vila.
 - Melhor uso: campanhas, eventos e apresentação pública da competição.
 
-## 3. Liga Imperial
+## 4. Liga Imperial
 
 - Ênfase: leitura rápida, comparação e estatísticas.
 - Navegação: abas esportivas de alto contraste.
@@ -25,9 +33,9 @@ As três propostas usam o mesmo componente React, o mesmo retorno do ranking e o
 
 ## Recomendação
 
-Usar uma identidade híbrida:
+Usar a Fortaleza Real 2.0 como identidade principal, preservando elementos especializados das demais visões:
 
-- Fortaleza Real como moldura geral e página inicial;
+- Fortaleza Real 2.0 como moldura geral, página inicial e ranking;
 - Liga Imperial para ranking, planejamento, membros e administração;
 - Mapa de Guerra como modo especial para eventos, torneios e campanhas.
 

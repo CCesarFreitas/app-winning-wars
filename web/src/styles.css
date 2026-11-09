@@ -309,7 +309,7 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
 .tournament-player strong { max-width: 165px; overflow: hidden; color: #f2ebdf; font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }
 .tournament-player small { margin-top: 2px; color: #777078; font-size: .51rem; }
 
-.concept-switcher { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 18px; }
+.concept-switcher { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 18px; }
 .concept-switcher button { min-height: 82px; padding: 13px; display: flex; align-items: center; gap: 12px; cursor: pointer; text-align: left; color: #a9a196; border: 1px solid var(--line); border-radius: 5px; background: rgba(24,22,28,.86); transition: .18s; }
 .concept-switcher button:hover,.concept-switcher button.active { color: #f5eddf; border-color: var(--gold); transform: translateY(-2px); background: linear-gradient(145deg,rgba(69,47,20,.65),rgba(28,20,33,.94)); }
 .concept-switcher button > b { width: 35px; height: 35px; display: grid; place-items: center; color: var(--gold); border: 1px solid var(--line-strong); transform: rotate(45deg); font: 800 .68rem "Cinzel"; }
@@ -341,6 +341,46 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
 .concept-foot b { color: #86ddb4; }
 
 .concept-fortaleza { background: radial-gradient(circle at 75% 0,rgba(131,49,151,.2),transparent 32%),linear-gradient(145deg,#17141b,#0c0a0f); }
+.concept-fortaleza_cv { background: radial-gradient(circle at 77% 0,rgba(131,49,151,.22),transparent 34%),linear-gradient(145deg,#18151d,#0b090e); }
+.fortress-cv-ranking { padding: 8px 28px 32px; }
+.fortress-prize { min-height: 66px; margin-bottom: 11px; padding: 10px 16px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; overflow: hidden; position: relative; border: 1px solid rgba(240,183,53,.37); border-radius: 5px; background: radial-gradient(circle at 92% 50%,rgba(140,63,181,.24),transparent 32%),linear-gradient(100deg,#3b2a14,#19141d); }
+.fortress-prize > span { font-size: 1.7rem; }
+.fortress-prize small,.fortress-prize strong { display: block; }
+.fortress-prize small { color: #c28f32; font-size: .52rem; text-transform: uppercase; letter-spacing: .1em; }
+.fortress-prize strong { margin-top: 3px; font: 700 .88rem "Cinzel"; }
+.fortress-prize > b { padding: 6px 9px; color: #a5e7c9; border: 1px solid rgba(95,214,156,.2); border-radius: 999px; font-size: .55rem; text-transform: uppercase; }
+.ranking-th { width: 66px; min-width: 66px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ranking-th img { width: 59px; height: 59px; object-fit: contain; filter: drop-shadow(0 6px 5px #0009); }
+.ranking-th > span { width: 46px; height: 46px; display: grid; place-items: center; color: #8d867d; border: 1px dashed #5a535d; border-radius: 50%; background: #1b181f; font-weight: 900; }
+.ranking-th small { margin-top: 2px; color: #a78a51; font-size: .48rem; font-weight: 900; }
+.ranking-th.compact { width: 49px; min-width: 49px; }
+.ranking-th.compact img { width: 44px; height: 44px; }
+.ranking-th.compact > span { width: 39px; height: 39px; }
+.fortress-cv-podium { display: grid; grid-template-columns: 1.12fr 1fr 1fr; gap: 10px; }
+.cv-podium-card { min-height: 154px; padding: 30px 15px 15px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; position: relative; border: 1px solid var(--line); border-radius: 5px; background: linear-gradient(145deg,#26212a,#141116); }
+.cv-podium-card.place-1 { border-color: rgba(240,183,53,.58); background: radial-gradient(circle at 85% 0,rgba(240,183,53,.18),transparent 42%),linear-gradient(145deg,#30271d,#171319); }
+.cv-place { position: absolute; left: 12px; top: 9px; color: var(--gold-light); font-size: .58rem; font-weight: 900; text-transform: uppercase; }
+.cv-podium-card > div strong,.cv-podium-card > div small,.cv-podium-card > div span { display: block; }
+.cv-podium-card > div strong { max-width: 160px; overflow: hidden; font-size: .77rem; text-overflow: ellipsis; white-space: nowrap; }
+.cv-podium-card > div small { margin-top: 2px; color: #716a63; font-size: .5rem; }
+.cv-podium-card > div span { margin-top: 9px; color: #8e867c; font-size: .48rem; }
+.cv-podium-card > b { color: var(--gold-light); text-align: right; font: 800 1.25rem "Cinzel"; }
+.cv-podium-card > b small { display: block; color: #777068; font: 700 .48rem "Nunito Sans"; }
+.fortress-cv-list { margin-top: 10px; overflow: hidden; border: 1px solid var(--line); border-radius: 5px; }
+.fortress-cv-list header,.fortress-cv-list article { min-height: 66px; padding: 0 13px; display: grid; grid-template-columns: 42px minmax(205px,1.1fr) 1.4fr 55px; align-items: center; gap: 10px; }
+.fortress-cv-list header { min-height: 37px; color: #746d65; background: rgba(255,255,255,.025); font-size: .5rem; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
+.fortress-cv-list article { border-top: 1px solid rgba(255,255,255,.065); background: rgba(255,255,255,.018); }
+.cv-list-position { color: #9b9184; font: 800 .82rem "Cinzel"; }
+.cv-list-player { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.cv-list-player strong,.cv-list-player small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cv-list-player strong { font-size: .7rem; }
+.cv-list-player small { color: #6d665f; font-size: .49rem; }
+.cv-list-progress { position: relative; padding-top: 12px; }
+.cv-list-progress::before { content:""; display:block; height: 6px; border-radius: 99px; background: rgba(255,255,255,.07); }
+.cv-list-progress i { position: absolute; left: 0; top: 12px; height: 6px; border-radius: 99px; background: linear-gradient(90deg,var(--purple),var(--gold)); }
+.cv-list-progress small { display: block; margin-top: 5px; color: #777067; font-size: .47rem; }
+.fortress-cv-list article > b { color: var(--gold-light); text-align: right; font: 800 1rem "Cinzel"; }
+.fortress-cv-list article > b small { display: block; color: #6e675f; font: 700 .46rem "Nunito Sans"; }
 .fortress-ranking { padding: 10px 28px 30px; }
 .fortress-podium { display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 10px; }
 .fortress-place { min-height: 182px; padding: 24px 14px 17px; display: flex; position: relative; flex-direction: column; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 5px; background: linear-gradient(145deg,#242027,#131116); }
@@ -478,6 +518,21 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
   .concept-intro { align-items: flex-start; flex-direction: column; }
   .concept-leader { width: 100%; }
   .fortress-ranking,.war-map-ranking { padding-left: 13px; padding-right: 13px; }
+  .fortress-cv-ranking { padding-left: 13px; padding-right: 13px; }
+  .fortress-prize { grid-template-columns: auto 1fr; }
+  .fortress-prize > b { grid-column: 1/-1; width: max-content; }
+  .fortress-cv-podium { grid-template-columns: 1fr; }
+  .cv-podium-card { min-height: 122px; grid-template-columns: 58px 1fr auto; }
+  .cv-podium-card .ranking-th { width: 55px; min-width: 55px; }
+  .cv-podium-card .ranking-th img { width: 52px; height: 52px; }
+  .fortress-cv-list { display: grid; gap: 7px; overflow: visible; border: 0; }
+  .fortress-cv-list header { display: none; }
+  .fortress-cv-list article { min-height: 108px; padding: 11px; display: grid; grid-template-columns: 30px 1fr 48px; grid-template-rows: 56px 30px; border: 1px solid var(--line); border-radius: 5px; background: rgba(255,255,255,.025); }
+  .cv-list-player { grid-column: 2/3; }
+  .cv-list-progress { grid-column: 2/-1; grid-row: 2; padding-top: 6px; }
+  .cv-list-progress i { top: 6px; }
+  .cv-list-progress small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fortress-cv-list article > b { grid-column: 3; grid-row: 1; }
   .fortress-podium { grid-template-columns: 1fr; }
   .fortress-place { min-height: 130px; }
   .fortress-list > div { grid-template-columns: 24px 38px 1fr 42px; }
