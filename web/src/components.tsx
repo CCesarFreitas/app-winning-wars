@@ -2,6 +2,7 @@ import { NavLink, Outlet } from "react-router-dom";
 import { iniciais, temporadaLabel } from "./format";
 import { useRanking } from "./RankingContext";
 import { CREST_URL } from "./assets";
+import { useAdmin } from "./AdminContext";
 
 const nav = [
   { to: "/", icon: "⌂", label: "Quartel-general" },
@@ -11,11 +12,13 @@ const nav = [
   { to: "/layouts/guerra", icon: "⬢", label: "Layouts de guerra" },
   { to: "/layouts/rankeada", icon: "⌁", label: "Layouts de rankeada" },
   { to: "/torneios", icon: "⚡", label: "Torneios Winning Wars" },
+  { to: "/admin", icon: "◆", label: "Painel Admin" },
   { to: "/conceitos", icon: "✦", label: "Laboratório visual" },
 ];
 
 export function Shell() {
   const { ranking } = useRanking();
+  const { session } = useAdmin();
   const temporada = temporadaLabel(ranking[0]?.temporada);
   return (
     <div className="app-shell">
@@ -46,13 +49,14 @@ export function Shell() {
           <div className="mobile-brand"><img src={CREST_URL} alt="" /> <span>Winning Wars</span></div>
           <div className="topbar-actions">
             <span className="season-chip">{temporada}</span>
+            <NavLink className="admin-access" to={session.autenticado ? "/admin" : "/admin/login"}>{session.autenticado ? `◆ ${session.usuario}` : "🔐 Entrar como administrador"}</NavLink>
             <a className="clan-link" href="https://link.clashofclans.com/pt?action=OpenClanProfile&tag=2YPL9GU8Y" target="_blank" rel="noreferrer">Visitar clã <span>↗</span></a>
           </div>
         </header>
         <Outlet />
       </main>
       <nav className="mobile-nav" aria-label="Navegação móvel">
-        {nav.slice(0, 4).map((item) => (
+        {[...nav.slice(0, 4), nav.find((item) => item.to === "/admin")!].map((item) => (
           <NavLink key={item.to} to={item.to} end={item.to === "/"}>
             <span aria-hidden="true">{item.icon}</span>
             <small>{item.label}</small>

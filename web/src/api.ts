@@ -1,5 +1,7 @@
 import type {
   AuditActivitiesResponse,
+  AdminSession,
+  AdminSummary,
   LayoutsResponse,
   PlayerAuditResponse,
   RankingEntry,
@@ -34,6 +36,23 @@ async function getJson<T>(path: string): Promise<T> {
   }
 }
 
+async function postJson<T>(path: string, body?: unknown): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!response.ok) {
+    if (response.status === 401) throw new Error("Usuário ou senha inválidos.");
+    if (response.status === 429) throw new Error("Muitas tentativas. Aguarde 15 minutos.");
+    if (response.status === 426) throw new Error("O login administrativo exige uma conexão HTTPS.");
+    if (response.status === 503) throw new Error("A autenticação ainda não foi ativada neste ambiente.");
+    throw new Error(`A API respondeu com o código ${response.status}.`);
+  }
+  return (await response.json()) as T;
+}
+
 export const api = {
   ranking: () => getJson<RankingEntry[]>("/v1/ranking"),
   atividades: (limite = 50) =>
@@ -48,4 +67,9 @@ export const api = {
     return getJson<LayoutsResponse>(`/v1/layouts?${params.toString()}`);
   },
   torneio: () => getJson<TournamentResponse>("/v1/tournament"),
+  adminSession: () => getJson<AdminSession>("/v1/admin/session"),
+  adminLogin: (usuario: string, senha: string) =>
+    postJson<AdminSession>("/v1/admin/login", { usuario, senha }),
+  adminLogout: () => postJson<AdminSession>("/v1/admin/logout"),
+  adminSummary: () => getJson<AdminSummary>("/v1/admin/summary"),
 };

@@ -102,6 +102,8 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
 .mobile-brand { display: none; }
 .topbar-actions { display: flex; align-items: center; gap: 11px; }
 .season-chip, .clan-link { min-height: 34px; display: inline-flex; align-items: center; border-radius: 4px; font-size: .65rem; font-weight: 900; }
+.admin-access { min-height: 34px; padding: 0 12px; display: inline-flex; align-items: center; color: #cabfce; border: 1px solid rgba(154,88,179,.3); border-radius: 4px; background: linear-gradient(145deg,rgba(86,42,103,.28),rgba(255,255,255,.025)); font-size: .61rem; font-weight: 900; }
+.admin-access:hover,.admin-access.active { color: var(--gold-light); border-color: rgba(240,183,53,.42); }
 .season-chip { padding: 0 12px; color: #b6ae9e; border: 1px solid var(--line); background: rgba(255,255,255,.025); }
 .clan-link { padding: 0 13px; gap: 8px; color: #201706; background: linear-gradient(#ffd971,#d99a22); border: 1px solid #ffe49d; box-shadow: 0 5px 20px rgba(225,153,31,.14); }
 .mobile-nav { display: none; }
@@ -439,6 +441,49 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
 .league-ranking article > span[data-label] { color: #a7afc5; }
 .league-ranking article > b { color: #ffdd82; text-align: right; font: 800 .9rem "Cinzel"; }
 
+.admin-login-layout { max-width: 980px; margin: 0 auto; display: grid; grid-template-columns: minmax(0,1.35fr) minmax(250px,.65fr); gap: 16px; align-items: start; }
+.admin-login-card,.admin-security-card { border: 1px solid var(--line); border-radius: 6px; background: radial-gradient(circle at 90% 0,rgba(118,53,145,.15),transparent 34%),rgba(21,18,24,.94); box-shadow: 0 22px 70px #0004; }
+.admin-login-card { padding: 28px; display: grid; grid-template-columns: 55px 1fr; gap: 18px; }
+.admin-lock { width: 52px; height: 52px; display: grid; place-items: center; color: var(--gold-light); border: 1px solid rgba(240,183,53,.35); transform: rotate(45deg); background: linear-gradient(145deg,#3b2c16,#171219); font-size: 1.05rem; }
+.admin-login-card h2 { margin: 6px 0 8px; font: 700 1.45rem "Cinzel"; }
+.admin-login-card p { color: var(--muted); font-size: .78rem; line-height: 1.6; }
+.admin-login-card form,.security-warning { grid-column: 1/-1; }
+.admin-login-card form { display: grid; gap: 13px; }
+.admin-login-card label span { display: block; margin-bottom: 6px; color: #9b9188; font-size: .61rem; font-weight: 900; text-transform: uppercase; letter-spacing: .07em; }
+.admin-login-card input { width: 100%; min-height: 46px; padding: 0 13px; outline: 0; color: #f6f0e8; border: 1px solid var(--line); border-radius: 4px; background: #0f0d12; }
+.admin-login-card input:focus { border-color: rgba(240,183,53,.55); box-shadow: 0 0 0 3px rgba(240,183,53,.08); }
+.admin-login-card input:disabled { cursor: not-allowed; opacity: .48; }
+.admin-login-card .primary-button { width: 100%; }
+.admin-login-card .primary-button:disabled { cursor: not-allowed; filter: grayscale(.75); opacity: .55; transform: none; }
+.security-warning { padding: 13px 15px; display: grid; gap: 4px; color: #e5c889; border: 1px solid rgba(232,178,58,.28); border-radius: 4px; background: rgba(99,69,15,.17); }
+.security-warning strong { font-size: .69rem; text-transform: uppercase; }
+.security-warning span { color: #aa9b80; font-size: .68rem; line-height: 1.5; }
+.form-error { padding: 10px 12px; color: #efaaa5; border: 1px solid rgba(230,109,104,.3); border-radius: 4px; background: rgba(133,47,44,.12); font-size: .7rem; }
+.admin-security-card { padding: 23px; }
+.admin-security-card > span { color: var(--gold); font: 800 .68rem "Cinzel"; text-transform: uppercase; }
+.admin-security-card ul { margin: 18px 0 0; padding: 0; display: grid; gap: 13px; list-style: none; }
+.admin-security-card li { padding-left: 19px; position: relative; color: #a39a90; font-size: .7rem; line-height: 1.45; }
+.admin-security-card li::before { content:"✓"; position:absolute; left:0; color:#76d6aa; font-weight:900; }
+.admin-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.admin-heading .page-header { flex: 1; }
+.read-only-banner { min-height: 58px; margin-bottom: 18px; padding: 10px 15px; display: flex; align-items: center; gap: 12px; color: #b9a785; border: 1px solid rgba(240,183,53,.26); border-radius: 5px; background: linear-gradient(90deg,rgba(82,55,13,.18),rgba(93,38,111,.12)); }
+.read-only-banner > span { color: #7bd7ad; }
+.read-only-banner strong,.read-only-banner small { display: block; }
+.read-only-banner strong { color: #e7d8b8; font-size: .72rem; }
+.read-only-banner small { margin-top: 2px; color: #8f8679; font-size: .59rem; }
+.admin-metrics { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+.admin-metrics article { min-height: 125px; padding: 18px; display: flex; flex-direction: column; justify-content: center; border: 1px solid var(--line); border-top: 2px solid var(--gold-dark); border-radius: 5px; background: rgba(24,21,27,.9); }
+.admin-metrics small,.admin-metrics span { color: #847c73; }
+.admin-metrics small { font-size: .55rem; font-weight: 900; text-transform: uppercase; }
+.admin-metrics strong { margin: 7px 0 3px; color: var(--gold-light); font: 800 1.55rem "Cinzel"; }
+.admin-metrics span { font-size: .6rem; }
+.admin-modules { margin-top: 38px; }
+.admin-modules > div:last-child { display: grid; grid-template-columns: repeat(2,1fr); gap: 8px; }
+.admin-modules article { min-height: 68px; padding: 12px 14px; display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 4px; background: rgba(255,255,255,.02); }
+.admin-modules article > span { color: #725f36; font: 800 .7rem "Cinzel"; }
+.admin-modules article > strong { font-size: .7rem; }
+.admin-modules article > small { color: #777067; font-size: .53rem; }
+
 .state-card { min-height: 130px; margin: 20px 0; padding: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; color: var(--muted); border: 1px solid var(--line); border-radius: 5px; background: rgba(24,22,28,.82); }
 .state-card strong { color: #f1eadc; }
 .spinner { width: 26px; height: 26px; border: 2px solid rgba(255,255,255,.1); border-top-color: var(--gold); border-radius: 50%; animation: spin .7s linear infinite; }
@@ -464,8 +509,10 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
   .mobile-brand img { width: 38px; height: 38px; object-fit: contain; }
   .season-chip { display: none; }
   .clan-link { min-height: 31px; padding: 0 10px; font-size: .59rem; }
+  .admin-access { width: 34px; min-width: 34px; padding: 0; overflow: hidden; color: transparent; font-size: 0; justify-content: center; }
+  .admin-access::before { content:"◆"; color: var(--gold-light); font-size: .75rem; }
   .page { padding: 29px 14px 55px; }
-  .mobile-nav { position: fixed; z-index: 40; inset: auto 0 0; height: 70px; display: grid; grid-template-columns: repeat(4,1fr); border-top: 1px solid var(--line-strong); background: rgba(12,10,15,.97); backdrop-filter: blur(14px); }
+  .mobile-nav { position: fixed; z-index: 40; inset: auto 0 0; height: 70px; display: grid; grid-template-columns: repeat(5,1fr); border-top: 1px solid var(--line-strong); background: rgba(12,10,15,.97); backdrop-filter: blur(14px); }
   .mobile-nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #7d766e; }
   .mobile-nav a > span { font-size: 1.05rem; }
   .mobile-nav a small { max-width: 78px; overflow: hidden; font-size: .5rem; text-overflow: ellipsis; white-space: nowrap; }
@@ -547,6 +594,17 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
   .league-ranking article > span[data-label] { grid-row: 2; display: flex; flex-direction: column; font-size: .65rem; }
   .league-ranking article > span[data-label]::before { content: attr(data-label); color: #5e6884; font-size: .45rem; }
   .league-ranking article > b { position: absolute; right: 25px; margin-top: 18px; }
+  .admin-login-layout { grid-template-columns: 1fr; }
+  .admin-login-card { padding: 21px 17px; grid-template-columns: 45px 1fr; gap: 13px; }
+  .admin-lock { width: 43px; height: 43px; }
+  .admin-security-card { padding: 19px; }
+  .admin-heading { display: block; }
+  .admin-heading > button { margin: -13px 0 22px 12px; }
+  .admin-metrics { grid-template-columns: 1fr 1fr; }
+  .admin-metrics article { min-height: 110px; }
+  .admin-modules > div:last-child { grid-template-columns: 1fr; }
+  .admin-modules article { grid-template-columns: 30px 1fr; }
+  .admin-modules article > small { grid-column: 2; }
 }
 
 @media (max-width: 410px) {
@@ -555,6 +613,7 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
   .score-grid { grid-template-columns: 1fr; }
   .section-title { display: block; }
   .section-title > a { display: inline-block; margin-top: 10px; }
+  .admin-metrics { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

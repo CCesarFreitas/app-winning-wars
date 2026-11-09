@@ -119,3 +119,18 @@ export interface TournamentResponse {
     contas: TournamentPlayer[];
   } | null;
 }
+
+export interface AdminSession {
+  autenticado: boolean;
+  usuario?: string;
+  nivel?: string;
+}
+
+export interface AdminSummary {
+  admin: { usuario: string; nivel: string };
+  temporada: string;
+  temporada_nome: string;
+  ranking: { jogadores: number; atualizado_em: string };
+  participacao: { total: number; habilitadas: number; bloqueadas: number };
+  modo: "SOMENTE_LEITURA";
+}

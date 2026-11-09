@@ -6,6 +6,7 @@ import os
 
 from fastapi import HTTPException
 
+from .admin import instalar_rotas_admin
 from .conteudo import listar_layouts, obter_torneio
 from .ranking_atual import montar_ranking_atual
 
@@ -15,6 +16,7 @@ CAMINHO_PADRAO = "/opt/winning-wars-api/dados_consulta/historico.sqlite3"
 
 def instalar_rotas(app, caminho_sqlite: str | None = None) -> None:
     caminho = caminho_sqlite or os.environ.get("WW_CONSULTA_SQLITE", CAMINHO_PADRAO)
+    instalar_rotas_admin(app, caminho)
 
     @app.get("/v1/ranking")
     def ranking_v1():

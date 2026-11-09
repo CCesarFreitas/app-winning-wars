@@ -33,7 +33,7 @@
 
 ## Administração
 
-- [ ] Autenticação e níveis de acesso
+- [ ] Autenticação e níveis de acesso — fundação implementada; ativação depende de HTTPS
 - [ ] Participação e vínculos
 - [ ] Jogos do Clã e eventos manuais
 - [ ] Revisões de pontuação

@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "./api";
 import { ErrorState, Loading, PageHeader, PlayerAvatar } from "./components";
 import { dataAtividade, numero, rotuloTipo, temporadaLabel } from "./format";
 import { useRanking } from "./RankingContext";
-import type { AuditActivity, LayoutEntry, PlayerAuditResponse, TournamentMatch, TournamentPlayer } from "./types";
+import type { AdminSummary, AuditActivity, LayoutEntry, PlayerAuditResponse, TournamentMatch, TournamentPlayer } from "./types";
 import { CREST_URL, townHallUrl } from "./assets";
+import { useAdmin } from "./AdminContext";
 
 export function HomePage() {
   const { ranking, loading, error, recarregar } = useRanking();
@@ -340,6 +341,95 @@ function WarMapRanking({ ranking }: { ranking: ReturnType<typeof useRanking>["ra
 
 function LeagueRanking({ ranking }: { ranking: ReturnType<typeof useRanking>["ranking"] }) {
   return <div className="league-ranking"><header><span>Pos.</span><span>Guerreiro</span><span>Guerras</span><span>Raides</span><span>Jogos</span><span>Total</span></header>{ranking.map((player) => <article key={player.tag}><span className="league-position">{player.posicao}</span><span className="league-player"><PlayerAvatar nome={player.nome} position={player.posicao} /><span><strong>{player.nome}</strong><small>{player.tag}</small></span></span><span data-label="Guerras">{player.guerra}</span><span data-label="Raides">{player.raides}</span><span data-label="Jogos">{player.jogos}</span><b>{player.total}</b></article>)}</div>;
+}
+
+export function AdminLoginPage() {
+  const navigate = useNavigate();
+  const { session, loading, refresh } = useAdmin();
+  const [usuario, setUsuario] = useState("");
+  const [senha, setSenha] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const ambienteSeguro = window.isSecureContext;
+
+  useEffect(() => {
+    if (!loading && session.autenticado) navigate("/admin", { replace: true });
+  }, [loading, navigate, session.autenticado]);
+
+  const entrar = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!ambienteSeguro) return;
+    setEnviando(true); setErro(null);
+    try {
+      await api.adminLogin(usuario.trim(), senha);
+      setSenha("");
+      await refresh();
+      navigate("/admin", { replace: true });
+    } catch (reason) {
+      setErro(reason instanceof Error ? reason.message : "Não foi possível entrar.");
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  return <div className="page admin-page">
+    <PageHeader eyebrow="Acesso restrito" title="Central administrativa" description="Operações protegidas, auditáveis e executadas pela API privada da Oracle." />
+    <div className="admin-login-layout">
+      <section className="admin-login-card">
+        <div className="admin-lock" aria-hidden="true">◆</div>
+        <div><span className="eyebrow">Identificação da liderança</span><h2>Entrar como administrador</h2><p>A sessão fica protegida no navegador e sua senha nunca é armazenada no site.</p></div>
+        {!ambienteSeguro && <div className="security-warning"><strong>HTTPS necessário</strong><span>O login foi bloqueado neste endereço HTTP para impedir a transmissão insegura da senha. A interface está pronta para ser ativada depois da configuração do domínio e certificado.</span></div>}
+        <form onSubmit={entrar}>
+          <label><span>Usuário</span><input autoComplete="username" value={usuario} onChange={(event) => setUsuario(event.target.value)} disabled={!ambienteSeguro || enviando} /></label>
+          <label><span>Senha</span><input type="password" autoComplete="current-password" value={senha} onChange={(event) => setSenha(event.target.value)} disabled={!ambienteSeguro || enviando} /></label>
+          {erro && <div className="form-error" role="alert">{erro}</div>}
+          <button className="primary-button" type="submit" disabled={!ambienteSeguro || enviando || !usuario.trim() || !senha}>{enviando ? "Validando…" : "Entrar no painel"}</button>
+        </form>
+      </section>
+      <aside className="admin-security-card"><span>Proteções previstas</span><ul><li>Cookie de sessão inacessível ao JavaScript</li><li>Validação do administrador a cada operação</li><li>Limite de tentativas de login</li><li>Credenciais do Google apenas na Oracle</li><li>Primeira etapa estritamente somente leitura</li></ul></aside>
+    </div>
+  </div>;
+}
+
+export function AdminPage() {
+  const navigate = useNavigate();
+  const { session, loading: sessionLoading, refresh } = useAdmin();
+  const [summary, setSummary] = useState<AdminSummary | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (sessionLoading || !session.autenticado) return;
+    setLoading(true); setError(null);
+    api.adminSummary().then(setSummary).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Falha ao carregar o painel.")).finally(() => setLoading(false));
+  }, [session.autenticado, sessionLoading]);
+
+  const sair = async () => {
+    await api.adminLogout();
+    await refresh();
+    navigate("/", { replace: true });
+  };
+
+  if (sessionLoading) return <div className="page"><Loading label="Conferindo sessão administrativa…" /></div>;
+  if (!session.autenticado) return <div className="page admin-page"><PageHeader eyebrow="Central administrativa" title="Sessão protegida" description="Entre com uma conta autorizada para acessar os controles." /><div className="state-card"><strong>Acesso administrativo necessário</strong><span>Nenhum dado protegido foi carregado.</span><Link className="primary-button" to="/admin/login">Entrar como administrador</Link></div></div>;
+
+  return <div className="page admin-page">
+    <div className="admin-heading"><PageHeader eyebrow="Central de comando" title={`Olá, ${session.usuario}`} description="Visão protegida do estado atual da competição." /><button className="secondary-button" onClick={sair}>Encerrar sessão</button></div>
+    <div className="read-only-banner"><span>◉</span><div><strong>Homologação somente leitura</strong><small>Nenhuma alteração na planilha pode ser feita por esta versão.</small></div></div>
+    {loading && <Loading label="Carregando controles administrativos…" />}
+    {error && <ErrorState message={error} />}
+    {summary && <>
+      <section className="admin-metrics">
+        <article><small>Temporada</small><strong>{summary.temporada_nome || summary.temporada}</strong><span>{summary.ranking.jogadores} contas no ranking</span></article>
+        <article><small>Participação</small><strong>{summary.participacao.habilitadas}</strong><span>contas habilitadas</span></article>
+        <article><small>Bloqueios</small><strong>{summary.participacao.bloqueadas}</strong><span>decisões administrativas</span></article>
+        <article><small>Nível de acesso</small><strong>{summary.admin.nivel}</strong><span>{summary.admin.usuario}</span></article>
+      </section>
+      <section className="admin-modules"><div className="section-title"><div><span className="eyebrow">Próximas migrações</span><h2>Controles administrativos</h2><p>Cada módulo será liberado somente depois da validação em paralelo com o app oficial.</p></div></div><div>
+        {["Participação e vínculos", "Jogos do Clã e eventos", "Revisões de pontuação", "Layouts e torneios", "Comunicação e agenda", "Fechamento mensal"].map((label, index) => <article key={label}><span>{String(index + 1).padStart(2, "0")}</span><strong>{label}</strong><small>{index === 0 ? "Próximo módulo" : "Aguardando migração"}</small></article>)}
+      </div></section>
+    </>}
+  </div>;
 }
 
 export function NotFoundPage() {
