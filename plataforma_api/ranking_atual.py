@@ -15,6 +15,14 @@ from typing import Any
 COLUNAS_FIXAS = {"ID", "Nome", "Total", "Posicao", "Posição", "WarTotal"}
 
 
+def _colunas_atividade(cabecalho: list[str]) -> list[str]:
+    return [
+        coluna for coluna in cabecalho
+        if coluna in {"JogosCla", "Eventos"}
+        or coluna.startswith(("Guerra_", "Liga_", "Raide_"))
+    ]
+
+
 def _registros(linhas: list[list[str]]) -> list[dict[str, str]]:
     if not linhas:
         return []
@@ -120,10 +128,12 @@ def montar_ranking_atual(caminho_sqlite: str | Path) -> dict[str, Any]:
 
     participacao = _estado_participacao(participacao_linhas)
     cabecalho = ranking_linhas[0] if ranking_linhas else []
-    colunas_guerra = [c for c in cabecalho if c.startswith(("Guerra_", "Liga_"))]
-    colunas_raide = [c for c in cabecalho if c.startswith("Raide_")]
+    colunas_atividade = _colunas_atividade(cabecalho)
+    colunas_guerra = [c for c in colunas_atividade if c.startswith(("Guerra_", "Liga_"))]
+    colunas_raide = [c for c in colunas_atividade if c.startswith("Raide_")]
 
     resultado: list[dict[str, Any]] = []
+    detalhes_por_id: dict[str, dict[str, int]] = {}
     ids: set[str] = set()
     for linha in _registros(ranking_linhas):
         participante_id = str(linha.get("ID", linha.get("ParticipanteID", ""))).strip()
@@ -138,6 +148,9 @@ def montar_ranking_atual(caminho_sqlite: str | Path) -> dict[str, Any]:
         raides = sum(_inteiro(linha.get(c)) for c in colunas_raide)
         jogos = _inteiro(linha.get("JogosCla"))
         eventos = _inteiro(linha.get("Eventos"))
+        detalhes_por_id[participante_id] = {
+            coluna: _inteiro(linha.get(coluna)) for coluna in colunas_atividade
+        }
         resultado.append(
             {
                 "participante_id": participante_id,
@@ -174,5 +187,41 @@ def montar_ranking_atual(caminho_sqlite: str | Path) -> dict[str, Any]:
         "fontes": fontes,
         "total": len(resultado),
         "ranking": resultado,
+        "colunas_atividade": colunas_atividade,
+        "detalhes_por_id": detalhes_por_id,
+    }
+
+
+def montar_tabela_detalhada(caminho_sqlite: str | Path) -> dict[str, Any]:
+    """Projeta cada coluna da temporada sem expor linhas administrativas."""
+    resultado = montar_ranking_atual(caminho_sqlite)
+    colunas = resultado["colunas_atividade"]
+    detalhes = resultado["detalhes_por_id"]
+    jogadores = []
+    for jogador in resultado["ranking"]:
+        jogadores.append({
+            **jogador,
+            "pontos": detalhes.get(jogador["participante_id"], {}),
+        })
+    return {
+        "temporada": resultado["temporada"],
+        "temporada_nome": resultado["temporada_nome"],
+        "atualizado_em": resultado["atualizado_em"],
+        "total": resultado["total"],
+        "colunas": [
+            {
+                "chave": coluna,
+                "rotulo": coluna.replace("_", " ").replace("JogosCla", "Jogos do Clã"),
+                "tipo": (
+                    "guerra" if coluna.startswith("Guerra_")
+                    else "liga" if coluna.startswith("Liga_")
+                    else "raide" if coluna.startswith("Raide_")
+                    else "jogos" if coluna == "JogosCla"
+                    else "eventos"
+                ),
+            }
+            for coluna in colunas
+        ],
+        "jogadores": jogadores,
     }
 

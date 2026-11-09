@@ -2,7 +2,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Shell } from "./components";
 import { RankingProvider } from "./RankingContext";
 import { AdminProvider } from "./AdminContext";
-import { AdminLoginPage, AdminManualPage, AdminPage, AdminParticipationPage, AuditPage, HomePage, IdentityLabPage, LayoutsPage, NotFoundPage, PlayerPage, RankingPage, TournamentPage } from "./pages";
+import { AdminLoginPage, AdminManualPage, AdminPage, AdminParticipationPage, AuditPage, DetailedRankingPage, HomePage, IdentityLabPage, LayoutsPage, NotFoundPage, PlayerPage, RankingPage, TournamentPage } from "./pages";
 
 export default function App() {
   return (
@@ -13,6 +13,7 @@ export default function App() {
             <Route element={<Shell />}>
               <Route path="/" element={<HomePage />} />
               <Route path="/ranking" element={<RankingPage />} />
+              <Route path="/ranking/detalhado" element={<DetailedRankingPage />} />
               <Route path="/jogador/:tag?" element={<PlayerPage />} />
               <Route path="/auditoria" element={<AuditPage />} />
               <Route path="/layouts/:tipo" element={<LayoutsPage />} />

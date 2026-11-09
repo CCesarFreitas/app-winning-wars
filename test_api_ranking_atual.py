@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from plataforma_api.ranking_atual import montar_ranking_atual
+from plataforma_api.ranking_atual import montar_ranking_atual, montar_tabela_detalhada
 
 
 class RankingAtual(unittest.TestCase):
@@ -78,6 +78,19 @@ class RankingAtual(unittest.TestCase):
         db.close()
         with self.assertRaisesRegex(ValueError, "Fonte ausente"):
             montar_ranking_atual(self.banco)
+
+    def test_tabela_detalhada_preserva_colunas_e_bloqueios(self):
+        saida = montar_tabela_detalhada(self.banco)
+        self.assertEqual(
+            [coluna["chave"] for coluna in saida["colunas"]],
+            ["JogosCla", "Eventos", "Guerra_1", "Raide_1", "Liga_1"],
+        )
+        self.assertEqual([jogador["nome"] for jogador in saida["jogadores"]], ["Alpha", "Sem vinculo"])
+        alpha = saida["jogadores"][0]
+        self.assertEqual(alpha["pontos"]["Guerra_1"], 3)
+        self.assertEqual(alpha["pontos"]["Liga_1"], 2)
+        self.assertEqual(alpha["total"], 18)
+        self.assertEqual(saida["total"], 2)
 
 
 if __name__ == "__main__":

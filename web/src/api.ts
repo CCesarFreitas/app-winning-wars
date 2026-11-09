@@ -8,6 +8,7 @@ import type {
   LayoutsResponse,
   PlayerAuditResponse,
   RankingEntry,
+  RankingDetailsResponse,
   TournamentResponse,
 } from "./types";
 
@@ -58,6 +59,7 @@ async function postJson<T>(path: string, body?: unknown): Promise<T> {
 
 export const api = {
   ranking: () => getJson<RankingEntry[]>("/v1/ranking"),
+  rankingDetails: () => getJson<RankingDetailsResponse>("/v1/ranking/details"),
   atividades: (limite = 50) =>
     getJson<AuditActivitiesResponse>(`/audit/activities?limite=${limite}`),
   jogador: (tag: string, limite = 100) =>

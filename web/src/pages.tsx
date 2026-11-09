@@ -4,7 +4,7 @@ import { api } from "./api";
 import { ErrorState, Loading, PageHeader, PlayerAvatar } from "./components";
 import { dataAtividade, numero, rotuloTipo, temporadaLabel } from "./format";
 import { useRanking } from "./RankingContext";
-import type { AdminManualProposal, AdminManualResponse, AdminParticipationAccount, AdminParticipationResponse, AdminSummary, AuditActivity, LayoutEntry, PlayerAuditResponse, TournamentMatch, TournamentPlayer } from "./types";
+import type { AdminManualProposal, AdminManualResponse, AdminParticipationAccount, AdminParticipationResponse, AdminSummary, AuditActivity, LayoutEntry, PlayerAuditResponse, RankingDetailsResponse, TournamentMatch, TournamentPlayer } from "./types";
 import { CREST_URL, townHallUrl } from "./assets";
 import { useAdmin } from "./AdminContext";
 
@@ -86,7 +86,7 @@ export function RankingPage() {
   return (
     <div className="page">
       <PageHeader eyebrow="Temporada oficial" title="Ranking de guerreiros" description="Cada estrela, ataque e conquista processada pelo motor Winning Wars forma esta classificação." />
-      <div className="toolbar"><label className="search-box"><span>⌕</span><input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar jogador ou tag" /></label><span>{filtrado.length} jogadores</span></div>
+      <div className="toolbar"><label className="search-box"><span>⌕</span><input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar jogador ou tag" /></label><span>{filtrado.length} jogadores · <Link to="/ranking/detalhado">ver pontos por atividade →</Link></span></div>
       {loading && <Loading />}
       {error && <ErrorState message={error} onRetry={recarregar} />}
       {!loading && !error && (
@@ -104,6 +104,54 @@ export function RankingPage() {
       )}
     </div>
   );
+}
+
+export function DetailedRankingPage() {
+  const [data, setData] = useState<RankingDetailsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [type, setType] = useState("todos");
+
+  const load = () => {
+    setLoading(true); setError(null);
+    api.rankingDetails().then(setData)
+      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Falha ao carregar a tabela detalhada."))
+      .finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+
+  const columns = useMemo(() => data?.colunas.filter((column) => type === "todos" || column.tipo === type) ?? [], [data, type]);
+  const players = useMemo(() => {
+    const term = search.trim().toLocaleLowerCase("pt-BR");
+    if (!term) return data?.jogadores ?? [];
+    return (data?.jogadores ?? []).filter((player) => `${player.nome} ${player.tag}`.toLocaleLowerCase("pt-BR").includes(term));
+  }, [data, search]);
+
+  return <div className="page">
+    <PageHeader eyebrow="Livro da temporada" title="Tabela detalhada" description="Confira quanto cada jogador recebeu em cada guerra, Liga, raide, Jogos do Clã e evento." />
+    <div className="detail-controls">
+      <label className="search-box"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar jogador ou tag" /></label>
+      <div className="filter-tabs" role="tablist" aria-label="Filtrar modalidade">
+        {[['todos', 'Todas'], ['guerra', 'Guerras'], ['liga', 'Liga'], ['raide', 'Raides'], ['jogos', 'Jogos'], ['eventos', 'Eventos']].map(([value, label]) => <button className={type === value ? "active" : ""} onClick={() => setType(value)} key={value}>{label}</button>)}
+      </div>
+    </div>
+    {loading && <Loading label="Montando a tabela oficial…" />}
+    {error && <ErrorState message={error} onRetry={load} />}
+    {data && !loading && !error && <>
+      <div className="detail-summary"><span><strong>{players.length}</strong> jogadores</span><span><strong>{columns.length}</strong> atividades exibidas</span><small>Atualizado em {dataAtividade(data.atualizado_em)}</small></div>
+      <div className="detail-table" style={{ "--activity-count": Math.max(columns.length, 1) } as CSSProperties}>
+        <div className="detail-head"><span>#</span><span>Jogador</span>{columns.map((column) => <span className={`kind-${column.tipo}`} key={column.chave}>{column.rotulo}</span>)}<span>Total</span></div>
+        {players.map((player) => <article className="detail-row" key={player.tag}>
+          <span className="rank-number">{player.posicao}</span>
+          <Link className="detail-player" to={`/jogador/${encodeURIComponent(player.tag)}`}><PlayerAvatar nome={player.nome} position={player.posicao} /><span><strong>{player.nome}</strong><small>{player.tag}</small></span></Link>
+          <div className="detail-scores">{columns.map((column) => <span className={`kind-${column.tipo}`} key={column.chave}><small>{column.rotulo}</small><strong>{player.pontos[column.chave] ?? 0}</strong></span>)}</div>
+          <strong className="detail-total"><small>Total</small>{player.total}</strong>
+        </article>)}
+        {!players.length && <div className="empty-state">Nenhum jogador encontrado.</div>}
+      </div>
+    </>}
+  </div>;
 }
 
 export function PlayerPage() {

@@ -24,7 +24,7 @@
 - [x] Layouts de guerra
 - [x] Layouts de rankeada
 - [x] Plataforma pública de torneios
-- [ ] Tabela detalhada por atividade
+- [x] Tabela detalhada por atividade
 - [ ] Meses anteriores e Galeria da Fama
 - [ ] Agenda
 - [ ] Planejamento de guerras e Liga
@@ -33,9 +33,9 @@
 
 ## Administração
 
-- [ ] Autenticação e níveis de acesso — fundação implementada; ativação depende de HTTPS
-- [ ] Participação e vínculos — consulta protegida implementada; escrita aguarda HTTPS
-- [ ] Jogos do Clã e eventos manuais — histórico e simulador implementados; gravação aguarda HTTPS
+- [x] Autenticação e níveis de acesso — sessão segura ativa em HTTPS
+- [ ] Participação e vínculos — consulta protegida ativa; escrita ainda pendente
+- [ ] Jogos do Clã e eventos manuais — histórico e simulador ativos; gravação ainda pendente
 - [ ] Revisões de pontuação
 - [ ] Fechamento mensal
 - [ ] Publicação de layouts

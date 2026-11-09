@@ -12,6 +12,25 @@ export interface RankingEntry {
   temporada?: string;
 }
 
+export interface RankingDetailColumn {
+  chave: string;
+  rotulo: string;
+  tipo: "guerra" | "liga" | "raide" | "jogos" | "eventos";
+}
+
+export interface RankingDetailEntry extends RankingEntry {
+  pontos: Record<string, number>;
+}
+
+export interface RankingDetailsResponse {
+  temporada: string;
+  temporada_nome: string;
+  atualizado_em: string;
+  total: number;
+  colunas: RankingDetailColumn[];
+  jogadores: RankingDetailEntry[];
+}
+
 export interface AuditActivity {
   tipo: string;
   identificador: string;

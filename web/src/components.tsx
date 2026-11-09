@@ -7,6 +7,7 @@ import { useAdmin } from "./AdminContext";
 const nav = [
   { to: "/", icon: "⌂", label: "Quartel-general" },
   { to: "/ranking", icon: "♛", label: "Ranking oficial" },
+  { to: "/ranking/detalhado", icon: "▦", label: "Tabela detalhada" },
   { to: "/jogador", icon: "⚔", label: "Ficha do jogador" },
   { to: "/auditoria", icon: "◈", label: "Arquivo de batalhas" },
   { to: "/layouts/guerra", icon: "⬢", label: "Layouts de guerra" },
@@ -56,7 +57,7 @@ export function Shell() {
         <Outlet />
       </main>
       <nav className="mobile-nav" aria-label="Navegação móvel">
-        {[...nav.slice(0, 4), nav.find((item) => item.to === "/admin")!].map((item) => (
+        {[nav[0], nav[1], nav[2], nav.find((item) => item.to === "/auditoria")!, nav.find((item) => item.to === "/admin")!].map((item) => (
           <NavLink key={item.to} to={item.to} end={item.to === "/"}>
             <span aria-hidden="true">{item.icon}</span>
             <small>{item.label}</small>
