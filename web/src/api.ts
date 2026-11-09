@@ -1,7 +1,9 @@
 import type {
   AuditActivitiesResponse,
+  LayoutsResponse,
   PlayerAuditResponse,
   RankingEntry,
+  TournamentResponse,
 } from "./types";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
@@ -40,4 +42,10 @@ export const api = {
     getJson<PlayerAuditResponse>(
       `/audit/player/${encodeURIComponent(tag)}?limite=${limite}`,
     ),
+  layouts: (tipo: string, cv?: string, limit = 12, offset = 0) => {
+    const params = new URLSearchParams({ tipo, limit: String(limit), offset: String(offset) });
+    if (cv) params.set("cv", cv);
+    return getJson<LayoutsResponse>(`/v1/layouts?${params.toString()}`);
+  },
+  torneio: () => getJson<TournamentResponse>("/v1/tournament"),
 };

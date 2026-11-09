@@ -6,6 +6,7 @@ import os
 
 from fastapi import HTTPException
 
+from .conteudo import listar_layouts, obter_torneio
 from .ranking_atual import montar_ranking_atual
 
 
@@ -31,4 +32,20 @@ def instalar_rotas(app, caminho_sqlite: str | None = None) -> None:
         return {chave: resultado[chave] for chave in (
             "temporada", "temporada_nome", "mes_finalizado", "atualizado_em", "total"
         )}
+
+    @app.get("/v1/layouts")
+    def layouts_v1(tipo: str | None = None, cv: str | None = None,
+                   limit: int = 24, offset: int = 0):
+        try:
+            return listar_layouts(caminho, tipo=tipo, cv=cv,
+                                  limite=limit, deslocamento=offset)
+        except (OSError, ValueError) as erro:
+            raise HTTPException(status_code=503, detail="layouts_indisponiveis") from erro
+
+    @app.get("/v1/tournament")
+    def torneio_v1():
+        try:
+            return obter_torneio(caminho)
+        except (OSError, ValueError) as erro:
+            raise HTTPException(status_code=503, detail="torneio_indisponivel") from erro
 

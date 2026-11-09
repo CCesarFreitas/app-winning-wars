@@ -8,6 +8,9 @@ const nav = [
   { to: "/ranking", icon: "♛", label: "Ranking oficial" },
   { to: "/jogador", icon: "⚔", label: "Ficha do jogador" },
   { to: "/auditoria", icon: "◈", label: "Arquivo de batalhas" },
+  { to: "/layouts/guerra", icon: "⬢", label: "Layouts de guerra" },
+  { to: "/layouts/rankeada", icon: "⌁", label: "Layouts de rankeada" },
+  { to: "/torneios", icon: "⚡", label: "Torneios Winning Wars" },
 ];
 
 export function Shell() {
@@ -48,7 +51,7 @@ export function Shell() {
         <Outlet />
       </main>
       <nav className="mobile-nav" aria-label="Navegação móvel">
-        {nav.map((item) => (
+        {nav.slice(0, 4).map((item) => (
           <NavLink key={item.to} to={item.to} end={item.to === "/"}>
             <span aria-hidden="true">{item.icon}</span>
             <small>{item.label}</small>

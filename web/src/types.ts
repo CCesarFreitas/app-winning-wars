@@ -65,3 +65,56 @@ export interface PlayerAuditResponse {
   pontos_competicao: number;
   registros: PlayerAuditRecord[];
 }
+
+export interface LayoutEntry {
+  tipo: string;
+  cv: string;
+  autor: string;
+  link: string;
+  descricao: string;
+  imagem_url: string;
+  publicado_em: string;
+  tag: string;
+}
+
+export interface LayoutsResponse {
+  total: number;
+  offset: number;
+  limit: number;
+  layouts: LayoutEntry[];
+}
+
+export interface TournamentPlayer {
+  tag: string;
+  nome: string;
+  cv: number;
+}
+
+export interface TournamentMatch {
+  jogadores: Array<TournamentPlayer | null>;
+  vencedor: TournamentPlayer | null;
+  automatico?: boolean;
+}
+
+export interface TournamentState {
+  nome: string;
+  clan?: string;
+  clan_tag?: string;
+  cv: number | "Todos";
+  modo: string;
+  status: string;
+  participantes: TournamentPlayer[];
+  rotulos: string[];
+  rodadas: TournamentMatch[][];
+  campeao: TournamentPlayer | null;
+}
+
+export interface TournamentResponse {
+  torneio: TournamentState | null;
+  roster: {
+    clan: string;
+    tag: string;
+    consultado_em: string;
+    contas: TournamentPlayer[];
+  } | null;
+}

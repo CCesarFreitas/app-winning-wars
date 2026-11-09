@@ -4,8 +4,8 @@ import { api } from "./api";
 import { ErrorState, Loading, PageHeader, PlayerAvatar } from "./components";
 import { dataAtividade, numero, rotuloTipo, temporadaLabel } from "./format";
 import { useRanking } from "./RankingContext";
-import type { AuditActivity, PlayerAuditResponse } from "./types";
-import { CREST_URL } from "./assets";
+import type { AuditActivity, LayoutEntry, PlayerAuditResponse, TournamentMatch, TournamentPlayer } from "./types";
+import { CREST_URL, townHallUrl } from "./assets";
 
 export function HomePage() {
   const { ranking, loading, error, recarregar } = useRanking();
@@ -61,6 +61,9 @@ export function HomePage() {
               <Link to="/ranking"><span>♛</span><div><small>Classificação</small><strong>Ranking oficial</strong><p>Veja pontos por modalidade e sua posição na temporada.</p></div><b>→</b></Link>
               <Link to="/jogador"><span>⚔</span><div><small>Desempenho</small><strong>Ficha do jogador</strong><p>Entenda sua pontuação e acompanhe cada batalha.</p></div><b>→</b></Link>
               <Link to="/auditoria"><span>◈</span><div><small>Transparência</small><strong>Arquivo de batalhas</strong><p>Consulte resultados processados pelo motor Winning Wars.</p></div><b>→</b></Link>
+              <Link to="/layouts/guerra"><span>⬢</span><div><small>Defesas</small><strong>Layouts de guerra</strong><p>Bases organizadas por Centro de Vila para copiar no Clash.</p></div><b>→</b></Link>
+              <Link to="/layouts/rankeada"><span>⌁</span><div><small>Rankeadas</small><strong>Layouts de rankeada</strong><p>Seleção oficial para proteger troféus e subir no ranking.</p></div><b>→</b></Link>
+              <Link to="/torneios"><span>⚡</span><div><small>Arena ao vivo</small><strong>Torneios Winning Wars</strong><p>Chaveamento eliminatório oficial para as lives do clã.</p></div><b>→</b></Link>
             </div>
           </section>
         </>
@@ -182,6 +185,84 @@ export function AuditPage() {
       {!loading && !error && <div className="activity-grid">{filtered.map((activity) => <article className="activity-card" key={`${activity.tipo}-${activity.identificador}`}><header><span className={`activity-icon type-${activity.tipo}`}>{activity.tipo === "guerra" ? "⚔" : activity.tipo === "liga" ? "♛" : "☄"}</span><div><span className="type-chip">{rotuloTipo(activity.tipo)}</span><time>{dataAtividade(activity.data)}</time></div></header><h3>{activity.adversario ? `Winning Wars × ${activity.adversario}` : "Fim de semana de raides"}</h3><div className="activity-stats"><span><small>Jogadores</small><strong>{numero(activity.jogadores)}</strong></span><span><small>Ataques</small><strong>{numero(activity.ataques)}</strong></span><span><small>Pontos</small><strong>{numero(activity.pontos_competicao)}</strong></span></div><small className="activity-id">{activity.identificador}</small></article>)}</div>}
     </div>
   );
+}
+
+const CVS = [18, 17, 16, 15, 14, 13, 12, 11, 10, 9];
+
+export function LayoutsPage() {
+  const { tipo = "guerra" } = useParams();
+  const rankeada = tipo === "rankeada";
+  const tipoApi = rankeada ? "Rankeada" : "Guerra";
+  const [cv, setCv] = useState(18);
+  const [layouts, setLayouts] = useState<LayoutEntry[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const load = () => {
+    setLoading(true); setError(null);
+    api.layouts(tipoApi, `CV ${cv}`, 12, 0).then((result) => { setLayouts(result.layouts); setTotal(result.total); })
+      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Falha ao carregar layouts."))
+      .finally(() => setLoading(false));
+  };
+  const loadMore = () => {
+    setLoadingMore(true);
+    api.layouts(tipoApi, `CV ${cv}`, 12, layouts.length)
+      .then((result) => { setLayouts((current) => [...current, ...result.layouts]); setTotal(result.total); })
+      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Falha ao carregar mais layouts."))
+      .finally(() => setLoadingMore(false));
+  };
+  useEffect(load, [tipoApi, cv]);
+  return <div className="page">
+    <PageHeader eyebrow="Arsenal de bases" title={`Layouts oficiais de ${rankeada ? "rankeada" : "guerra"}`} description="Escolha seu Centro de Vila, analise a defesa e abra o layout diretamente no Clash of Clans." />
+    <div className="cv-selector" role="tablist" aria-label="Centro de Vila">
+      {CVS.map((value) => <button key={value} className={cv === value ? "active" : ""} onClick={() => setCv(value)}><img src={townHallUrl(value)} alt="" /><span>CV {value}</span></button>)}
+    </div>
+    <section className="layout-heading"><img src={townHallUrl(cv)} alt={`Centro de Vila ${cv}`} /><div><span className="eyebrow">Centro de Vila {cv}</span><h2>Bases de {tipoApi}</h2><p>{total} {total === 1 ? "layout disponível" : "layouts disponíveis"}</p></div></section>
+    {loading && <Loading label="Abrindo o arsenal de layouts…" />}
+    {error && <ErrorState message={error} onRetry={load} />}
+    {!loading && !error && <div className="layout-grid">{layouts.map((layout, index) => <article className="layout-card" key={`${layout.link}-${index}`}>
+      <div className="layout-image">{layout.imagem_url ? <img src={layout.imagem_url} alt={`Layout de ${tipoApi} para CV ${cv}`} /> : <img className="layout-placeholder" src={townHallUrl(cv)} alt="" />}</div>
+      <div className="layout-card-body"><span>Publicado por {layout.autor || "Winning Wars"}</span>{layout.descricao && <p>{layout.descricao}</p>}<a className="primary-button" href={layout.link} target="_blank" rel="noreferrer">Copiar layout no Clash ↗</a></div>
+    </article>)}</div>}
+    {!loading && !error && layouts.length < total && <div className="load-more"><button className="secondary-button" onClick={loadMore} disabled={loadingMore}>{loadingMore ? "Carregando…" : `Carregar mais layouts (${layouts.length} de ${total})`}</button></div>}
+    {!loading && !error && !layouts.length && <div className="state-card"><strong>Nenhum layout publicado para CV {cv}</strong><span>Escolha outro Centro de Vila ou volte em breve.</span></div>}
+  </div>;
+}
+
+const REGRAS_TORNEIO = [
+  "Respeite participantes, juiz e normas do torneio; comportamento antidesportivo pode causar eliminação.",
+  "Os duelos são convocados pelo juiz e os desafios devem usar exatamente o modo de jogo anunciado.",
+  "O confronto deve começar em até 30 segundos depois que o desafio for publicado no chat.",
+  "Quem não iniciar o ataque no prazo máximo permitido poderá ser eliminado.",
+  "Em empate de três estrelas, avança quem concluir o ataque em menor tempo.",
+];
+
+function TournamentPlayerCard({ player, winner }: { player: TournamentPlayer | null; winner?: boolean }) {
+  if (!player) return <div className="tournament-player bye">Aguardando classificado</div>;
+  return <div className={`tournament-player ${winner ? "winner" : ""}`}><img src={townHallUrl(player.cv)} alt={`CV ${player.cv}`} /><span><strong>{player.nome}</strong><small>{player.tag} · CV {player.cv}</small></span></div>;
+}
+
+function TournamentMatchCard({ match, index }: { match: TournamentMatch; index: number }) {
+  return <article className="tournament-match"><small>Jogo {index + 1}{match.automatico ? " · avanço automático" : ""}</small><TournamentPlayerCard player={match.jogadores[0]} winner={match.vencedor?.tag === match.jogadores[0]?.tag} /><b>VS</b><TournamentPlayerCard player={match.jogadores[1]} winner={match.vencedor?.tag === match.jogadores[1]?.tag} /></article>;
+}
+
+export function TournamentPage() {
+  const [data, setData] = useState<Awaited<ReturnType<typeof api.torneio>> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const load = () => { setLoading(true); setError(null); api.torneio().then(setData).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Falha ao abrir a arena.")).finally(() => setLoading(false)); };
+  useEffect(load, []);
+  const torneio = data?.torneio;
+  const roster = data?.roster;
+  return <div className="page tournament-page">
+    <section className="tournament-hero"><div><span className="eyebrow">Arena oficial para lives</span><h1>Torneios Winning Wars</h1><p>Confrontos eliminatórios 1 × 1, da primeira batalha à grande final.</p><div><span>TorneiosWWars · #2CY88CCYU</span><a href="https://www.youtube.com/@winningwarscoc" target="_blank" rel="noreferrer">▶ YouTube @winningwarscoc</a></div></div><img src={CREST_URL} alt="Brasão Winning Wars" /></section>
+    <details className="rules-panel" open><summary>Regras oficiais do torneio</summary><ol>{REGRAS_TORNEIO.map((regra, index) => <li key={regra}><b>{String(index + 1).padStart(2, "0")}</b><span>{regra}</span></li>)}</ol></details>
+    {loading && <Loading label="Conectando à arena oficial…" />}{error && <ErrorState message={error} onRetry={load} />}
+    {!loading && !error && roster && <section className="roster-summary"><div><span className="eyebrow">Elenco em tempo real</span><h2>{roster.clan}</h2><p>{roster.contas.length} contas · {roster.tag}</p></div><div className="roster-cvs">{CVS.map((value) => { const total = roster.contas.filter((p) => p.cv === value).length; return total ? <span key={value}><img src={townHallUrl(value)} alt="" />CV {value}: <b>{total}</b></span> : null; })}</div></section>}
+    {!loading && !error && !torneio && <div className="state-card tournament-empty"><strong>A arena está preparada para o próximo torneio</strong><span>O chaveamento aparecerá aqui assim que a organização iniciar a competição.</span></div>}
+    {torneio && <><section className="tournament-title"><div><span className="eyebrow">Chaveamento oficial</span><h2>{torneio.nome}</h2><p>{torneio.participantes.length} competidores · CV {torneio.cv} · {torneio.modo}</p></div>{torneio.campeao && <div className="champion-chip">🏆 {torneio.campeao.nome}</div>}</section><div className="bracket">{torneio.rodadas.map((round, roundIndex) => <section className="bracket-round" key={roundIndex}><h3>{torneio.rotulos[roundIndex]}</h3><div>{round.map((match, index) => <TournamentMatchCard key={index} match={match} index={index} />)}</div></section>)}</div></>}
+  </div>;
 }
 
 export function NotFoundPage() {

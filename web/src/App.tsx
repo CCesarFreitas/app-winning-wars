@@ -1,7 +1,7 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Shell } from "./components";
 import { RankingProvider } from "./RankingContext";
-import { AuditPage, HomePage, NotFoundPage, PlayerPage, RankingPage } from "./pages";
+import { AuditPage, HomePage, LayoutsPage, NotFoundPage, PlayerPage, RankingPage, TournamentPage } from "./pages";
 
 export default function App() {
   return (
@@ -13,6 +13,8 @@ export default function App() {
             <Route path="/ranking" element={<RankingPage />} />
             <Route path="/jogador/:tag?" element={<PlayerPage />} />
             <Route path="/auditoria" element={<AuditPage />} />
+            <Route path="/layouts/:tipo" element={<LayoutsPage />} />
+            <Route path="/torneios" element={<TournamentPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>
