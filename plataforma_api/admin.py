@@ -21,8 +21,9 @@ from .conteudo import _linhas_planilha, obter_torneio
 from .manual_admin import montar_manual_admin, propor_lancamento
 from .operacoes_admin import (
     alterar_participacao, aplicar_lancamentos, avancar_torneio,
-    encerrar_torneio, excluir_layout, iniciar_torneio, LayoutDuplicadoError,
-    publicar_layouts,
+    encerrar_torneio, excluir_layout, finalizar_mes, iniciar_proximo_mes,
+    iniciar_torneio, LayoutDuplicadoError, listar_sorteios_desempate,
+    obter_fechamento_mensal, publicar_layouts, sortear_desempate,
 )
 from .participacao_admin import montar_participacao_admin
 from .ranking_atual import montar_ranking_atual, montar_ranking_contribuicao_sem_liga
@@ -93,6 +94,19 @@ class LayoutExcluir(BaseModel):
     link: str = Field(min_length=10, max_length=2_000)
     tipo: str
     cv: int = Field(ge=9, le=18)
+
+
+class SorteioDesempate(BaseModel):
+    ranking: str = Field(min_length=4, max_length=20)
+    pontos: int = Field(ge=0, le=1_000_000)
+    participantes: list[str] = Field(min_length=2, max_length=100)
+    quantidade: int = Field(ge=1, le=100)
+    sorteio_id: str = Field(min_length=8, max_length=100)
+
+
+class ConfirmacaoFechamento(BaseModel):
+    temporada: str = Field(min_length=7, max_length=7)
+    confirmacao: str = Field(min_length=10, max_length=40)
 
 
 def _segredo() -> bytes:
@@ -211,6 +225,34 @@ def _sessao(request: Request) -> dict[str, Any]:
     }
 
 
+def _exigir_dono(sessao: dict[str, Any]) -> None:
+    if _normalizar_nivel(str(sessao.get("nivel", ""))) != "dono":
+        raise HTTPException(status_code=403, detail="operacao_exclusiva_do_dono")
+
+
+def _ranking_para_sorteio(caminho: str, tipo: str) -> tuple[str, str, list[dict[str, Any]]]:
+    if tipo == "oficial":
+        resultado = montar_ranking_atual(caminho)
+        jogadores = resultado["ranking"]
+    elif tipo == "sem_liga":
+        resultado = montar_ranking_contribuicao_sem_liga(caminho)
+        jogadores = resultado["jogadores"]
+    else:
+        raise HTTPException(status_code=422, detail="ranking_de_sorteio_invalido")
+    return resultado["temporada"], resultado["temporada_nome"], jogadores
+
+
+def _grupos_empate(jogadores: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grupos: dict[int, list[dict[str, Any]]] = defaultdict(list)
+    for jogador in jogadores:
+        grupos[int(jogador.get("total", 0))].append(jogador)
+    return [{
+        "pontos": pontos,
+        "participantes": [{chave: jogador.get(chave) for chave in ("tag", "nome", "cv", "total")}
+                          for jogador in grupo],
+    } for pontos, grupo in sorted(grupos.items(), reverse=True) if len(grupo) > 1]
+
+
 def _resumo_participacao() -> dict[str, int]:
     linhas = _linhas_planilha("ParticipacaoCompeticao", ttl=60)
     if not linhas or "PlayerTag" not in linhas[0] or "Habilitada" not in linhas[0]:
@@ -285,6 +327,68 @@ def instalar_rotas_admin(app, caminho_sqlite: str) -> None:
             raise HTTPException(
                 status_code=503, detail="ranking_contribuicao_indisponivel"
             ) from erro
+
+    @app.get("/v1/admin/draw")
+    def sorteio_admin(request: Request, ranking: str = "sem_liga"):
+        _sessao(request)
+        try:
+            temporada, temporada_nome, jogadores = _ranking_para_sorteio(caminho_sqlite, ranking)
+            return {
+                "temporada": temporada, "temporada_nome": temporada_nome,
+                "ranking": ranking, "grupos": _grupos_empate(jogadores),
+                "historico": listar_sorteios_desempate(temporada, ranking),
+            }
+        except HTTPException:
+            raise
+        except (OSError, ValueError, sqlite3.Error) as erro:
+            raise HTTPException(status_code=503, detail="sorteio_indisponivel") from erro
+
+    @app.post("/v1/admin/draw")
+    def realizar_sorteio_admin(dados: SorteioDesempate, request: Request):
+        sessao = _sessao(request)
+        try:
+            temporada, _nome, jogadores = _ranking_para_sorteio(caminho_sqlite, dados.ranking)
+            return sortear_desempate(
+                sessao["usuario"], temporada, dados.ranking, dados.pontos,
+                dados.participantes, dados.quantidade, dados.sorteio_id,
+                jogadores,
+            )
+        except HTTPException:
+            raise
+        except ValueError as erro:
+            raise HTTPException(status_code=409, detail=str(erro)) from erro
+        except (OSError, RuntimeError, sqlite3.Error) as erro:
+            raise HTTPException(status_code=503, detail=str(erro)) from erro
+
+    @app.get("/v1/admin/month-close")
+    def fechamento_admin(request: Request):
+        sessao = _sessao(request)
+        try:
+            return {**obter_fechamento_mensal(), "pode_operar": _normalizar_nivel(sessao["nivel"]) == "dono"}
+        except (OSError, ValueError, sqlite3.Error) as erro:
+            raise HTTPException(status_code=503, detail="fechamento_indisponivel") from erro
+
+    @app.post("/v1/admin/month-close/finalize")
+    def finalizar_mes_admin(dados: ConfirmacaoFechamento, request: Request):
+        sessao = _sessao(request)
+        _exigir_dono(sessao)
+        try:
+            return finalizar_mes(sessao["usuario"], dados.temporada, dados.confirmacao)
+        except ValueError as erro:
+            raise HTTPException(status_code=409, detail=str(erro)) from erro
+        except (OSError, RuntimeError, sqlite3.Error) as erro:
+            raise HTTPException(status_code=503, detail=str(erro)) from erro
+
+    @app.post("/v1/admin/month-close/open-next")
+    def abrir_proximo_mes_admin(dados: ConfirmacaoFechamento, request: Request):
+        sessao = _sessao(request)
+        _exigir_dono(sessao)
+        try:
+            return iniciar_proximo_mes(sessao["usuario"], dados.temporada, dados.confirmacao)
+        except ValueError as erro:
+            raise HTTPException(status_code=409, detail=str(erro)) from erro
+        except (OSError, RuntimeError, sqlite3.Error) as erro:
+            raise HTTPException(status_code=503, detail=str(erro)) from erro
 
     @app.get("/v1/admin/audit/activities")
     def atividades_auditoria_admin(request: Request, limite: int = 50):

@@ -1,6 +1,6 @@
 import { CREST_URL, townHallUrl } from "./assets";
 import { dataAtividade, temporadaLabel } from "./format";
-import type { RankingDetailColumn, RankingDetailEntry, RankingEntry } from "./types";
+import type { AdminContributionEntry, AdminContributionRankingResponse, RankingDetailColumn, RankingDetailEntry, RankingEntry } from "./types";
 
 const GOLD = "#f0b735";
 const GOLD_LIGHT = "#ffe7a0";
@@ -197,4 +197,42 @@ export async function exportDetailedRanking(data: { temporada: string; temporada
   });
   footer(ctx, width, height - 68);
   await download(canvas, `tabela_detalhada_winning_wars_${data.temporada || "atual"}.png`);
+}
+
+export async function exportContributionRanking(data: AdminContributionRankingResponse, players: AdminContributionEntry[]) {
+  if (!players.length) throw new Error("Não há candidatos para exportar.");
+  await document.fonts.ready;
+  const width = 1500;
+  const rowHeight = 62;
+  const tableY = 220;
+  const height = tableY + 52 + players.length * rowHeight + 92;
+  const { canvas, ctx } = canvasFor(width, height);
+  background(ctx, width, height);
+  const crest = await loadImage(CREST_URL);
+  const cvs = new Map<number, HTMLImageElement | null>();
+  for (const cv of [...new Set(players.map((player) => player.cv).filter((value): value is number => !!value))]) {
+    cvs.set(cv, await loadImage(townHallUrl(cv)));
+  }
+  header(ctx, width, "Contribuição fora da Liga", `${data.temporada_nome} · prévia administrativa do passe extra`, crest);
+  const columns = { position: 48, village: 137, player: 220, war: 900, raids: 1015, games: 1125, events: 1235, total: 1438 };
+  ctx.fillStyle = "#29231f"; ctx.fillRect(32, tableY, width - 64, 52);
+  ctx.fillStyle = GOLD; ctx.font = "800 14px 'Nunito Sans', sans-serif";
+  ctx.fillText("POS.", columns.position, tableY + 26); ctx.fillText("VILA", columns.village, tableY + 26); ctx.fillText("JOGADOR", columns.player, tableY + 26);
+  [["GUERRAS", columns.war], ["RAIDES", columns.raids], ["JOGOS", columns.games], ["EVENTOS", columns.events]].forEach(([label, x]) => { ctx.textAlign = "center"; ctx.fillText(String(label), Number(x), tableY + 26); });
+  ctx.textAlign = "right"; ctx.fillText("TOTAL", columns.total, tableY + 26); ctx.textAlign = "left";
+  players.forEach((player, index) => {
+    const y = tableY + 52 + index * rowHeight;
+    ctx.fillStyle = player.posicao <= 3 ? ["rgba(240,183,53,.19)", "rgba(203,213,225,.12)", "rgba(198,111,61,.14)"][player.posicao - 1] : index % 2 ? "#141116" : "#1a161b";
+    ctx.fillRect(32, y, width - 64, rowHeight);
+    ctx.strokeStyle = LINE; ctx.beginPath(); ctx.moveTo(32, y + rowHeight); ctx.lineTo(width - 32, y + rowHeight); ctx.stroke();
+    ctx.fillStyle = player.posicao <= 3 ? GOLD_LIGHT : "#c5bdb2"; ctx.font = "800 19px 'Cinzel', serif"; ctx.fillText(`${player.posicao}º`, columns.position, y + rowHeight / 2);
+    const cvImage = player.cv ? cvs.get(player.cv) : null;
+    if (cvImage) ctx.drawImage(cvImage, columns.village - 5, y + 6, 50, 50);
+    ctx.fillStyle = TEXT; ctx.font = "800 17px 'Nunito Sans', sans-serif"; ctx.fillText(fitText(ctx, player.nome, 610), columns.player, y + 23);
+    ctx.fillStyle = MUTED; ctx.font = "700 12px 'Nunito Sans', sans-serif"; ctx.fillText(`${player.tag || "Sem tag"}${player.cv ? ` · CV ${player.cv}` : ""}`, columns.player, y + 43);
+    [[player.guerra, columns.war], [player.raides, columns.raids], [player.jogos, columns.games], [player.eventos, columns.events]].forEach(([value, x]) => { ctx.textAlign = "center"; ctx.fillStyle = "#d4cbc0"; ctx.font = "800 16px 'Nunito Sans', sans-serif"; ctx.fillText(String(value), Number(x), y + rowHeight / 2); });
+    ctx.textAlign = "right"; ctx.fillStyle = GOLD_LIGHT; ctx.font = "900 23px 'Cinzel', serif"; ctx.fillText(String(player.total), columns.total, y + rowHeight / 2); ctx.textAlign = "left";
+  });
+  footer(ctx, width, height - 70);
+  await download(canvas, `ranking_contribuicao_sem_liga_${data.temporada}.png`);
 }

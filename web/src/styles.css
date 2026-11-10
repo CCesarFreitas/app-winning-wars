@@ -615,6 +615,9 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
 .contribution-rules span,.contribution-rules > small { color: #817970; font-size: .6rem; line-height: 1.45; }
 .contribution-rules > small { grid-column: 1/-1; padding-top: 9px; border-top: 1px solid rgba(255,255,255,.06); }
 .contribution-ranking-page .participation-toolbar { grid-template-columns: minmax(260px,1fr) auto; }
+.contribution-actions { margin-bottom: 11px; display: grid; grid-template-columns: minmax(260px,1fr) auto auto auto; align-items: center; gap: 9px; }
+.contribution-actions > span { color: #7e766e; font-size: .58rem; white-space: nowrap; }
+.contribution-actions .secondary-button,.contribution-actions .primary-button { min-height: 43px; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; }
 .contribution-list { overflow: hidden; border: 1px solid var(--line); border-radius: 5px; }
 .contribution-list > header,.contribution-list > article { padding: 0 13px; display: grid; grid-template-columns: 65px minmax(230px,1fr) repeat(5,70px) 72px; align-items: center; gap: 8px; }
 .contribution-list > header { min-height: 39px; color: #746d65; background: rgba(255,255,255,.025); font-size: .49rem; font-weight: 900; text-transform: uppercase; }
@@ -626,6 +629,71 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
 .contribution-list > article > span:not(.contribution-position) { text-align: center; }
 .contribution-list > article > b { color: var(--gold-light); text-align: right; font: 800 .94rem "Cinzel"; }
 .contribution-list > article > b small { display: block; color: #716a62; font: 700 .45rem "Nunito Sans"; }
+.draw-selector { margin-bottom: 14px; padding: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border: 1px solid var(--line); border-radius: 5px; background: rgba(255,255,255,.018); }
+.draw-selector label > span,.draw-arena footer label > span { display: block; margin-bottom: 6px; color: #8d847a; font-size: .53rem; font-weight: 900; text-transform: uppercase; }
+.draw-selector select,.draw-arena footer input { width: 100%; min-height: 43px; padding: 0 12px; color: #e1d8cc; border: 1px solid var(--line); border-radius: 4px; background: #110f13; }
+.draw-arena { overflow: hidden; border: 1px solid rgba(240,183,53,.3); border-radius: 7px; background: radial-gradient(circle at 50% -20%,rgba(125,66,156,.24),transparent 48%),linear-gradient(145deg,#1f1822,#0f0d12); box-shadow: 0 22px 60px #0005; }
+.draw-arena > header { min-height: 112px; padding: 22px 25px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,.07); background: linear-gradient(90deg,rgba(97,61,18,.22),rgba(80,30,95,.15)); }
+.draw-arena h2 { margin: 5px 0; color: var(--gold-light); font: 800 1.55rem "Cinzel"; }
+.draw-arena header p { margin: 0; color: #8c8379; font-size: .66rem; }
+.draw-arena header > b { font-size: 2.4rem; filter: drop-shadow(0 7px 7px #0008); }
+.draw-arena.is-drawing header > b { animation: drawDice .55s linear infinite; }
+.draw-participants { padding: 20px; display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: 9px; }
+.draw-participants article { min-height: 118px; padding: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border: 1px solid rgba(240,183,53,.2); border-radius: 5px; background: rgba(255,255,255,.025); }
+.draw-participants img,.draw-participants article > span { width: 52px; height: 52px; object-fit: contain; }
+.draw-participants article > span { display: grid; place-items: center; font-size: 1.25rem; }
+.draw-participants strong { margin-top: 6px; font-size: .7rem; }
+.draw-participants small { margin-top: 3px; color: #756e66; font-size: .49rem; }
+.draw-arena > footer { padding: 17px 20px; display: grid; grid-template-columns: 160px auto 1fr; align-items: end; gap: 12px; border-top: 1px solid rgba(255,255,255,.07); }
+.draw-arena > footer > small { color: #776f67; font-size: .56rem; line-height: 1.45; }
+.roulette-stage { min-height: 164px; padding: 22px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-top: 1px solid rgba(255,255,255,.07); background: radial-gradient(circle,rgba(240,183,53,.15),transparent 65%); }
+.roulette-stage small { color: #ad9f89; font-size: .61rem; text-transform: uppercase; letter-spacing: .08em; }
+.roulette-stage strong { min-height: 50px; margin: 13px 0; color: #fff0b8; text-align: center; text-shadow: 0 0 25px #f0b73599; font: 800 1.65rem "Cinzel"; animation: roulettePulse .22s ease-in-out infinite alternate; }
+.roulette-stage > div { width: min(440px,85%); height: 7px; overflow: hidden; border-radius: 999px; background: #0d0b0f; }
+.roulette-stage i { width: 35%; height: 100%; display: block; border-radius: inherit; background: linear-gradient(90deg,#7d3ba2,#f0b735,#fff0b8); animation: rouletteBar .75s ease-in-out infinite alternate; }
+.draw-result { margin-top: 14px; padding: 25px; text-align: center; border: 2px solid rgba(104,224,157,.48); border-radius: 8px; background: radial-gradient(circle at 50% 0,rgba(99,220,151,.21),transparent 58%),linear-gradient(145deg,#123326,#101814); box-shadow: 0 18px 50px #0006; animation: resultReveal .6s ease both; }
+.draw-result > span { color: #f5d567; font-size: .62rem; font-weight: 900; letter-spacing: .08em; }
+.draw-result h2 { margin: 10px 0 7px; color: #fff; font: 800 1.8rem "Cinzel"; }
+.draw-result p { color: #abd7bd; font-size: .68rem; }
+.draw-result > div { margin-top: 17px; padding-top: 14px; display: grid; gap: 5px; border-top: 1px solid rgba(104,224,157,.2); }
+.draw-result small { color: #809d8a; font-size: .55rem; }
+.draw-result code { color: #99bddd; font-size: .62rem; overflow-wrap: anywhere; }
+.draw-history { margin-top: 38px; }
+.draw-history > article { min-height: 62px; padding: 10px 14px; display: grid; grid-template-columns: 145px 1fr 105px; align-items: center; gap: 12px; border: 1px solid var(--line); border-bottom: 0; background: rgba(255,255,255,.015); }
+.draw-history > article:last-child { border-bottom: 1px solid var(--line); }
+.draw-history time,.draw-history small { color: #746d65; font-size: .53rem; }
+.draw-history strong,.draw-history small { display: block; }
+.draw-history strong { font-size: .65rem; }
+.draw-history code { color: #c7ad71; text-align: right; font-size: .59rem; }
+.month-status { display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; }
+.month-status article { min-height: 110px; padding: 17px; display: flex; flex-direction: column; justify-content: center; border: 1px solid var(--line); border-radius: 5px; background: rgba(24,21,27,.9); }
+.month-status small,.month-status span { color: #80786f; }
+.month-status small { font-size: .52rem; font-weight: 900; text-transform: uppercase; }
+.month-status strong { margin: 7px 0 3px; color: var(--gold-light); font: 800 1.05rem "Cinzel"; }
+.month-status span { font-size: .57rem; }
+.month-status .open { border-color: rgba(88,203,145,.25); }
+.month-status .open strong { color: #80d8ad; }
+.month-status .closed { border-color: rgba(240,183,53,.3); }
+.month-podium { margin: 14px 0; padding: 18px; border: 1px solid var(--line); border-radius: 5px; background: rgba(255,255,255,.015); }
+.month-podium > div { margin-top: 12px; display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+.month-podium article { min-height: 80px; padding: 12px; display: grid; grid-template-columns: 34px 1fr; align-content: center; gap: 3px 9px; border: 1px solid rgba(240,183,53,.18); border-radius: 4px; background: rgba(42,32,22,.34); }
+.month-podium article > b { grid-row: 1/3; align-self: center; font-size: 1.25rem; }
+.month-podium strong { font-size: .66rem; }
+.month-podium small { color: #7e766d; font-size: .54rem; }
+.month-operation { margin: 14px 0; padding: 22px; border: 1px solid rgba(240,183,53,.28); border-top: 2px solid var(--gold); border-radius: 6px; background: linear-gradient(145deg,rgba(37,29,28,.96),rgba(16,14,19,.96)); }
+.month-operation > header { display: grid; grid-template-columns: 44px 1fr; gap: 13px; }
+.month-operation > header > span { color: #8e7137; font: 800 1rem "Cinzel"; }
+.month-operation h2 { margin: 0 0 6px; font: 700 1.15rem "Cinzel"; }
+.month-operation p { margin: 0; color: #8f867d; font-size: .66rem; line-height: 1.55; }
+.month-confirm { margin-top: 20px; padding-top: 17px; display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 14px; border-top: 1px solid rgba(255,255,255,.07); }
+.month-confirm label > span,.month-confirm label > code { display: block; }
+.month-confirm label > span { color: #877f76; font-size: .54rem; font-weight: 900; text-transform: uppercase; }
+.month-confirm label > code { margin: 5px 0 8px; color: #e0c27e; font-size: .65rem; }
+.month-confirm input { width: 100%; min-height: 44px; padding: 0 12px; color: #f2ebe2; border: 1px solid var(--line); border-radius: 4px; background: #100e12; text-transform: uppercase; }
+@keyframes drawDice { to { transform: rotate(360deg) scale(1.08); } }
+@keyframes roulettePulse { to { transform: scale(1.045); opacity: .82; } }
+@keyframes rouletteBar { from { transform: translateX(-10%); } to { transform: translateX(195%); } }
+@keyframes resultReveal { from { opacity: 0; transform: translateY(16px) scale(.98); } }
 .admin-subnav { margin-bottom: 17px; display: flex; align-items: center; justify-content: space-between; }
 .admin-subnav a { color: var(--gold-light); font-size: .67rem; font-weight: 900; }
 .admin-subnav > span { padding: 5px 9px; color: #83d9b2; border: 1px solid rgba(93,206,153,.22); border-radius: 999px; font-size: .52rem; font-weight: 900; text-transform: uppercase; }
@@ -846,6 +914,8 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
   .ranking-export-bar { align-items: stretch; flex-direction: column; }
   .ranking-export-bar button { width: 100%; min-height: 42px; white-space: normal; }
   .contribution-overview { grid-template-columns: 1fr 1fr; }
+  .contribution-actions { grid-template-columns: 1fr; }
+  .contribution-actions .secondary-button,.contribution-actions .primary-button { width: 100%; }
   .contribution-rules { grid-template-columns: 1fr; }
   .contribution-rules > small { grid-column: auto; }
   .contribution-ranking-page .participation-toolbar { grid-template-columns: 1fr; }
@@ -857,6 +927,12 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
   .contribution-list > article > span[data-label] { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
   .contribution-list > article > span[data-label]::before { content: attr(data-label); color: #736c64; font-size: .43rem; font-weight: 900; text-transform: uppercase; }
   .contribution-list > article > b { display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-end; }
+  .draw-selector,.month-status,.month-podium > div { grid-template-columns: 1fr; }
+  .draw-participants { grid-template-columns: 1fr 1fr; padding: 13px; }
+  .draw-arena > footer { grid-template-columns: 1fr; align-items: stretch; }
+  .draw-history > article { grid-template-columns: 1fr; gap: 4px; }
+  .draw-history code { text-align: left; }
+  .month-confirm { grid-template-columns: 1fr; }
   .ranking-table { display: grid; gap: 8px; overflow: visible; border: 0; background: transparent; box-shadow: none; }
   .ranking-head { display: none; }
   .ranking-row { min-height: 137px; padding: 12px; display: grid; grid-template-columns: 34px 1fr repeat(4,minmax(43px,auto)); grid-template-rows: 56px 46px; gap: 5px; position: relative; border: 1px solid var(--line); border-left: 2px solid var(--gold-dark); border-radius: 4px; background: rgba(24,22,28,.88); }

@@ -4,10 +4,10 @@ import { api, LayoutsDuplicadosError } from "./api";
 import { ErrorState, Loading, PageHeader, PlayerAvatar } from "./components";
 import { dataAtividade, numero, rotuloTipo, temporadaLabel } from "./format";
 import { useRanking } from "./RankingContext";
-import type { AdminContributionRankingResponse, AdminLayoutDuplicate, AdminManualProposal, AdminManualResponse, AdminParticipationAccount, AdminParticipationResponse, AdminSummary, AuditActivity, ClanResponse, LayoutEntry, PlanningClan, PlanningEnvelope, PlanningMember, PlayerAuditResponse, RankingDetailsResponse, TournamentMatch, TournamentPlayer } from "./types";
+import type { AdminContributionRankingResponse, AdminDrawRecord, AdminDrawResponse, AdminLayoutDuplicate, AdminManualProposal, AdminManualResponse, AdminMonthCloseResponse, AdminParticipationAccount, AdminParticipationResponse, AdminSummary, AuditActivity, ClanResponse, LayoutEntry, PlanningClan, PlanningEnvelope, PlanningMember, PlayerAuditResponse, RankingDetailsResponse, TournamentMatch, TournamentPlayer } from "./types";
 import { CREST_URL, townHallUrl } from "./assets";
 import { useAdmin } from "./AdminContext";
-import { exportCompactRanking, exportDetailedRanking } from "./rankingExport";
+import { exportCompactRanking, exportContributionRanking, exportDetailedRanking } from "./rankingExport";
 
 export function HomePage() {
   const { ranking, loading, error, recarregar } = useRanking();
@@ -621,9 +621,10 @@ export function AdminPage() {
           ["Participação e vínculos", "/admin/participacao", "Ativo e auditado"],
           ["Jogos do Clã e eventos", "/admin/lancamentos", "Ativo e auditado"],
           ["Ranking extra · sem Liga", "/admin/contribuicoes", "Prévia temporária do passe extra"],
+          ["Sorteio de desempate", "/admin/sorteio", "Animado, seguro e auditado"],
           ["Torneios Winning Wars", "/admin/torneios", "Ativo e auditado"],
           ["Revisões de pontuação", "", "Permanece no app legado durante a migração"],
-          ["Fechamento mensal", "", "Permanece no app legado durante a migração"],
+          ["Fechamento mensal", "/admin/fechamento", "Arquivo, bloqueio e nova temporada"],
         ].map(([label, path, status], index) => <article key={label}><span>{String(index + 1).padStart(2, "0")}</span><strong>{path ? <Link to={path}>{label}</Link> : label}</strong><small>{status}</small></article>)}
       </div></section>
     </>}
@@ -635,6 +636,8 @@ export function AdminContributionRankingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
 
   const load = () => {
     setLoading(true); setError(null);
@@ -662,13 +665,123 @@ export function AdminContributionRankingPage() {
         <article className="leader"><small>Líder provisório</small><strong>{leader?.nome || "—"}</strong><span>{leader ? `${leader.total} pontos fora da Liga` : "Aguardando atividades"}</span></article>
       </section>
       <div className="contribution-rules"><div><strong>Quem entra</strong><span>{data.criterio}</span></div><div><strong>Desempate</strong><span>{data.desempate}</span></div><small>Dados atualizados em {dataAtividade(data.atualizado_em)} · {data.temporada_nome || temporadaLabel(data.temporada)}</small></div>
-      <div className="participation-toolbar"><label className="search-box"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar candidato por nome ou tag" /></label><span>{players.length} candidato(s) exibido(s)</span></div>
+      <div className="contribution-actions"><label className="search-box"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar candidato por nome ou tag" /></label><Link className="secondary-button" to="/admin/sorteio">🎲 Abrir sorteio auditado</Link><button className="primary-button" type="button" disabled={exporting || !players.length} onClick={async () => { setExporting(true); setExportError(""); try { await exportContributionRanking(data, players); } catch (reason) { setExportError(reason instanceof Error ? reason.message : "Falha ao gerar a imagem."); } finally { setExporting(false); } }}>{exporting ? "Gerando imagem…" : "📸 Baixar ranking · PNG HD"}</button><span>{players.length} candidato(s)</span></div>
+      {exportError && <div className="state-card error-state"><strong>Não foi possível gerar a imagem</strong><span>{exportError}</span></div>}
       <section className="contribution-list"><header><span>Posição</span><span>Jogador</span><span>Guerras</span><span>Raides</span><span>Jogos</span><span>Eventos</span><span>Atividades</span><span>Total</span></header>{players.map((player) => <article className={player.posicao <= 3 ? `top-${player.posicao}` : ""} key={player.tag || player.participante_id}>
         <span className="contribution-position">{player.posicao <= 3 ? ["🥇", "🥈", "🥉"][player.posicao - 1] : `${player.posicao}º`}</span>
         <div className="participation-player">{player.cv ? <img src={townHallUrl(player.cv)} alt={`CV ${player.cv}`} /> : <span>?</span>}<div><strong>{player.nome}</strong><small>{player.tag || "Sem tag vinculada"}{player.cv ? ` · CV ${player.cv}` : ""}</small></div></div>
         <span data-label="Guerras">{player.guerra}</span><span data-label="Raides">{player.raides}</span><span data-label="Jogos">{player.jogos}</span><span data-label="Eventos">{player.eventos}</span><span data-label="Atividades">{player.atividades_positivas}</span><b>{player.total}<small> pts</small></b>
       </article>)}</section>
       {!players.length && <div className="state-card"><strong>Nenhum candidato encontrado</strong><span>{search ? "Altere a busca informada." : "O ranking será preenchido quando houver contribuição positiva fora da Liga."}</span></div>}
+    </>}
+  </div>;
+}
+
+export function AdminDrawPage() {
+  const [rankingType, setRankingType] = useState<"oficial" | "sem_liga">("sem_liga");
+  const [data, setData] = useState<AdminDrawResponse | null>(null);
+  const [selectedPoints, setSelectedPoints] = useState("");
+  const [winnerCount, setWinnerCount] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [drawing, setDrawing] = useState(false);
+  const [rouletteName, setRouletteName] = useState("");
+  const [result, setResult] = useState<AdminDrawRecord | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = (type = rankingType) => {
+    setLoading(true); setError(null); setResult(null);
+    api.adminDraw(type).then((response) => {
+      setData(response);
+      setSelectedPoints(response.grupos[0] ? String(response.grupos[0].pontos) : "");
+      setWinnerCount(1);
+    }).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Falha ao carregar os empates.")).finally(() => setLoading(false));
+  };
+  useEffect(() => load(rankingType), [rankingType]);
+
+  const group = data?.grupos.find((item) => String(item.pontos) === selectedPoints);
+  const previous = data?.historico.find((item) => item.pontos === group?.pontos);
+  const runDraw = async () => {
+    if (!data || !group || drawing || previous) return;
+    setDrawing(true); setError(null); setResult(null);
+    const names = group.participantes.map((player) => player.nome);
+    let index = 0;
+    setRouletteName(names[0] || "");
+    const ticker = window.setInterval(() => { index = (index + 1) % names.length; setRouletteName(names[index]); }, 105);
+    try {
+      const drawId = window.crypto?.randomUUID?.() || `sorteio-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const [response] = await Promise.all([
+        api.adminDrawRun(rankingType, group.pontos, group.participantes.map((player) => player.tag), winnerCount, drawId),
+        new Promise((resolve) => window.setTimeout(resolve, 3600)),
+      ]);
+      setResult(response);
+      const refreshed = await api.adminDraw(rankingType);
+      setData(refreshed);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Não foi possível concluir o sorteio."); }
+    finally { window.clearInterval(ticker); setDrawing(false); }
+  };
+
+  return <div className="page admin-page draw-page">
+    <div className="admin-subnav"><Link to="/admin">← Voltar ao painel</Link><span>Sorteio com auditoria SHA-256</span></div>
+    <PageHeader eyebrow="Câmara de desempate" title="Sorteio transparente" description="Escolha um grupo realmente empatado. O resultado é gerado no servidor, gravado na planilha e protegido por código de verificação." />
+    <div className="draw-selector"><label><span>Ranking analisado</span><select value={rankingType} onChange={(event) => setRankingType(event.target.value as "oficial" | "sem_liga")} disabled={drawing}><option value="sem_liga">Passe extra · contribuição fora da Liga</option><option value="oficial">Ranking oficial da temporada</option></select></label>{data && <label><span>Grupo empatado</span><select value={selectedPoints} onChange={(event) => { setSelectedPoints(event.target.value); setWinnerCount(1); setResult(null); }} disabled={drawing || !data.grupos.length}>{data.grupos.map((item) => <option value={item.pontos} key={item.pontos}>{item.pontos} pontos · {item.participantes.length} jogadores</option>)}</select></label>}</div>
+    {loading && <Loading label="Conferindo empates e auditorias anteriores…" />}
+    {error && <ErrorState message={error} onRetry={() => load()} />}
+    {data && !loading && !data.grupos.length && <div className="state-card"><strong>Nenhum empate encontrado</strong><span>Não existe atualmente um grupo com dois ou mais jogadores na mesma pontuação.</span></div>}
+    {group && !loading && <>
+      <section className={`draw-arena ${drawing ? "is-drawing" : ""}`}>
+        <header><div><span className="eyebrow">{data?.temporada_nome}</span><h2>{group.pontos} pontos</h2><p>{group.participantes.length} guerreiros participam deste desempate.</p></div><b>🎲</b></header>
+        <div className="draw-participants">{group.participantes.map((player) => <article key={player.tag}>{player.cv ? <img src={townHallUrl(player.cv)} alt={`CV ${player.cv}`} /> : <span>⚔</span>}<strong>{player.nome}</strong><small>{player.tag}</small></article>)}</div>
+        {drawing && <div className="roulette-stage"><small>{rouletteName ? "Embaralhando e auditando…" : "Preparando sorteio…"}</small><strong>{rouletteName}</strong><div><i /></div></div>}
+        {!drawing && !result && !previous && <footer><label><span>Número de vencedores</span><input type="number" min="1" max={Math.max(1, group.participantes.length - 1)} value={winnerCount} onChange={(event) => setWinnerCount(Math.max(1, Math.min(group.participantes.length - 1, Number(event.target.value) || 1)))} /></label><button className="primary-button" type="button" onClick={runDraw}>🎰 Iniciar sorteio ao vivo</button><small>Comece a gravação da tela antes de sortear. O primeiro resultado fica bloqueado contra nova tentativa.</small></footer>}
+      </section>
+      {(result || previous) && <DrawResultCard result={result || previous!} previous={!result} />}
+    </>}
+    {!!data?.historico.length && <section className="draw-history"><div className="section-title"><div><span className="eyebrow">Livro de auditoria</span><h2>Sorteios registrados</h2><p>Resultados imutáveis desta temporada e deste ranking.</p></div></div>{data.historico.map((item) => <article key={item.sorteio_id}><time>{dataAtividade(item.realizado_em)}</time><div><strong>{item.pontos} pontos · {item.vencedores.map((winner) => winner.nome).join(", ")}</strong><small>{item.participantes.length} participantes · por {item.administrador}</small></div><code>{item.hash.slice(0, 12).toUpperCase()}</code></article>)}</section>}
+  </div>;
+}
+
+function DrawResultCard({ result, previous }: { result: AdminDrawRecord; previous?: boolean }) {
+  return <section className="draw-result"><span>{previous ? "✓ SORTEIO JÁ REGISTRADO" : "🏆 RESULTADO OFICIAL"}</span><h2>{result.vencedores.map((winner) => winner.nome).join(" · ")}</h2><p>{previous ? "Este grupo já possui um resultado auditado e não pode ser sorteado novamente." : "Vencedor(es) do desempate. O resultado foi confirmado na planilha oficial."}</p><div><small>Realizado em {dataAtividade(result.realizado_em)} por {result.administrador}</small><code>Código de verificação: {result.hash.toUpperCase()}</code></div></section>;
+}
+
+export function AdminMonthClosePage() {
+  const [data, setData] = useState<AdminMonthCloseResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [confirmation, setConfirmation] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [notice, setNotice] = useState("");
+
+  const load = () => {
+    setLoading(true); setError(null);
+    api.adminMonthClose().then(setData).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Falha ao carregar o fechamento mensal.")).finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+  const expected = data ? (data.mes_finalizado ? `ABRIR ${data.proxima_temporada}` : `FINALIZAR ${data.temporada}`) : "";
+  const submit = async () => {
+    if (!data || confirmation !== expected || submitting || !data.pode_operar) return;
+    setSubmitting(true); setError(null); setNotice("");
+    try {
+      const response = data.mes_finalizado
+        ? await api.adminMonthOpenNext(data.temporada, confirmation)
+        : await api.adminMonthFinalize(data.temporada, confirmation);
+      setNotice(response.status === "FINALIZADO_E_CONFERIDO" ? `${data.temporada_nome} foi arquivado e bloqueado com sucesso.` : response.status === "NOVA_TEMPORADA_ABERTA_E_CONFERIDA" ? `${data.proxima_temporada_nome} foi aberta com a área de pontuação limpa.` : response.status);
+      setConfirmation(""); await api.adminMonthClose().then(setData);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Não foi possível concluir a operação."); }
+    finally { setSubmitting(false); }
+  };
+
+  return <div className="page admin-page month-close-page">
+    <div className="admin-subnav"><Link to="/admin">← Voltar ao painel</Link><span>Operação exclusiva do Dono</span></div>
+    <PageHeader eyebrow="Cofre das temporadas" title="Fechamento mensal" description="Fluxo seguro em duas etapas: arquivar e bloquear o mês atual; depois abrir uma nova área de pontuação para o próximo ciclo." />
+    {loading && <Loading label="Conferindo temporada, arquivo e pódio…" />}
+    {error && <ErrorState message={error} onRetry={load} />}
+    {notice && <div className="admin-success">✓ {notice}</div>}
+    {data && !loading && <>
+      <section className="month-status"><article><small>Temporada atual</small><strong>{data.temporada_nome}</strong><span>{data.temporada}</span></article><article className={data.mes_finalizado ? "closed" : "open"}><small>Status</small><strong>{data.mes_finalizado ? "Finalizada" : "Em disputa"}</strong><span>{data.ultimo_fechamento ? `Último fechamento: ${dataAtividade(data.ultimo_fechamento)}` : "Ainda não encerrada"}</span></article><article><small>Arquivo detalhado</small><strong>{data.arquivo_confirmado ? "Confirmado" : "Pendente"}</strong><span>{data.total_jogadores} jogadores no ranking</span></article></section>
+      {!!data.podio.length && <section className="month-podium"><span className="eyebrow">Pódio apresentado para o fechamento</span><div>{data.podio.map((player, index) => <article key={player.id || player.nome}><b>{["🥇", "🥈", "🥉"][index]}</b><strong>{player.nome}</strong><small>{player.total} pontos</small></article>)}</div></section>}
+      <section className={`month-operation ${data.mes_finalizado ? "next" : "close"}`}><header><span>{data.mes_finalizado ? "02" : "01"}</span><div><h2>{data.mes_finalizado ? `Abrir ${data.proxima_temporada_nome}` : `Finalizar ${data.temporada_nome}`}</h2><p>{data.mes_finalizado ? "O arquivo atual será preservado. A Página1 será renovada e passará a receber somente as novas pontuações automáticas e manuais." : "Cria backups local e na planilha, arquiva a tabela detalhada, registra o pódio, bloqueia lançamentos e mantém a Página1 intacta."}</p></div></header>{!data.pode_operar && <div className="form-error">Somente uma conta com nível Dono pode executar esta operação.</div>}<div className="month-confirm"><label><span>Para confirmar, digite exatamente</span><code>{expected}</code><input value={confirmation} onChange={(event) => setConfirmation(event.target.value.toUpperCase())} disabled={!data.pode_operar || submitting} placeholder={expected} /></label><button className="primary-button" type="button" onClick={submit} disabled={!data.pode_operar || submitting || confirmation !== expected}>{submitting ? "Criando backup e conferindo…" : data.mes_finalizado ? "🌅 Abrir próxima temporada" : "🔒 Finalizar mês e arquivar"}</button></div></section>
+      <div className="security-warning"><strong>Proteção contra perda de dados</strong><span>As duas etapas exigem confirmação independente. Se o backup de segurança não for confirmado, a operação é cancelada antes de qualquer alteração. A abertura do próximo mês só é liberada depois que o arquivo histórico do mês fechado for localizado.</span></div>
     </>}
   </div>;
 }

@@ -248,6 +248,49 @@ export interface AdminContributionRankingResponse {
   jogadores: AdminContributionEntry[];
 }
 
+export interface AdminDrawParticipant {
+  tag: string;
+  nome: string;
+  cv?: number | null;
+  total?: number;
+  pontos?: number;
+}
+
+export interface AdminDrawRecord {
+  status?: string;
+  sorteio_id: string;
+  temporada: string;
+  ranking: "oficial" | "sem_liga";
+  pontos: number;
+  participantes: AdminDrawParticipant[];
+  vencedores: AdminDrawParticipant[];
+  quantidade_vencedores: number;
+  administrador: string;
+  realizado_em: string;
+  hash: string;
+}
+
+export interface AdminDrawResponse {
+  temporada: string;
+  temporada_nome: string;
+  ranking: "oficial" | "sem_liga";
+  grupos: Array<{ pontos: number; participantes: AdminDrawParticipant[] }>;
+  historico: AdminDrawRecord[];
+}
+
+export interface AdminMonthCloseResponse {
+  temporada: string;
+  temporada_nome: string;
+  mes_finalizado: boolean;
+  ultimo_fechamento: string;
+  arquivo_confirmado: boolean;
+  total_jogadores: number;
+  podio: Array<{ id: string; nome: string; total: number; posicao: number }>;
+  proxima_temporada: string;
+  proxima_temporada_nome: string;
+  pode_operar: boolean;
+}
+
 export interface AdminParticipationAccount {
   tag: string;
   nome: string;

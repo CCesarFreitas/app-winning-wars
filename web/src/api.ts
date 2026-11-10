@@ -18,6 +18,9 @@ import type {
   AdminLayoutDuplicate,
   AdminLayoutDeleteResult,
   AdminContributionRankingResponse,
+  AdminDrawRecord,
+  AdminDrawResponse,
+  AdminMonthCloseResponse,
 } from "./types";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
@@ -101,6 +104,14 @@ export const api = {
   adminLogout: () => postJson<AdminSession>("/v1/admin/logout"),
   adminSummary: () => getJson<AdminSummary>("/v1/admin/summary"),
   adminContributionRanking: () => getJson<AdminContributionRankingResponse>("/v1/admin/ranking-contribution"),
+  adminDraw: (ranking: "oficial" | "sem_liga") => getJson<AdminDrawResponse>(`/v1/admin/draw?ranking=${ranking}`),
+  adminDrawRun: (ranking: "oficial" | "sem_liga", pontos: number, participantes: string[], quantidade: number, sorteio_id: string) =>
+    postJson<AdminDrawRecord>("/v1/admin/draw", { ranking, pontos, participantes, quantidade, sorteio_id }),
+  adminMonthClose: () => getJson<AdminMonthCloseResponse>("/v1/admin/month-close"),
+  adminMonthFinalize: (temporada: string, confirmacao: string) =>
+    postJson<{ status: string }>("/v1/admin/month-close/finalize", { temporada, confirmacao }),
+  adminMonthOpenNext: (temporada: string, confirmacao: string) =>
+    postJson<{ status: string }>("/v1/admin/month-close/open-next", { temporada, confirmacao }),
   adminParticipation: () => getJson<AdminParticipationResponse>("/v1/admin/participation"),
   adminParticipationToggle: (tag: string, habilitada: boolean, motivo: string, evento_anterior: string) =>
     postJson<AdminWriteResult>("/v1/admin/participation/toggle", { tag, habilitada, motivo, evento_anterior }),
