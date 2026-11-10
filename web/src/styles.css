@@ -136,6 +136,8 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
 .royal-brand .brand-crest { animation: royalCrest 4s ease-in-out infinite; }
 @keyframes royalCrest { 0%,100% { filter: drop-shadow(0 7px 13px rgba(0,0,0,.5)) drop-shadow(0 0 0 rgba(240,183,53,0)); } 50% { transform: translateY(-2px); filter: drop-shadow(0 8px 14px rgba(0,0,0,.55)) drop-shadow(0 0 12px rgba(240,183,53,.35)); } }
 .royal-content { min-height: calc(100vh - 136px); margin-left: 0; }
+.fan-content-footer { min-height: 58px; padding: 14px clamp(20px,4vw,60px) 20px; display: flex; justify-content: space-between; gap: 16px; color: #625c55; border-top: 1px solid rgba(255,255,255,.045); background: #0c0a0e; font-size: .5rem; }
+.fan-content-footer a { color: #9b7c3d; }
 .page { position: relative; width: min(1320px,100%); margin: auto; padding: 46px clamp(24px,4vw,60px) 90px; }
 
 .eyebrow { color: var(--gold); font-size: .62rem; text-transform: uppercase; letter-spacing: .19em; font-weight: 900; }
@@ -730,8 +732,11 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
   .mobile-nav { position: fixed; z-index: 40; inset: auto 0 0; height: 70px; display: grid; grid-template-columns: repeat(5,1fr); border-top: 1px solid var(--line-strong); background: rgba(12,10,15,.97); backdrop-filter: blur(14px); }
   .mobile-nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #7d766e; }
   .mobile-nav a > span { font-size: 1.05rem; }
+  .mobile-nav a > img { width: 30px; height: 30px; object-fit: contain; filter: drop-shadow(0 3px 3px #000b); }
   .mobile-nav a small { max-width: 78px; overflow: hidden; font-size: .5rem; text-overflow: ellipsis; white-space: nowrap; }
   .mobile-nav a.active { color: var(--gold-light); }
+  .mobile-nav a.active > img { filter: drop-shadow(0 3px 3px #000b) drop-shadow(0 0 6px rgba(240,183,53,.42)); transform: translateY(-1px) scale(1.05); }
+  .fan-content-footer { padding-bottom: 84px; flex-direction: column; gap: 5px; }
   .page-header { padding-left: 12px; margin-bottom: 26px; }
   .page-header h1 { font-size: 2.05rem; }
   .hero { min-height: auto; display: block; padding: 32px 22px 30px; border-radius: 5px; }

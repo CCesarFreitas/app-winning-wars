@@ -1,21 +1,21 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { iniciais, temporadaLabel } from "./format";
 import { useRanking } from "./RankingContext";
-import { CREST_URL, townHallUrl } from "./assets";
+import { CREST_URL } from "./assets";
 import { useAdmin } from "./AdminContext";
 
 const nav = [
-  { to: "/", icon: "⌂", label: "Quartel-general", image: CREST_URL },
-  { to: "/ranking", icon: "♛", label: "Ranking oficial", image: townHallUrl(16) },
-  { to: "/ranking/detalhado", icon: "▦", label: "Tabela detalhada", image: townHallUrl(15) },
-  { to: "/jogador", icon: "⚔", label: "Ficha do jogador", image: townHallUrl(14), admin: true },
-  { to: "/auditoria", icon: "◈", label: "Arquivo de batalhas", image: townHallUrl(13), admin: true },
-  { to: "/planejamento", icon: "⌖", label: "Planejador de guerras", image: townHallUrl(17) },
-  { to: "/layouts/guerra", icon: "⬢", label: "Layouts de guerra", image: townHallUrl(12) },
-  { to: "/layouts/rankeada", icon: "⌁", label: "Layouts de Liga", image: townHallUrl(11) },
-  { to: "/torneios", icon: "⚡", label: "Torneios", image: townHallUrl(10) },
-  { to: "/regras", icon: "▤", label: "Regras oficiais" },
-  { to: "/admin", icon: "◆", label: "Painel Admin", admin: true },
+  { to: "/", icon: "⌂", label: "Quartel-general", image: "/assets/menu/barbarian-king.webp" },
+  { to: "/ranking", icon: "♛", label: "Ranking oficial", image: "/assets/menu/archer-queen.webp" },
+  { to: "/ranking/detalhado", icon: "▦", label: "Tabela detalhada", image: "/assets/menu/royal-champion.webp" },
+  { to: "/jogador", icon: "⚔", label: "Ficha do jogador", image: "/assets/menu/grand-warden.webp", admin: true },
+  { to: "/auditoria", icon: "◈", label: "Arquivo de batalhas", image: "/assets/menu/witch.webp", admin: true },
+  { to: "/planejamento", icon: "⌖", label: "Planejador de guerras", image: "/assets/menu/minion-prince.webp" },
+  { to: "/layouts/guerra", icon: "⬢", label: "Layouts de guerra", image: "/assets/menu/pekka.webp" },
+  { to: "/layouts/rankeada", icon: "⌁", label: "Layouts de Liga", image: "/assets/menu/electro-dragon.webp" },
+  { to: "/torneios", icon: "⚡", label: "Torneios", image: "/assets/menu/valkyrie.webp" },
+  { to: "/regras", icon: "▤", label: "Regras oficiais", image: "/assets/menu/healer.webp" },
+  { to: "/admin", icon: "◆", label: "Painel Admin", image: "/assets/menu/barbarian-king.webp", admin: true },
 ];
 
 export function Shell() {
@@ -53,10 +53,14 @@ export function Shell() {
       <main className="main-content royal-content">
         <Outlet />
       </main>
+      <footer className="fan-content-footer">
+        <span>Winning Wars é um projeto de fã não oficial.</span>
+        <span>Heróis e tropas: <a href="https://github.com/ClashKingInc/ClashKingAssets" target="_blank" rel="noreferrer">ClashKing Assets</a> · elementos do jogo pertencem à Supercell.</span>
+      </footer>
       <nav className="mobile-nav" aria-label="Navegação móvel">
         {[nav[0], nav[1], nav[2], nav.find((item) => item.to === "/planejamento")!, nav.find((item) => item.to === "/admin")!].filter((item) => !item.admin || session.autenticado).map((item) => (
           <NavLink key={item.to} to={item.to} end={item.to === "/"}>
-            <span aria-hidden="true">{item.icon}</span>
+            {item.image ? <img src={item.image} alt="" /> : <span aria-hidden="true">{item.icon}</span>}
             <small>{item.label}</small>
           </NavLink>
         ))}
