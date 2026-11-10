@@ -358,6 +358,15 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
 .layout-publisher > summary small,.layout-publisher > summary em { color: #8c8377; font-size: .56rem; font-style: normal; }
 .layout-publisher-body { padding: 0 18px 18px; }
 .layout-publisher .layouts-batch-form { margin: 12px 0 0; }
+.layout-duplicate-alert { margin: 12px 0; overflow: hidden; border: 1px solid rgba(230,109,104,.36); border-radius: 5px; background: rgba(88,31,32,.2); }
+.layout-duplicate-alert header { padding: 14px 16px; display: grid; gap: 4px; border-bottom: 1px solid rgba(230,109,104,.2); }
+.layout-duplicate-alert header strong { color: #f0aaa5; font: 800 .82rem "Cinzel"; }
+.layout-duplicate-alert header span { color: #ad9690; font-size: .65rem; }
+.layout-duplicate-alert ol { margin: 0; padding: 10px 16px 14px; display: grid; gap: 8px; list-style: none; }
+.layout-duplicate-alert li { min-width: 0; padding: 10px; display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; border: 1px solid rgba(230,109,104,.16); background: rgba(12,10,15,.45); }
+.layout-duplicate-alert li b { grid-row: 1 / 3; align-self: center; color: #f2b8b3; font-size: .68rem; }
+.layout-duplicate-alert li span { color: #b8a49e; font-size: .61rem; }
+.layout-duplicate-alert li a { min-width: 0; overflow: hidden; color: #d7c5bd; font-size: .59rem; text-overflow: ellipsis; white-space: nowrap; }
 
 .tournament-hero { min-height: 285px; padding: 35px 42px; display: grid; grid-template-columns: 1fr 280px; align-items: center; overflow: hidden; border: 1px solid rgba(140,63,181,.5); border-top: 2px solid var(--gold); border-radius: 7px; background: radial-gradient(circle at 88% 25%,rgba(140,63,181,.35),transparent 31%),linear-gradient(120deg,#211921,#0d0b12 68%); }
 .tournament-hero h1 { margin: 9px 0; font-size: clamp(2.2rem,5vw,4.8rem); line-height: .95; }

@@ -104,6 +104,15 @@ export interface LayoutsResponse {
   layouts: LayoutEntry[];
 }
 
+export interface AdminLayoutDuplicate {
+  linha_lote: number;
+  link: string;
+  tipo: string;
+  cv: string;
+  autor: string;
+  publicado_em: string;
+}
+
 export interface TournamentPlayer {
   tag: string;
   nome: string;

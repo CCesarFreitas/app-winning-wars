@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { api } from "./api";
+import { api, LayoutsDuplicadosError } from "./api";
 import { ErrorState, Loading, PageHeader, PlayerAvatar } from "./components";
 import { dataAtividade, numero, rotuloTipo, temporadaLabel } from "./format";
 import { useRanking } from "./RankingContext";
-import type { AdminManualProposal, AdminManualResponse, AdminParticipationAccount, AdminParticipationResponse, AdminSummary, AuditActivity, ClanResponse, LayoutEntry, PlanningClan, PlanningEnvelope, PlanningMember, PlayerAuditResponse, RankingDetailsResponse, TournamentMatch, TournamentPlayer } from "./types";
+import type { AdminLayoutDuplicate, AdminManualProposal, AdminManualResponse, AdminParticipationAccount, AdminParticipationResponse, AdminSummary, AuditActivity, ClanResponse, LayoutEntry, PlanningClan, PlanningEnvelope, PlanningMember, PlayerAuditResponse, RankingDetailsResponse, TournamentMatch, TournamentPlayer } from "./types";
 import { CREST_URL, townHallUrl } from "./assets";
 import { useAdmin } from "./AdminContext";
 
@@ -644,9 +644,10 @@ function LayoutPublisher({ tipo, cv, onPublished }: { tipo: "Guerra" | "Rankeada
   const [progress, setProgress] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [duplicates, setDuplicates] = useState<AdminLayoutDuplicate[]>([]);
 
   const publish = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); setError(null); setNotice("");
+    event.preventDefault(); setError(null); setNotice(""); setDuplicates([]);
     const officialLinks = links.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
     const descriptionLines = linhasPreservadas(descriptions);
     const directUrls = linhasPreservadas(imageUrls);
@@ -672,7 +673,8 @@ function LayoutPublisher({ tipo, cv, onPublished }: { tipo: "Guerra" | "Rankeada
       setLinks(""); setDescriptions(""); setImageUrls(""); setFiles([]);
       onPublished();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Não foi possível publicar os layouts.");
+      if (reason instanceof LayoutsDuplicadosError) setDuplicates(reason.itens);
+      else setError(reason instanceof Error ? reason.message : "Não foi possível publicar os layouts.");
     } finally { setSending(false); setProgress(""); }
   };
 
@@ -681,9 +683,10 @@ function LayoutPublisher({ tipo, cv, onPublished }: { tipo: "Guerra" | "Rankeada
     <div className="layout-publisher-body">
     <div className="security-warning"><strong>Publicação em lote</strong><span>Adicione até 20 layouts de {tipo} para o CV {cv}. As imagens são otimizadas e armazenadas externamente; a planilha recebe somente os dados e URLs, com backup, auditoria e conferência.</span></div>
     {error && <div className="state-card error-state"><strong>Não foi possível publicar os layouts</strong><span>{error}</span></div>}
+    {!!duplicates.length && <div className="layout-duplicate-alert"><header><strong>{duplicates.length === 1 ? "1 layout já está publicado" : `${duplicates.length} layouts já estão publicados`}</strong><span>Nenhum item do lote foi gravado. Remova as linhas indicadas e selecione novamente as imagens correspondentes.</span></header><ol>{duplicates.map((item) => <li key={`${item.linha_lote}-${item.link}`}><b>Linha {item.linha_lote}</b><span>{item.tipo || tipo} · {item.cv || `CV ${cv}`}{item.autor ? ` · publicado por ${item.autor}` : ""}</span><a href={item.link} target="_blank" rel="noreferrer">{item.link}</a></li>)}</ol></div>}
     {notice && <div className="admin-success">✓ {notice} A galeria foi atualizada.</div>}
     <form className="layouts-batch-form" onSubmit={publish}>
-      <label><span>Links oficiais dos layouts — um por linha</span><textarea required rows={8} value={links} onChange={(event) => setLinks(event.target.value)} placeholder={'https://link.clashofclans.com/pt?action=OpenLayout&id=...\nhttps://link.clashofclans.com/pt?action=OpenLayout&id=...'} /></label>
+      <label><span>Links oficiais dos layouts — um por linha</span><textarea required rows={8} value={links} onChange={(event) => { setLinks(event.target.value); setDuplicates([]); }} placeholder={'https://link.clashofclans.com/pt?action=OpenLayout&id=...\nhttps://link.clashofclans.com/pt?action=OpenLayout&id=...'} /></label>
       <label className="layout-file-picker"><span>Imagens — selecione na mesma ordem dos links</span><input type="file" accept="image/png,image/jpeg,image/webp" multiple onChange={(event) => setFiles(Array.from(event.target.files || []))} /><small>PNG, JPG ou WEBP · máximo 10 MB por arquivo · até 20 imagens.</small></label>
       {!!files.length && <div className="selected-layout-files"><strong>{files.length} imagem(ns) selecionada(s)</strong>{files.map((file, index) => <span key={`${file.name}-${index}`}>{index + 1}. {file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB</span>)}</div>}
       <div className="layout-optional-grid"><label><span>Descrições opcionais — uma por linha</span><textarea rows={5} value={descriptions} onChange={(event) => setDescriptions(event.target.value)} placeholder="Base anti-3 estrelas\nBase para guerra convencional" /></label><label><span>URLs diretas de imagem — alternativa ao upload</span><textarea rows={5} value={imageUrls} onChange={(event) => setImageUrls(event.target.value)} placeholder="Deixe vazio quando selecionar arquivos." /></label></div>

@@ -21,7 +21,7 @@ from .conteudo import _linhas_planilha, obter_torneio
 from .manual_admin import montar_manual_admin, propor_lancamento
 from .operacoes_admin import (
     alterar_participacao, aplicar_lancamentos, avancar_torneio,
-    encerrar_torneio, iniciar_torneio, publicar_layouts,
+    encerrar_torneio, iniciar_torneio, LayoutDuplicadoError, publicar_layouts,
 )
 from .participacao_admin import montar_participacao_admin
 from .ranking_atual import montar_ranking_atual
@@ -339,6 +339,10 @@ def instalar_rotas_admin(app, caminho_sqlite: str) -> None:
                 sessao["usuario"], dados.tipo, dados.cv,
                 [item.dict() for item in dados.itens],
             )
+        except LayoutDuplicadoError as erro:
+            raise HTTPException(status_code=409, detail={
+                "codigo": "layouts_duplicados", "itens": erro.duplicados,
+            }) from erro
         except (ValueError, PermissionError) as erro:
             raise HTTPException(status_code=409, detail=str(erro)) from erro
         except (OSError, RuntimeError) as erro:

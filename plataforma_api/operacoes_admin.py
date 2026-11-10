@@ -43,6 +43,14 @@ _LAYOUT_MAX_IMAGEM = 1_600_000
 _LAYOUT_MAX_LOTE = 24_000_000
 
 
+class LayoutDuplicadoError(ValueError):
+    """Informa todos os itens do lote que ja constam na planilha."""
+
+    def __init__(self, duplicados: list[dict[str, Any]]):
+        super().__init__("Um ou mais layouts ja estao publicados")
+        self.duplicados = duplicados
+
+
 @lru_cache(maxsize=1)
 def _planilha_escrita():
     import gspread
@@ -208,14 +216,28 @@ def publicar_layouts(admin: str, tipo: str, cv: int,
         obrigatorias = {"Tipo", "CV", "Autor", "Link", "Descricao", "ImagemUrl", "DataHora"}
         if not obrigatorias.issubset(set(cabecalho)):
             raise ValueError("Cabecalho de Layouts divergente")
+        indice_link = cabecalho.index("Link")
         existentes = {
-            linha[cabecalho.index("Link")].strip()
+            linha[indice_link].strip(): linha
             for linha in linhas_antes[1:]
-            if len(linha) > cabecalho.index("Link")
+            if len(linha) > indice_link and linha[indice_link].strip()
         }
-        repetidos = [item["Link"] for item in preparados if item["Link"] in existentes]
-        if repetidos:
-            raise ValueError("Um ou mais layouts ja estao publicados")
+        duplicados = []
+        for indice_lote, item in enumerate(preparados, 1):
+            linha = existentes.get(item["Link"])
+            if not linha:
+                continue
+            registro = dict(zip(cabecalho, linha))
+            duplicados.append({
+                "linha_lote": indice_lote,
+                "link": item["Link"],
+                "tipo": registro.get("Tipo", ""),
+                "cv": registro.get("CV", ""),
+                "autor": registro.get("Autor", ""),
+                "publicado_em": registro.get("DataHora", ""),
+            })
+        if duplicados:
+            raise LayoutDuplicadoError(duplicados)
         backup = _backup("layouts", {
             "aba": "Layouts", "linhas": linhas_antes,
             "logs": logs_antes, "tipo": tipo, "cv": cv,

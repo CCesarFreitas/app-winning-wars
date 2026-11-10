@@ -15,9 +15,17 @@ import type {
   AdminWriteResult,
   AdminLayoutItemInput,
   AdminLayoutsResult,
+  AdminLayoutDuplicate,
 } from "./types";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
+
+export class LayoutsDuplicadosError extends Error {
+  constructor(public itens: AdminLayoutDuplicate[]) {
+    super("Alguns layouts deste lote já estão publicados.");
+    this.name = "LayoutsDuplicadosError";
+  }
+}
 
 async function getJson<T>(path: string): Promise<T> {
   const controller = new AbortController();
@@ -53,13 +61,17 @@ async function postJson<T>(path: string, body?: unknown): Promise<T> {
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!response.ok) {
-    let detail = "";
-    try { detail = String(((await response.json()) as { detail?: string }).detail || ""); } catch { /* resposta sem JSON */ }
+    let detail: unknown = "";
+    try { detail = ((await response.json()) as { detail?: unknown }).detail || ""; } catch { /* resposta sem JSON */ }
+    if (typeof detail === "object" && detail && (detail as { codigo?: string }).codigo === "layouts_duplicados") {
+      throw new LayoutsDuplicadosError(((detail as { itens?: AdminLayoutDuplicate[] }).itens || []));
+    }
+    const detailMessage = typeof detail === "string" ? detail : "";
     if (response.status === 401) throw new Error("Usuário ou senha inválidos.");
     if (response.status === 429) throw new Error("Muitas tentativas. Aguarde 15 minutos.");
     if (response.status === 426) throw new Error("O login administrativo exige uma conexão HTTPS.");
-    if (response.status === 503 && detail === "autenticacao_nao_configurada") throw new Error("A autenticação ainda não foi ativada neste ambiente.");
-    throw new Error(detail || `A API respondeu com o código ${response.status}.`);
+    if (response.status === 503 && detailMessage === "autenticacao_nao_configurada") throw new Error("A autenticação ainda não foi ativada neste ambiente.");
+    throw new Error(detailMessage || `A API respondeu com o código ${response.status}.`);
   }
   return (await response.json()) as T;
 }

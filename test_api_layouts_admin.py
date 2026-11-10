@@ -2,7 +2,9 @@ import base64
 import unittest
 from unittest.mock import patch
 
-from plataforma_api.operacoes_admin import preparar_layouts_lote, publicar_layouts
+from plataforma_api.operacoes_admin import (
+    LayoutDuplicadoError, preparar_layouts_lote, publicar_layouts,
+)
 
 
 class _Aba:
@@ -74,6 +76,25 @@ class LayoutsAdmin(unittest.TestCase):
         self.assertEqual(resultado["status"], "APLICADO_E_CONFERIDO")
         self.assertEqual(len(planilha.abas["Layouts"].linhas), 2)
         self.assertEqual(len(planilha.abas["Layouts"].linhas[1]), 7)
+
+    def test_informa_todos_os_layouts_ja_publicados(self):
+        primeiro = "https://link.clashofclans.com/pt?action=OpenLayout&id=TH18-PRIMEIRO"
+        terceiro = "https://link.clashofclans.com/pt?action=OpenLayout&id=TH18-TERCEIRO"
+        planilha = _Planilha()
+        planilha.abas["Layouts"].linhas.extend([
+            ["Guerra", "CV 18", "Godoy", primeiro, "", "https://img/1", "2026-11-01"],
+            ["Rankeada", "CV 17", "Caio", terceiro, "", "https://img/3", "2026-11-02"],
+        ])
+        with patch("plataforma_api.operacoes_admin._planilha_escrita", return_value=planilha):
+            with self.assertRaises(LayoutDuplicadoError) as contexto:
+                publicar_layouts("Caio", "Guerra", 18, [
+                    {"link": primeiro},
+                    {"link": "https://link.clashofclans.com/pt?action=OpenLayout&id=TH18-NOVO"},
+                    {"link": terceiro},
+                ])
+        self.assertEqual([item["linha_lote"] for item in contexto.exception.duplicados], [1, 3])
+        self.assertEqual(contexto.exception.duplicados[0]["autor"], "Godoy")
+        self.assertEqual(contexto.exception.duplicados[1]["cv"], "CV 17")
 
 
 if __name__ == "__main__":
