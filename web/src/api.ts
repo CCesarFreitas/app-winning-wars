@@ -16,6 +16,7 @@ import type {
   AdminLayoutItemInput,
   AdminLayoutsResult,
   AdminLayoutDuplicate,
+  AdminLayoutDeleteResult,
 } from "./types";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
@@ -108,6 +109,8 @@ export const api = {
     postJson<AdminWriteResult>("/v1/admin/manual/batch", { atividade, entradas }),
   adminLayoutsBatch: (tipo: "Guerra" | "Rankeada", cv: number, itens: AdminLayoutItemInput[]) =>
     postJson<AdminLayoutsResult>("/v1/admin/layouts/batch", { tipo, cv, itens }),
+  adminLayoutDelete: (tipo: "Guerra" | "Rankeada", cv: number, link: string) =>
+    postJson<AdminLayoutDeleteResult>("/v1/admin/layouts/delete", { tipo, cv, link }),
   adminTournamentStart: (nome: string, modo: string, cv: number | "Todos", tags: string[]) =>
     postJson<AdminWriteResult>("/v1/admin/tournament/start", { nome, modo, cv, tags }),
   adminTournamentWinner: (rodada: number, partida: number, vencedor: string) =>

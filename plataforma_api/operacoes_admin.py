@@ -275,6 +275,56 @@ def publicar_layouts(admin: str, tipo: str, cv: int,
         }
 
 
+def excluir_layout(admin: str, link: str, tipo: str, cv: int) -> dict[str, Any]:
+    """Remove da planilha todas as linhas do link, preservando a imagem externa."""
+    link_validado = _url_layout_oficial(link)
+    if tipo not in {"Guerra", "Rankeada"} or type(cv) is not int or not 9 <= cv <= 18:
+        raise ValueError("Tipo ou Centro de Vila invalido")
+    with _LOCK:
+        planilha = _planilha_escrita()
+        aba = planilha.worksheet("Layouts")
+        logs = planilha.worksheet("Logs")
+        linhas_antes = aba.get_all_values(value_render_option="FORMULA")
+        logs_antes = logs.get_all_values(value_render_option="FORMULA")
+        if not linhas_antes or "Link" not in linhas_antes[0]:
+            raise ValueError("Cabecalho de Layouts divergente")
+        cabecalho = linhas_antes[0]
+        indice_link = cabecalho.index("Link")
+        correspondencias = []
+        for numero_linha, linha in enumerate(linhas_antes[1:], 2):
+            if len(linha) <= indice_link or linha[indice_link].strip() != link_validado:
+                continue
+            registro = dict(zip(cabecalho, linha))
+            if registro.get("Tipo", "").strip() != tipo or registro.get("CV", "").strip() != f"CV {cv}":
+                raise ValueError("Layout localizado em outra categoria ou Centro de Vila")
+            correspondencias.append((numero_linha, registro))
+        if not correspondencias:
+            raise ValueError("Layout nao encontrado ou ja removido")
+        backup = _backup("excluir_layout", {
+            "aba": "Layouts", "linhas": linhas_antes, "logs": logs_antes,
+            "link": link_validado, "tipo": tipo, "cv": cv,
+        })
+        for numero_linha, _registro in reversed(correspondencias):
+            aba.delete_rows(numero_linha)
+        agora = datetime.now(timezone.utc).isoformat()
+        if logs_antes:
+            cabecalho_logs = logs_antes[0]
+            registro_log = {
+                "DataHora": agora, "Admin": admin,
+                "Acao": f"Excluiu layout {tipo} de CV {cv} ({len(correspondencias)} linha(s))",
+            }
+            logs.append_rows([[registro_log.get(coluna, "") for coluna in cabecalho_logs]], value_input_option="RAW")
+        finais = aba.get_all_values(value_render_option="FORMULA")
+        if any(len(linha) > indice_link and linha[indice_link].strip() == link_validado for linha in finais[1:]):
+            raise RuntimeError("Layout removido parcialmente; confira a planilha antes de repetir")
+        invalidar_conteudo("Layouts")
+        return {
+            "status": "REMOVIDO_E_CONFERIDO", "removidos": len(correspondencias),
+            "link": link_validado, "tipo": tipo, "cv": cv, "backup": backup,
+            "imagem_externa_preservada": True,
+        }
+
+
 def alterar_participacao(admin: str, tag: str, habilitada: bool, motivo: str,
                          evento_anterior: str) -> dict[str, Any]:
     with _LOCK:

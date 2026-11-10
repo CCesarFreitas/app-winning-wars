@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import patch
 
 from plataforma_api.operacoes_admin import (
-    LayoutDuplicadoError, preparar_layouts_lote, publicar_layouts,
+    LayoutDuplicadoError, excluir_layout, preparar_layouts_lote, publicar_layouts,
 )
 
 
@@ -16,6 +16,9 @@ class _Aba:
 
     def append_rows(self, linhas, **_kwargs):
         self.linhas.extend([list(linha) for linha in linhas])
+
+    def delete_rows(self, numero_linha):
+        del self.linhas[numero_linha - 1]
 
 
 class _Planilha:
@@ -95,6 +98,21 @@ class LayoutsAdmin(unittest.TestCase):
         self.assertEqual([item["linha_lote"] for item in contexto.exception.duplicados], [1, 3])
         self.assertEqual(contexto.exception.duplicados[0]["autor"], "Godoy")
         self.assertEqual(contexto.exception.duplicados[1]["cv"], "CV 17")
+
+    def test_exclusao_remove_todas_as_linhas_do_link_e_confere(self):
+        link = "https://link.clashofclans.com/pt?action=OpenLayout&id=TH18-REPETIDO"
+        planilha = _Planilha()
+        linha = ["Guerra", "CV 18", "Godoy", link, "", "https://img/1", "2026-11-01"]
+        planilha.abas["Layouts"].linhas.extend([linha, list(linha)])
+        with patch("plataforma_api.operacoes_admin._planilha_escrita", return_value=planilha), \
+             patch("plataforma_api.operacoes_admin._backup", return_value="backup.json"), \
+             patch("plataforma_api.operacoes_admin.invalidar_conteudo"):
+            resultado = excluir_layout("Caio", link, "Guerra", 18)
+        self.assertEqual(resultado["status"], "REMOVIDO_E_CONFERIDO")
+        self.assertEqual(resultado["removidos"], 2)
+        self.assertTrue(resultado["imagem_externa_preservada"])
+        self.assertEqual(len(planilha.abas["Layouts"].linhas), 1)
+        self.assertEqual(len(planilha.abas["Logs"].linhas), 2)
 
 
 if __name__ == "__main__":

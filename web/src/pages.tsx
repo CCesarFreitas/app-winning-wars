@@ -251,6 +251,10 @@ export function LayoutsPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState("");
+  const [deletingLink, setDeletingLink] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteNotice, setDeleteNotice] = useState("");
   const load = () => {
     setLoading(true); setError(null);
     api.layouts(tipoApi, `CV ${cv}`, 12, 0).then((result) => { setLayouts(result.layouts); setTotal(result.total); })
@@ -264,6 +268,17 @@ export function LayoutsPage() {
       .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Falha ao carregar mais layouts."))
       .finally(() => setLoadingMore(false));
   };
+  const deleteLayout = async (layout: LayoutEntry) => {
+    setDeletingLink(layout.link); setDeleteError(null); setDeleteNotice("");
+    try {
+      const result = await api.adminLayoutDelete(tipoApi as "Guerra" | "Rankeada", cv, layout.link);
+      setConfirmDelete("");
+      setDeleteNotice(`${result.removidos} registro(s) removido(s) e conferido(s).`);
+      load();
+    } catch (reason) {
+      setDeleteError(reason instanceof Error ? reason.message : "Não foi possível excluir o layout.");
+    } finally { setDeletingLink(""); }
+  };
   useEffect(load, [tipoApi, cv]);
   return <div className="page">
     <PageHeader eyebrow="Arsenal de bases" title={rankeada ? "Layouts Rankeada" : "Layouts oficiais de guerra"} description="Escolha seu Centro de Vila, analise a defesa e abra o layout diretamente no Clash of Clans." />
@@ -272,11 +287,13 @@ export function LayoutsPage() {
     </div>
     <section className="layout-heading"><img src={townHallUrl(cv)} alt={`Centro de Vila ${cv}`} /><div><span className="eyebrow">Centro de Vila {cv}</span><h2>Bases de {tipoApi}</h2><p>{total} {total === 1 ? "layout disponível" : "layouts disponíveis"}</p></div></section>
     {session.autenticado && <LayoutPublisher tipo={tipoApi as "Guerra" | "Rankeada"} cv={cv} onPublished={load} />}
+    {deleteError && <div className="state-card error-state"><strong>Não foi possível excluir o layout</strong><span>{deleteError}</span></div>}
+    {deleteNotice && <div className="admin-success">✓ {deleteNotice} A imagem externa foi preservada.</div>}
     {loading && <Loading label="Abrindo o arsenal de layouts…" />}
     {error && <ErrorState message={error} onRetry={load} />}
     {!loading && !error && <div className="layout-grid">{layouts.map((layout, index) => <article className="layout-card" key={`${layout.link}-${index}`}>
       <div className="layout-image">{layout.imagem_url ? <img src={layout.imagem_url} alt={`Layout de ${tipoApi} para CV ${cv}`} /> : <img className="layout-placeholder" src={townHallUrl(cv)} alt="" />}</div>
-      <div className="layout-card-body"><span>Publicado por {layout.autor || "Winning Wars"}</span>{layout.descricao && <p>{layout.descricao}</p>}<a className="primary-button" href={layout.link} target="_blank" rel="noreferrer">Copiar layout no Clash ↗</a></div>
+      <div className="layout-card-body"><span>Publicado por {layout.autor || "Winning Wars"}</span>{layout.descricao && <p>{layout.descricao}</p>}<a className="primary-button" href={layout.link} target="_blank" rel="noreferrer">Copiar layout no Clash ↗</a>{session.autenticado && <div className="layout-admin-delete">{confirmDelete !== layout.link ? <button type="button" onClick={() => { setConfirmDelete(layout.link); setDeleteError(null); setDeleteNotice(""); }}>🗑 Excluir layout</button> : <div role="alertdialog" aria-label="Confirmar exclusão do layout"><strong>Excluir este layout?</strong><span>Ele será removido da galeria e da planilha. A imagem externa será preservada.</span><div><button type="button" onClick={() => setConfirmDelete("")} disabled={deletingLink === layout.link}>Cancelar</button><button className="danger" type="button" onClick={() => deleteLayout(layout)} disabled={deletingLink === layout.link}>{deletingLink === layout.link ? "Excluindo…" : "Confirmar exclusão"}</button></div></div>}</div>}</div>
     </article>)}</div>}
     {!loading && !error && layouts.length < total && <div className="load-more"><button className="secondary-button" onClick={loadMore} disabled={loadingMore}>{loadingMore ? "Carregando…" : `Carregar mais layouts (${layouts.length} de ${total})`}</button></div>}
     {!loading && !error && !layouts.length && <div className="state-card"><strong>Nenhum layout publicado para CV {cv}</strong><span>Escolha outro Centro de Vila ou volte em breve.</span></div>}

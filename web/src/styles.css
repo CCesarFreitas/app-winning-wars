@@ -348,6 +348,15 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
 .layout-card-body > span { display: block; margin-bottom: 12px; color: #837c72; font-size: .62rem; }
 .layout-card-body p { color: #aaa298; font-size: .74rem; }
 .layout-card-body .primary-button { width: 100%; }
+.layout-admin-delete { margin-top: 10px; }
+.layout-admin-delete > button { width: 100%; padding: 9px; cursor: pointer; color: #d69b96; border: 1px solid rgba(230,109,104,.24); border-radius: 4px; background: rgba(100,34,35,.12); font-weight: 800; }
+.layout-admin-delete > div { padding: 12px; display: grid; gap: 7px; border: 1px solid rgba(230,109,104,.3); border-radius: 4px; background: rgba(75,25,26,.2); }
+.layout-admin-delete strong { color: #efb1ac; font-size: .72rem; }
+.layout-admin-delete span { color: #a9958f; font-size: .61rem; line-height: 1.4; }
+.layout-admin-delete div > div { display: flex; gap: 7px; }
+.layout-admin-delete div > div button { flex: 1; padding: 8px; cursor: pointer; color: #bcb1a8; border: 1px solid var(--line); border-radius: 3px; background: #1b181d; font-weight: 800; }
+.layout-admin-delete div > div button.danger { color: #fff1ef; border-color: #9b4747; background: #733536; }
+.layout-admin-delete button:disabled { cursor: wait; opacity: .6; }
 .load-more { padding: 22px 0 5px; display: flex; justify-content: center; }
 .load-more button { min-width: 260px; }
 .layout-publisher { margin: -7px 0 20px; overflow: hidden; border: 1px solid rgba(240,183,53,.35); border-radius: 6px; background: linear-gradient(145deg,rgba(61,42,19,.42),rgba(20,17,24,.96)); }

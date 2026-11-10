@@ -347,3 +347,12 @@ export interface AdminLayoutsResult extends AdminWriteResult {
   cv: number;
   backup: string;
 }
+
+export interface AdminLayoutDeleteResult extends AdminWriteResult {
+  removidos: number;
+  link: string;
+  tipo: "Guerra" | "Rankeada";
+  cv: number;
+  backup: string;
+  imagem_externa_preservada: boolean;
+}

@@ -21,7 +21,8 @@ from .conteudo import _linhas_planilha, obter_torneio
 from .manual_admin import montar_manual_admin, propor_lancamento
 from .operacoes_admin import (
     alterar_participacao, aplicar_lancamentos, avancar_torneio,
-    encerrar_torneio, iniciar_torneio, LayoutDuplicadoError, publicar_layouts,
+    encerrar_torneio, excluir_layout, iniciar_torneio, LayoutDuplicadoError,
+    publicar_layouts,
 )
 from .participacao_admin import montar_participacao_admin
 from .ranking_atual import montar_ranking_atual
@@ -86,6 +87,12 @@ class LayoutLote(BaseModel):
     tipo: str
     cv: int = Field(ge=9, le=18)
     itens: list[LayoutLoteItem] = Field(min_length=1, max_length=20)
+
+
+class LayoutExcluir(BaseModel):
+    link: str = Field(min_length=10, max_length=2_000)
+    tipo: str
+    cv: int = Field(ge=9, le=18)
 
 
 def _segredo() -> bytes:
@@ -343,6 +350,16 @@ def instalar_rotas_admin(app, caminho_sqlite: str) -> None:
             raise HTTPException(status_code=409, detail={
                 "codigo": "layouts_duplicados", "itens": erro.duplicados,
             }) from erro
+        except (ValueError, PermissionError) as erro:
+            raise HTTPException(status_code=409, detail=str(erro)) from erro
+        except (OSError, RuntimeError) as erro:
+            raise HTTPException(status_code=503, detail=str(erro)) from erro
+
+    @app.post("/v1/admin/layouts/delete")
+    def excluir_layout_admin(dados: LayoutExcluir, request: Request):
+        sessao = _sessao(request)
+        try:
+            return excluir_layout(sessao["usuario"], dados.link, dados.tipo, dados.cv)
         except (ValueError, PermissionError) as erro:
             raise HTTPException(status_code=409, detail=str(erro)) from erro
         except (OSError, RuntimeError) as erro:
