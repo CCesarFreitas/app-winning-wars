@@ -324,3 +324,17 @@ export interface AdminWriteResult {
   ignorados?: number;
   resultados?: Array<{ tag: string; antes: number; depois: number }>;
 }
+
+export interface AdminLayoutItemInput {
+  link: string;
+  descricao: string;
+  imagem_url: string;
+  imagem_base64: string;
+}
+
+export interface AdminLayoutsResult extends AdminWriteResult {
+  aplicados: number;
+  tipo: "Guerra" | "Rankeada";
+  cv: number;
+  backup: string;
+}

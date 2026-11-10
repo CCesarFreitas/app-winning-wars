@@ -3,6 +3,7 @@ import { iniciais, temporadaLabel } from "./format";
 import { useRanking } from "./RankingContext";
 import { CREST_URL } from "./assets";
 import { useAdmin } from "./AdminContext";
+import { useState } from "react";
 
 const nav = [
   { to: "/", icon: "⌂", label: "Quartel-general", image: "/assets/menu/barbarian-king.webp" },
@@ -22,6 +23,12 @@ export function Shell() {
   const { ranking } = useRanking();
   const { session } = useAdmin();
   const visibleNav = nav.filter((item) => !item.admin || session.autenticado);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobilePrimary = [
+    nav[0], nav[1],
+    nav.find((item) => item.to === "/layouts/guerra")!,
+    nav.find((item) => item.to === "/layouts/rankeada")!,
+  ];
   const temporada = temporadaLabel(ranking[0]?.temporada);
   return (
     <div className="app-shell royal-shell">
@@ -39,7 +46,6 @@ export function Shell() {
         </div>
         <div className="topbar-actions royal-actions">
           <NavLink className="admin-access" to={session.autenticado ? "/admin" : "/admin/login"}>{session.autenticado ? `◆ ${session.usuario}` : "🔐 Entrar como administrador"}</NavLink>
-          <a className="clan-link" href="https://link.clashofclans.com/pt?action=OpenClanProfile&tag=2YPL9GU8Y" target="_blank" rel="noreferrer">Visitar clã <span>↗</span></a>
         </div>
       </header>
       <nav className="royal-tabs" aria-label="Navegação principal">
@@ -57,13 +63,18 @@ export function Shell() {
         <span>Winning Wars é um projeto de fã não oficial.</span>
         <span>Heróis e tropas: <a href="https://github.com/ClashKingInc/ClashKingAssets" target="_blank" rel="noreferrer">ClashKing Assets</a> · elementos do jogo pertencem à Supercell.</span>
       </footer>
+      {mobileMenuOpen && <div className="mobile-menu-panel" role="dialog" aria-label="Todas as páginas">
+        <header><strong>Todas as páginas</strong><button type="button" onClick={() => setMobileMenuOpen(false)} aria-label="Fechar menu">×</button></header>
+        <div>{visibleNav.map((item) => <NavLink key={item.to} to={item.to} end={item.to === "/"} onClick={() => setMobileMenuOpen(false)}>{item.image ? <img src={item.image} alt="" /> : <span>{item.icon}</span>}<span>{item.label}</span></NavLink>)}</div>
+      </div>}
       <nav className="mobile-nav" aria-label="Navegação móvel">
-        {[nav[0], nav[1], nav[2], nav.find((item) => item.to === "/planejamento")!, nav.find((item) => item.to === "/admin")!].filter((item) => !item.admin || session.autenticado).map((item) => (
-          <NavLink key={item.to} to={item.to} end={item.to === "/"}>
+        {mobilePrimary.map((item) => (
+          <NavLink key={item.to} to={item.to} end={item.to === "/"} onClick={() => setMobileMenuOpen(false)}>
             {item.image ? <img src={item.image} alt="" /> : <span aria-hidden="true">{item.icon}</span>}
             <small>{item.label}</small>
           </NavLink>
         ))}
+        <button className={mobileMenuOpen ? "active" : ""} type="button" onClick={() => setMobileMenuOpen((open) => !open)}><span>☰</span><small>Mais páginas</small></button>
       </nav>
     </div>
   );

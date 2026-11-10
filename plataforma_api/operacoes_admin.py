@@ -2,17 +2,22 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
+import hashlib
 import json
 import os
 import subprocess
 import sys
 import threading
+import time
 import uuid
 from copy import deepcopy
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs, urlparse
 
 # Os dominios usados pela plataforma independente ficam isolados dos motores
 # de producao. Assim, uma atualizacao do painel nao muda o import dos servicos
@@ -34,6 +39,8 @@ from .conteudo import CREDENCIAL_PADRAO, PLANILHA_PADRAO, invalidar_conteudo
 
 _LOCK = threading.Lock()
 _BACKUPS = Path(os.environ.get("WW_ADMIN_BACKUPS", "/opt/winning-wars-api/backups_admin_web"))
+_LAYOUT_MAX_IMAGEM = 1_600_000
+_LAYOUT_MAX_LOTE = 24_000_000
 
 
 @lru_cache(maxsize=1)
@@ -71,6 +78,176 @@ def _agendar_publicacao() -> None:
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             start_new_session=True,
         )
+
+
+def _url_layout_oficial(valor: str) -> str:
+    url = str(valor or "").strip()
+    parsed = urlparse(url)
+    parametros = parse_qs(parsed.query)
+    if (parsed.scheme != "https" or parsed.netloc.casefold() != "link.clashofclans.com"
+            or parametros.get("action", [""])[0].casefold() != "openlayout"):
+        raise ValueError("Use um link oficial de layout do Clash of Clans")
+    return url
+
+
+def _url_imagem(valor: str) -> str:
+    url = str(valor or "").strip()
+    if not url:
+        return ""
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ValueError("URL de imagem invalida")
+    return url
+
+
+def _decodificar_webp(valor: str) -> bytes:
+    texto = str(valor or "").strip()
+    if not texto:
+        return b""
+    try:
+        dados = base64.b64decode(texto, validate=True)
+    except (ValueError, binascii.Error) as erro:
+        raise ValueError("Imagem WEBP invalida") from erro
+    if len(dados) > _LAYOUT_MAX_IMAGEM:
+        raise ValueError("Imagem otimizada excede 1,6 MB")
+    if len(dados) < 16 or dados[:4] != b"RIFF" or dados[8:12] != b"WEBP":
+        raise ValueError("Imagem enviada nao e WEBP")
+    return dados
+
+
+def _credenciais_cloudinary() -> tuple[str, str, str]:
+    valores = (
+        os.environ.get("WW_CLOUDINARY_CLOUD_NAME") or os.environ.get("CLOUDINARY_CLOUD_NAME"),
+        os.environ.get("WW_CLOUDINARY_API_KEY") or os.environ.get("CLOUDINARY_API_KEY"),
+        os.environ.get("WW_CLOUDINARY_API_SECRET") or os.environ.get("CLOUDINARY_API_SECRET"),
+    )
+    if not all(str(valor or "").strip() for valor in valores):
+        raise RuntimeError("Cloudinary ainda nao configurado na Oracle")
+    return tuple(str(valor).strip() for valor in valores)
+
+
+def _upload_cloudinary(dados: bytes, tipo: str, cv: int) -> str:
+    import requests
+
+    cloud_name, api_key, api_secret = _credenciais_cloudinary()
+    folder = f"winning-wars/layouts/{tipo.casefold()}/cv-{cv}"
+    timestamp = int(time.time())
+    parametros = {"folder": folder, "timestamp": timestamp}
+    assinatura_texto = "&".join(
+        f"{chave}={parametros[chave]}" for chave in sorted(parametros)
+    ) + api_secret
+    assinatura = hashlib.sha1(assinatura_texto.encode("utf-8")).hexdigest()
+    try:
+        resposta = requests.post(
+            f"https://api.cloudinary.com/v1_1/{cloud_name}/image/upload",
+            data={"api_key": api_key, "timestamp": str(timestamp),
+                  "folder": folder, "signature": assinatura},
+            files={"file": (f"layout-{uuid.uuid4().hex}.webp", dados, "image/webp")},
+            timeout=45,
+        )
+        resposta.raise_for_status()
+        url = str(resposta.json().get("secure_url", "")).strip()
+    except requests.RequestException as erro:
+        detalhe = ""
+        try:
+            detalhe = str(erro.response.json().get("error", {}).get("message", "")) if erro.response else ""
+        except Exception:
+            pass
+        raise RuntimeError(f"Falha no upload ao Cloudinary{': ' + detalhe if detalhe else ''}") from erro
+    if not url:
+        raise RuntimeError("Cloudinary nao retornou URL segura")
+    return url
+
+
+def preparar_layouts_lote(admin: str, tipo: str, cv: int,
+                           itens: list[dict[str, Any]], agora: str) -> list[dict[str, Any]]:
+    if tipo not in {"Guerra", "Rankeada"} or type(cv) is not int or not 9 <= cv <= 18:
+        raise ValueError("Tipo ou Centro de Vila invalido")
+    if not 1 <= len(itens) <= 20:
+        raise ValueError("O lote deve conter de 1 a 20 layouts")
+    resultado, links, tamanho_total = [], set(), 0
+    for indice, item in enumerate(itens, 1):
+        link = _url_layout_oficial(item.get("link", ""))
+        if link in links:
+            raise ValueError(f"Link repetido no item {indice}")
+        links.add(link)
+        imagem = _decodificar_webp(item.get("imagem_base64", ""))
+        tamanho_total += len(imagem)
+        if tamanho_total > _LAYOUT_MAX_LOTE:
+            raise ValueError("As imagens do lote excedem 24 MB apos a otimizacao")
+        imagem_url = _url_imagem(item.get("imagem_url", ""))
+        if imagem and imagem_url:
+            raise ValueError(f"Item {indice} possui arquivo e URL de imagem")
+        descricao = str(item.get("descricao", "")).strip()
+        if len(descricao) > 500:
+            raise ValueError(f"Descricao muito longa no item {indice}")
+        resultado.append({
+            "Tipo": tipo, "CV": f"CV {cv}", "Autor": admin,
+            "Link": link, "Descricao": descricao, "ImagemUrl": imagem_url,
+            "DataHora": agora, "Tag": "", "imagem": imagem,
+        })
+    return resultado
+
+
+def publicar_layouts(admin: str, tipo: str, cv: int,
+                      itens: list[dict[str, Any]]) -> dict[str, Any]:
+    agora = datetime.now(timezone.utc).isoformat()
+    preparados = preparar_layouts_lote(admin, tipo, cv, itens, agora)
+    with _LOCK:
+        planilha = _planilha_escrita()
+        aba = planilha.worksheet("Layouts")
+        logs = planilha.worksheet("Logs")
+        linhas_antes = aba.get_all_values(value_render_option="FORMULA")
+        logs_antes = logs.get_all_values(value_render_option="FORMULA")
+        if not linhas_antes:
+            raise ValueError("Cabecalho de Layouts ausente")
+        cabecalho = linhas_antes[0]
+        obrigatorias = {"Tipo", "CV", "Autor", "Link", "Descricao", "ImagemUrl", "DataHora", "Tag"}
+        if not obrigatorias.issubset(set(cabecalho)):
+            raise ValueError("Cabecalho de Layouts divergente")
+        existentes = {
+            linha[cabecalho.index("Link")].strip()
+            for linha in linhas_antes[1:]
+            if len(linha) > cabecalho.index("Link")
+        }
+        repetidos = [item["Link"] for item in preparados if item["Link"] in existentes]
+        if repetidos:
+            raise ValueError("Um ou mais layouts ja estao publicados")
+        backup = _backup("layouts", {
+            "aba": "Layouts", "linhas": linhas_antes,
+            "logs": logs_antes, "tipo": tipo, "cv": cv,
+        })
+        for item in preparados:
+            imagem = item.pop("imagem")
+            if imagem:
+                item["ImagemUrl"] = _upload_cloudinary(imagem, tipo, cv)
+        linhas = [[item.get(coluna, "") for coluna in cabecalho] for item in preparados]
+        aba.append_rows(linhas, value_input_option="RAW")
+        if logs_antes:
+            cabecalho_logs = logs_antes[0]
+            registros_logs = []
+            for item in preparados:
+                registro = {
+                    "DataHora": agora, "Admin": admin,
+                    "Acao": f"Adicionou layout {tipo} para CV {cv}",
+                }
+                registros_logs.append([registro.get(coluna, "") for coluna in cabecalho_logs])
+            logs.append_rows(registros_logs, value_input_option="RAW")
+        finais = aba.get_all_values(value_render_option="FORMULA")
+        registros_finais = {
+            linha[cabecalho.index("Link")]: linha
+            for linha in finais[1:]
+            if len(linha) > cabecalho.index("Link")
+        }
+        if any(item["Link"] not in registros_finais for item in preparados):
+            raise RuntimeError("Layouts enviados, mas a conferencia falhou; nao repetir automaticamente")
+        invalidar_conteudo("Layouts")
+        return {
+            "status": "APLICADO_E_CONFERIDO", "aplicados": len(preparados),
+            "tipo": tipo, "cv": cv, "backup": backup,
+            "layouts": [{chave: valor for chave, valor in item.items() if chave != "imagem"}
+                        for item in preparados],
+        }
 
 
 def alterar_participacao(admin: str, tag: str, habilitada: bool, motivo: str,

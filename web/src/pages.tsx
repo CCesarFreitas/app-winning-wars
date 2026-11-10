@@ -77,6 +77,7 @@ export function HomePage() {
             <div className="community-gates-grid">
               <a className="community-gate supercell-gate" href="https://link.clashofclans.com/?action=OpenSCID&p=25-1cb8481f-3a79-4681-90f9-8914acef2d63" target="_blank" rel="noreferrer"><span className="scid-mark">ID</span><div><small>Conta oficial</small><strong>Adicionar ao Supercell ID</strong><p>Abra o Clash of Clans e adicione o perfil Winning Wars.</p></div><b>↗</b></a>
               <a className="community-gate whatsapp-gate" href="https://chat.whatsapp.com/FKFc5y323PCBnTFdsjhv64" target="_blank" rel="noreferrer"><img src="/assets/whatsapp.svg" alt="WhatsApp" /><div><small>Comunidade</small><strong>Entrar no grupo do clã</strong><p>Receba convocações, avisos e informações das atividades.</p></div><b>↗</b></a>
+              <a className="community-gate vastaya-gate" href="https://link.clashofclans.com/pt?action=OpenClanProfile&tag=2YPL9GU8Y" target="_blank" rel="noreferrer"><img src={CREST_URL} alt="Brasão Winning Wars" /><div><small>Clã secundário</small><strong>Clã Secundário Vastaya</strong><p>Abra o perfil do nosso clã secundário diretamente no Clash.</p></div><b>↗</b></a>
             </div>
           </section>
         </>
@@ -586,9 +587,112 @@ export function AdminPage() {
         <article><small>Nível de acesso</small><strong>{summary.admin.nivel}</strong><span>{summary.admin.usuario}</span></article>
       </section>
       <section className="admin-modules"><div className="section-title"><div><span className="eyebrow">Operação oficial</span><h2>Controles administrativos</h2><p>Módulos com acesso protegido, histórico e confirmação de gravação.</p></div></div><div>
-        {["Participação e vínculos", "Jogos do Clã e eventos", "Torneios Winning Wars", "Revisões de pontuação", "Layouts", "Fechamento mensal"].map((label, index) => <article key={label}><span>{String(index + 1).padStart(2, "0")}</span><strong>{index === 0 ? <Link to="/admin/participacao">{label}</Link> : index === 1 ? <Link to="/admin/lancamentos">{label}</Link> : index === 2 ? <Link to="/admin/torneios">{label}</Link> : label}</strong><small>{index <= 2 ? "Ativo e auditado" : "Permanece no app legado durante a migração"}</small></article>)}
+        {["Participação e vínculos", "Jogos do Clã e eventos", "Torneios Winning Wars", "Revisões de pontuação", "Layouts", "Fechamento mensal"].map((label, index) => <article key={label}><span>{String(index + 1).padStart(2, "0")}</span><strong>{index === 0 ? <Link to="/admin/participacao">{label}</Link> : index === 1 ? <Link to="/admin/lancamentos">{label}</Link> : index === 2 ? <Link to="/admin/torneios">{label}</Link> : index === 4 ? <Link to="/admin/layouts">{label}</Link> : label}</strong><small>{index <= 2 || index === 4 ? "Ativo e auditado" : "Permanece no app legado durante a migração"}</small></article>)}
       </div></section>
     </>}
+  </div>;
+}
+
+function linhasPreservadas(valor: string): string[] {
+  const linhas = valor.split(/\r?\n/).map((linha) => linha.trim());
+  while (linhas.length && !linhas[linhas.length - 1]) linhas.pop();
+  return linhas;
+}
+
+async function otimizarLayout(file: File): Promise<string> {
+  if (file.size > 10 * 1024 * 1024) throw new Error(`${file.name}: o arquivo excede 10 MB.`);
+  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) throw new Error(`${file.name}: formato não permitido.`);
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error(`${file.name}: não foi possível abrir a imagem.`));
+      element.src = objectUrl;
+    });
+    const escala = Math.min(1, 1600 / Math.max(image.naturalWidth, image.naturalHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * escala));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * escala));
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('O navegador não conseguiu processar as imagens.');
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(
+      (result) => result ? resolve(result) : reject(new Error(`${file.name}: falha ao converter para WEBP.`)),
+      'image/webp', .82,
+    ));
+    if (blob.size > 1_600_000) throw new Error(`${file.name}: a imagem otimizada ainda excede 1,6 MB.`);
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(',', 2)[1] || '');
+      reader.onerror = () => reject(new Error(`${file.name}: falha ao preparar o envio.`));
+      reader.readAsDataURL(blob);
+    });
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+export function AdminLayoutsPage() {
+  const { session, loading: sessionLoading } = useAdmin();
+  const [tipo, setTipo] = useState<"Guerra" | "Rankeada">("Guerra");
+  const [cv, setCv] = useState(18);
+  const [links, setLinks] = useState("");
+  const [descriptions, setDescriptions] = useState("");
+  const [imageUrls, setImageUrls] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [sending, setSending] = useState(false);
+  const [progress, setProgress] = useState("");
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  if (sessionLoading) return <div className="page"><Loading label="Conferindo sessão administrativa…" /></div>;
+  if (!session.autenticado) return <div className="page admin-page"><PageHeader eyebrow="Arsenal de bases" title="Acesso protegido" description="A publicação de layouts exige autenticação administrativa." /><div className="state-card"><Link className="primary-button" to="/admin/login">Entrar como administrador</Link></div></div>;
+
+  const publish = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); setError(null); setNotice("");
+    const officialLinks = links.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    const descriptionLines = linhasPreservadas(descriptions);
+    const directUrls = linhasPreservadas(imageUrls);
+    if (!officialLinks.length) return setError("Informe pelo menos um link oficial de layout.");
+    if (officialLinks.length > 20) return setError("O limite é de 20 layouts por lote.");
+    if (files.length > officialLinks.length) return setError("Há mais imagens do que links de layout.");
+    if (descriptionLines.length > officialLinks.length || directUrls.length > officialLinks.length) return setError("Há mais descrições ou URLs de imagem do que links oficiais.");
+    setSending(true);
+    try {
+      const imagens: string[] = [];
+      for (let index = 0; index < files.length; index += 1) {
+        setProgress(`Otimizando imagem ${index + 1} de ${files.length}…`);
+        imagens.push(await otimizarLayout(files[index]));
+      }
+      setProgress(`Publicando ${officialLinks.length} layout(s) e conferindo a planilha…`);
+      const result = await api.adminLayoutsBatch(tipo, cv, officialLinks.map((link, index) => ({
+        link,
+        descricao: descriptionLines[index] || "",
+        imagem_base64: imagens[index] || "",
+        imagem_url: imagens[index] ? "" : directUrls[index] || "",
+      })));
+      setNotice(`${result.aplicados} layout(s) de ${tipo} para CV ${cv} publicados e conferidos.`);
+      setLinks(""); setDescriptions(""); setImageUrls(""); setFiles([]);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Não foi possível publicar os layouts.");
+    } finally { setSending(false); setProgress(""); }
+  };
+
+  return <div className="page admin-page layouts-admin-page">
+    <div className="admin-subnav"><Link to="/admin">← Voltar ao painel</Link><span>Publicação em lote</span></div>
+    <PageHeader eyebrow="Arsenal administrativo" title="Publicar layouts" description="Envie até 20 bases de uma vez. Os links e imagens são associados pela mesma ordem das linhas e dos arquivos selecionados." />
+    <div className="security-warning"><strong>Fluxo seguro recuperado do app anterior</strong><span>As imagens são reduzidas para até 1600 px e convertidas para WEBP no seu navegador. A publicação cria backup, log administrativo e conferência na planilha oficial.</span></div>
+    {error && <ErrorState message={error} />}
+    {notice && <div className="admin-success">✓ {notice} <Link to={`/layouts/${tipo === "Guerra" ? "guerra" : "rankeada"}`}>Abrir galeria →</Link></div>}
+    <form className="layouts-batch-form" onSubmit={publish}>
+      <div className="layout-batch-options"><label><span>Categoria</span><select value={tipo} onChange={(event) => setTipo(event.target.value as "Guerra" | "Rankeada")}><option>Guerra</option><option>Rankeada</option></select></label><label><span>Centro de Vila</span><select value={cv} onChange={(event) => setCv(Number(event.target.value))}>{CVS.map((nivel) => <option key={nivel} value={nivel}>CV {nivel}</option>)}</select></label></div>
+      <label><span>Links oficiais dos layouts — um por linha</span><textarea required rows={8} value={links} onChange={(event) => setLinks(event.target.value)} placeholder={'https://link.clashofclans.com/pt?action=OpenLayout&id=...\nhttps://link.clashofclans.com/pt?action=OpenLayout&id=...'} /></label>
+      <label className="layout-file-picker"><span>Imagens — selecione na mesma ordem dos links</span><input type="file" accept="image/png,image/jpeg,image/webp" multiple onChange={(event) => setFiles(Array.from(event.target.files || []))} /><small>PNG, JPG ou WEBP · máximo 10 MB por arquivo · até 20 imagens.</small></label>
+      {!!files.length && <div className="selected-layout-files"><strong>{files.length} imagem(ns) selecionada(s)</strong>{files.map((file, index) => <span key={`${file.name}-${index}`}>{index + 1}. {file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB</span>)}</div>}
+      <div className="layout-optional-grid"><label><span>Descrições opcionais — uma por linha</span><textarea rows={5} value={descriptions} onChange={(event) => setDescriptions(event.target.value)} placeholder="Base anti-3 estrelas\nBase para guerra convencional" /></label><label><span>URLs diretas de imagem — alternativa ao upload</span><textarea rows={5} value={imageUrls} onChange={(event) => setImageUrls(event.target.value)} placeholder="Deixe vazio quando selecionar arquivos." /></label></div>
+      <footer><span>{progress || `${links.split(/\r?\n/).filter((line) => line.trim()).length} link(s) · ${files.length} imagem(ns)`}</span><button className="primary-button" type="submit" disabled={sending}>{sending ? "Processando lote…" : "Publicar e conferir layouts"}</button></footer>
+    </form>
   </div>;
 }
 

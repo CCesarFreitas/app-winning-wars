@@ -21,7 +21,7 @@ from .conteudo import _linhas_planilha, obter_torneio
 from .manual_admin import montar_manual_admin, propor_lancamento
 from .operacoes_admin import (
     alterar_participacao, aplicar_lancamentos, avancar_torneio,
-    encerrar_torneio, iniciar_torneio,
+    encerrar_torneio, iniciar_torneio, publicar_layouts,
 )
 from .participacao_admin import montar_participacao_admin
 from .ranking_atual import montar_ranking_atual
@@ -73,6 +73,19 @@ class VencedorTorneio(BaseModel):
     rodada: int = Field(ge=0, le=10)
     partida: int = Field(ge=0, le=31)
     vencedor: str = Field(min_length=4, max_length=20)
+
+
+class LayoutLoteItem(BaseModel):
+    link: str = Field(min_length=10, max_length=2_000)
+    descricao: str = Field(default="", max_length=500)
+    imagem_url: str = Field(default="", max_length=2_000)
+    imagem_base64: str = Field(default="", max_length=2_200_000)
+
+
+class LayoutLote(BaseModel):
+    tipo: str
+    cv: int = Field(ge=9, le=18)
+    itens: list[LayoutLoteItem] = Field(min_length=1, max_length=20)
 
 
 def _segredo() -> bytes:
@@ -312,6 +325,19 @@ def instalar_rotas_admin(app, caminho_sqlite: str) -> None:
             return aplicar_lancamentos(
                 sessao["usuario"], dados.atividade,
                 [entrada.dict() for entrada in dados.entradas],
+            )
+        except (ValueError, PermissionError) as erro:
+            raise HTTPException(status_code=409, detail=str(erro)) from erro
+        except (OSError, RuntimeError) as erro:
+            raise HTTPException(status_code=503, detail=str(erro)) from erro
+
+    @app.post("/v1/admin/layouts/batch")
+    def layouts_lote_admin(dados: LayoutLote, request: Request):
+        sessao = _sessao(request)
+        try:
+            return publicar_layouts(
+                sessao["usuario"], dados.tipo, dados.cv,
+                [item.dict() for item in dados.itens],
             )
         except (ValueError, PermissionError) as erro:
             raise HTTPException(status_code=409, detail=str(erro)) from erro

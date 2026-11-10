@@ -13,6 +13,8 @@ import type {
   ClanResponse,
   PlanningResponse,
   AdminWriteResult,
+  AdminLayoutItemInput,
+  AdminLayoutsResult,
 } from "./types";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
@@ -56,7 +58,7 @@ async function postJson<T>(path: string, body?: unknown): Promise<T> {
     if (response.status === 401) throw new Error("Usuário ou senha inválidos.");
     if (response.status === 429) throw new Error("Muitas tentativas. Aguarde 15 minutos.");
     if (response.status === 426) throw new Error("O login administrativo exige uma conexão HTTPS.");
-    if (response.status === 503) throw new Error("A autenticação ainda não foi ativada neste ambiente.");
+    if (response.status === 503 && detail === "autenticacao_nao_configurada") throw new Error("A autenticação ainda não foi ativada neste ambiente.");
     throw new Error(detail || `A API respondeu com o código ${response.status}.`);
   }
   return (await response.json()) as T;
@@ -92,6 +94,8 @@ export const api = {
     postJson<AdminManualProposal>("/v1/admin/manual/proposal", { tag, atividade, valor }),
   adminManualBatch: (atividade: "JogosCla" | "Eventos", entradas: Array<{ tag: string; nome: string; valor: number }>) =>
     postJson<AdminWriteResult>("/v1/admin/manual/batch", { atividade, entradas }),
+  adminLayoutsBatch: (tipo: "Guerra" | "Rankeada", cv: number, itens: AdminLayoutItemInput[]) =>
+    postJson<AdminLayoutsResult>("/v1/admin/layouts/batch", { tipo, cv, itens }),
   adminTournamentStart: (nome: string, modo: string, cv: number | "Todos", tags: string[]) =>
     postJson<AdminWriteResult>("/v1/admin/tournament/start", { nome, modo, cv, tags }),
   adminTournamentWinner: (rodada: number, partida: number, vencedor: string) =>
