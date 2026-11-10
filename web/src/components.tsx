@@ -13,7 +13,7 @@ const nav = [
   { to: "/auditoria", icon: "◈", label: "Arquivo de batalhas", image: "/assets/menu/witch.webp", admin: true },
   { to: "/planejamento", icon: "⌖", label: "Planejador de guerras", image: "/assets/menu/minion-prince.webp" },
   { to: "/layouts/guerra", icon: "⬢", label: "Layouts de guerra", image: "/assets/menu/pekka.webp" },
-  { to: "/layouts/rankeada", icon: "⌁", label: "Layouts de Liga", image: "/assets/menu/electro-dragon.webp" },
+  { to: "/layouts/rankeada", icon: "⌁", label: "Layouts Rankeada", image: "/assets/menu/electro-dragon.webp" },
   { to: "/torneios", icon: "⚡", label: "Torneios", image: "/assets/menu/valkyrie.webp" },
   { to: "/regras", icon: "▤", label: "Regras oficiais", image: "/assets/menu/healer.webp" },
   { to: "/admin", icon: "◆", label: "Painel Admin", image: "/assets/menu/barbarian-king.webp", admin: true },

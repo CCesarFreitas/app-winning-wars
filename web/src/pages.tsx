@@ -23,7 +23,7 @@ export function HomePage() {
         <div className="hero-copy">
           <span className="battle-status"><i className="live-dot" /> Temporada em disputa · {temporada}</span>
           <h1>Seu centro de comando<br /><em>no Winning Wars.</em></h1>
-          <p>Acompanhe a competição dos passes em tempo real, consulte o desempenho individual dos membros e encontre layouts de guerra e Liga, informações sobre eventos e torneios da comunidade Winning Wars.</p>
+          <p>Acompanhe a competição dos passes em tempo real, consulte o desempenho individual dos membros e encontre layouts de guerra e rankeada, informações sobre eventos e torneios da comunidade Winning Wars.</p>
           <div className="hero-actions">
             <Link className="primary-button" to="/ranking"><span>♛</span> Entrar no ranking</Link>
             <Link className="secondary-button" to={session.autenticado ? "/auditoria" : "/regras"}>{session.autenticado ? "Ver batalhas encerradas" : "Conhecer as regras"} <span>→</span></Link>
@@ -67,7 +67,7 @@ export function HomePage() {
               {session.autenticado && <Link to="/auditoria"><span>◈</span><div><small>Administração</small><strong>Arquivo de batalhas</strong><p>Consulte os registros detalhados preservados pelo motor.</p></div><b>→</b></Link>}
               <Link to="/planejamento"><span>⌖</span><div><small>Estratégia</small><strong>Planejador de guerras</strong><p>Compare os Centros de Vila inscritos e o desempenho observado dos adversários.</p></div><b>→</b></Link>
               <Link to="/layouts/guerra"><span>⬢</span><div><small>Defesas</small><strong>Layouts de guerra</strong><p>Bases organizadas por Centro de Vila para copiar no Clash.</p></div><b>→</b></Link>
-              <Link to="/layouts/rankeada"><span>⌁</span><div><small>Rankeadas</small><strong>Layouts de rankeada</strong><p>Seleção oficial para proteger troféus e subir no ranking.</p></div><b>→</b></Link>
+              <Link to="/layouts/rankeada"><span>⌁</span><div><small>Rankeadas</small><strong>Layouts Rankeada</strong><p>Seleção oficial para proteger troféus e subir no ranking.</p></div><b>→</b></Link>
               <Link to="/torneios"><span>⚡</span><div><small>Arena ao vivo</small><strong>Torneios Winning Wars</strong><p>Chaveamento eliminatório oficial para as lives do clã.</p></div><b>→</b></Link>
               <Link to="/regras"><span>▤</span><div><small>Regras oficiais</small><strong>Clã e competição dos passes</strong><p>Consulte os critérios de convivência, participação e premiação.</p></div><b>→</b></Link>
             </div>
@@ -266,7 +266,7 @@ export function LayoutsPage() {
   };
   useEffect(load, [tipoApi, cv]);
   return <div className="page">
-    <PageHeader eyebrow="Arsenal de bases" title={`Layouts oficiais de ${rankeada ? "rankeada" : "guerra"}`} description="Escolha seu Centro de Vila, analise a defesa e abra o layout diretamente no Clash of Clans." />
+    <PageHeader eyebrow="Arsenal de bases" title={rankeada ? "Layouts Rankeada" : "Layouts oficiais de guerra"} description="Escolha seu Centro de Vila, analise a defesa e abra o layout diretamente no Clash of Clans." />
     <div className="cv-selector" role="tablist" aria-label="Centro de Vila">
       {CVS.map((value) => <button key={value} className={cv === value ? "active" : ""} onClick={() => setCv(value)}><img src={townHallUrl(value)} alt="" /><span>CV {value}</span></button>)}
     </div>
