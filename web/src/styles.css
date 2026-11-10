@@ -350,6 +350,14 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
 .layout-card-body .primary-button { width: 100%; }
 .load-more { padding: 22px 0 5px; display: flex; justify-content: center; }
 .load-more button { min-width: 260px; }
+.layout-publisher { margin: -7px 0 20px; overflow: hidden; border: 1px solid rgba(240,183,53,.35); border-radius: 6px; background: linear-gradient(145deg,rgba(61,42,19,.42),rgba(20,17,24,.96)); }
+.layout-publisher > summary { padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 16px; cursor: pointer; list-style: none; color: var(--gold-light); }
+.layout-publisher > summary::-webkit-details-marker { display: none; }
+.layout-publisher > summary span { display: grid; gap: 3px; }
+.layout-publisher > summary b { font: 800 .82rem "Cinzel"; }
+.layout-publisher > summary small,.layout-publisher > summary em { color: #8c8377; font-size: .56rem; font-style: normal; }
+.layout-publisher-body { padding: 0 18px 18px; }
+.layout-publisher .layouts-batch-form { margin: 12px 0 0; }
 
 .tournament-hero { min-height: 285px; padding: 35px 42px; display: grid; grid-template-columns: 1fr 280px; align-items: center; overflow: hidden; border: 1px solid rgba(140,63,181,.5); border-top: 2px solid var(--gold); border-radius: 7px; background: radial-gradient(circle at 88% 25%,rgba(140,63,181,.35),transparent 31%),linear-gradient(120deg,#211921,#0d0b12 68%); }
 .tournament-hero h1 { margin: 9px 0; font-size: clamp(2.2rem,5vw,4.8rem); line-height: .95; }

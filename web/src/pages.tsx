@@ -242,6 +242,7 @@ const CVS = [18, 17, 16, 15, 14, 13, 12, 11, 10, 9];
 
 export function LayoutsPage() {
   const { tipo = "guerra" } = useParams();
+  const { session } = useAdmin();
   const rankeada = tipo === "rankeada";
   const tipoApi = rankeada ? "Rankeada" : "Guerra";
   const [cv, setCv] = useState(18);
@@ -270,6 +271,7 @@ export function LayoutsPage() {
       {CVS.map((value) => <button key={value} className={cv === value ? "active" : ""} onClick={() => setCv(value)}><img src={townHallUrl(value)} alt="" /><span>CV {value}</span></button>)}
     </div>
     <section className="layout-heading"><img src={townHallUrl(cv)} alt={`Centro de Vila ${cv}`} /><div><span className="eyebrow">Centro de Vila {cv}</span><h2>Bases de {tipoApi}</h2><p>{total} {total === 1 ? "layout disponível" : "layouts disponíveis"}</p></div></section>
+    {session.autenticado && <LayoutPublisher tipo={tipoApi as "Guerra" | "Rankeada"} cv={cv} onPublished={load} />}
     {loading && <Loading label="Abrindo o arsenal de layouts…" />}
     {error && <ErrorState message={error} onRetry={load} />}
     {!loading && !error && <div className="layout-grid">{layouts.map((layout, index) => <article className="layout-card" key={`${layout.link}-${index}`}>
@@ -587,7 +589,7 @@ export function AdminPage() {
         <article><small>Nível de acesso</small><strong>{summary.admin.nivel}</strong><span>{summary.admin.usuario}</span></article>
       </section>
       <section className="admin-modules"><div className="section-title"><div><span className="eyebrow">Operação oficial</span><h2>Controles administrativos</h2><p>Módulos com acesso protegido, histórico e confirmação de gravação.</p></div></div><div>
-        {["Participação e vínculos", "Jogos do Clã e eventos", "Torneios Winning Wars", "Revisões de pontuação", "Layouts", "Fechamento mensal"].map((label, index) => <article key={label}><span>{String(index + 1).padStart(2, "0")}</span><strong>{index === 0 ? <Link to="/admin/participacao">{label}</Link> : index === 1 ? <Link to="/admin/lancamentos">{label}</Link> : index === 2 ? <Link to="/admin/torneios">{label}</Link> : index === 4 ? <Link to="/admin/layouts">{label}</Link> : label}</strong><small>{index <= 2 || index === 4 ? "Ativo e auditado" : "Permanece no app legado durante a migração"}</small></article>)}
+        {["Participação e vínculos", "Jogos do Clã e eventos", "Torneios Winning Wars", "Revisões de pontuação", "Fechamento mensal"].map((label, index) => <article key={label}><span>{String(index + 1).padStart(2, "0")}</span><strong>{index === 0 ? <Link to="/admin/participacao">{label}</Link> : index === 1 ? <Link to="/admin/lancamentos">{label}</Link> : index === 2 ? <Link to="/admin/torneios">{label}</Link> : label}</strong><small>{index <= 2 ? "Ativo e auditado" : "Permanece no app legado durante a migração"}</small></article>)}
       </div></section>
     </>}
   </div>;
@@ -633,10 +635,7 @@ async function otimizarLayout(file: File): Promise<string> {
   }
 }
 
-export function AdminLayoutsPage() {
-  const { session, loading: sessionLoading } = useAdmin();
-  const [tipo, setTipo] = useState<"Guerra" | "Rankeada">("Guerra");
-  const [cv, setCv] = useState(18);
+function LayoutPublisher({ tipo, cv, onPublished }: { tipo: "Guerra" | "Rankeada"; cv: number; onPublished: () => void }) {
   const [links, setLinks] = useState("");
   const [descriptions, setDescriptions] = useState("");
   const [imageUrls, setImageUrls] = useState("");
@@ -645,9 +644,6 @@ export function AdminLayoutsPage() {
   const [progress, setProgress] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState<string | null>(null);
-
-  if (sessionLoading) return <div className="page"><Loading label="Conferindo sessão administrativa…" /></div>;
-  if (!session.autenticado) return <div className="page admin-page"><PageHeader eyebrow="Arsenal de bases" title="Acesso protegido" description="A publicação de layouts exige autenticação administrativa." /><div className="state-card"><Link className="primary-button" to="/admin/login">Entrar como administrador</Link></div></div>;
 
   const publish = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault(); setError(null); setNotice("");
@@ -674,26 +670,27 @@ export function AdminLayoutsPage() {
       })));
       setNotice(`${result.aplicados} layout(s) de ${tipo} para CV ${cv} publicados e conferidos.`);
       setLinks(""); setDescriptions(""); setImageUrls(""); setFiles([]);
+      onPublished();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Não foi possível publicar os layouts.");
     } finally { setSending(false); setProgress(""); }
   };
 
-  return <div className="page admin-page layouts-admin-page">
-    <div className="admin-subnav"><Link to="/admin">← Voltar ao painel</Link><span>Publicação em lote</span></div>
-    <PageHeader eyebrow="Arsenal administrativo" title="Publicar layouts" description="Envie até 20 bases de uma vez. Os links e imagens são associados pela mesma ordem das linhas e dos arquivos selecionados." />
-    <div className="security-warning"><strong>Fluxo seguro recuperado do app anterior</strong><span>As imagens são reduzidas para até 1600 px e convertidas para WEBP no seu navegador. A publicação cria backup, log administrativo e conferência na planilha oficial.</span></div>
-    {error && <ErrorState message={error} />}
-    {notice && <div className="admin-success">✓ {notice} <Link to={`/layouts/${tipo === "Guerra" ? "guerra" : "rankeada"}`}>Abrir galeria →</Link></div>}
+  return <details className="layout-publisher" open>
+    <summary><span><b>＋ Publicar em CV {cv}</b><small>Somente administradores · {tipo}</small></span><em>abrir/fechar</em></summary>
+    <div className="layout-publisher-body">
+    <div className="security-warning"><strong>Publicação em lote</strong><span>Adicione até 20 layouts de {tipo} para o CV {cv}. As imagens são otimizadas e armazenadas externamente; a planilha recebe somente os dados e URLs, com backup, auditoria e conferência.</span></div>
+    {error && <div className="state-card error-state"><strong>Não foi possível publicar os layouts</strong><span>{error}</span></div>}
+    {notice && <div className="admin-success">✓ {notice} A galeria foi atualizada.</div>}
     <form className="layouts-batch-form" onSubmit={publish}>
-      <div className="layout-batch-options"><label><span>Categoria</span><select value={tipo} onChange={(event) => setTipo(event.target.value as "Guerra" | "Rankeada")}><option>Guerra</option><option>Rankeada</option></select></label><label><span>Centro de Vila</span><select value={cv} onChange={(event) => setCv(Number(event.target.value))}>{CVS.map((nivel) => <option key={nivel} value={nivel}>CV {nivel}</option>)}</select></label></div>
       <label><span>Links oficiais dos layouts — um por linha</span><textarea required rows={8} value={links} onChange={(event) => setLinks(event.target.value)} placeholder={'https://link.clashofclans.com/pt?action=OpenLayout&id=...\nhttps://link.clashofclans.com/pt?action=OpenLayout&id=...'} /></label>
       <label className="layout-file-picker"><span>Imagens — selecione na mesma ordem dos links</span><input type="file" accept="image/png,image/jpeg,image/webp" multiple onChange={(event) => setFiles(Array.from(event.target.files || []))} /><small>PNG, JPG ou WEBP · máximo 10 MB por arquivo · até 20 imagens.</small></label>
       {!!files.length && <div className="selected-layout-files"><strong>{files.length} imagem(ns) selecionada(s)</strong>{files.map((file, index) => <span key={`${file.name}-${index}`}>{index + 1}. {file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB</span>)}</div>}
       <div className="layout-optional-grid"><label><span>Descrições opcionais — uma por linha</span><textarea rows={5} value={descriptions} onChange={(event) => setDescriptions(event.target.value)} placeholder="Base anti-3 estrelas\nBase para guerra convencional" /></label><label><span>URLs diretas de imagem — alternativa ao upload</span><textarea rows={5} value={imageUrls} onChange={(event) => setImageUrls(event.target.value)} placeholder="Deixe vazio quando selecionar arquivos." /></label></div>
       <footer><span>{progress || `${links.split(/\r?\n/).filter((line) => line.trim()).length} link(s) · ${files.length} imagem(ns)`}</span><button className="primary-button" type="submit" disabled={sending}>{sending ? "Processando lote…" : "Publicar e conferir layouts"}</button></footer>
     </form>
-  </div>;
+    </div>
+  </details>;
 }
 
 const PARTICIPATION_STATUS: Record<AdminParticipationAccount["situacao"], string> = {

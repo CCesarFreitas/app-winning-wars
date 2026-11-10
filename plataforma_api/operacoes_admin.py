@@ -202,7 +202,10 @@ def publicar_layouts(admin: str, tipo: str, cv: int,
         if not linhas_antes:
             raise ValueError("Cabecalho de Layouts ausente")
         cabecalho = linhas_antes[0]
-        obrigatorias = {"Tipo", "CV", "Autor", "Link", "Descricao", "ImagemUrl", "DataHora", "Tag"}
+        # A aba oficial criada pelo app anterior termina em DataHora. Algumas
+        # planilhas de homologacao possuem tambem Tag; quando existir ela sera
+        # preenchida, mas nunca deve impedir a publicacao na estrutura oficial.
+        obrigatorias = {"Tipo", "CV", "Autor", "Link", "Descricao", "ImagemUrl", "DataHora"}
         if not obrigatorias.issubset(set(cabecalho)):
             raise ValueError("Cabecalho de Layouts divergente")
         existentes = {

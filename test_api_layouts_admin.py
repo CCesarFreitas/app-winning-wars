@@ -1,7 +1,30 @@
 import base64
 import unittest
+from unittest.mock import patch
 
-from plataforma_api.operacoes_admin import preparar_layouts_lote
+from plataforma_api.operacoes_admin import preparar_layouts_lote, publicar_layouts
+
+
+class _Aba:
+    def __init__(self, linhas):
+        self.linhas = [list(linha) for linha in linhas]
+
+    def get_all_values(self, **_kwargs):
+        return [list(linha) for linha in self.linhas]
+
+    def append_rows(self, linhas, **_kwargs):
+        self.linhas.extend([list(linha) for linha in linhas])
+
+
+class _Planilha:
+    def __init__(self):
+        self.abas = {
+            "Layouts": _Aba([["Tipo", "CV", "Autor", "Link", "Descricao", "ImagemUrl", "DataHora"]]),
+            "Logs": _Aba([["DataHora", "Admin", "Acao"]]),
+        }
+
+    def worksheet(self, nome):
+        return self.abas[nome]
 
 
 class LayoutsAdmin(unittest.TestCase):
@@ -38,6 +61,19 @@ class LayoutsAdmin(unittest.TestCase):
                 "link": f"https://link.clashofclans.com/pt?action=OpenLayout&id=TH18-{indice}",
                 "imagem_base64": imagem,
             } for indice in range(19)], "2026-11-10T00:00:00+00:00")
+
+    def test_publica_no_cabecalho_oficial_sem_tag(self):
+        planilha = _Planilha()
+        with patch("plataforma_api.operacoes_admin._planilha_escrita", return_value=planilha), \
+             patch("plataforma_api.operacoes_admin._backup", return_value="backup.json"), \
+             patch("plataforma_api.operacoes_admin.invalidar_conteudo"):
+            resultado = publicar_layouts("Caio", "Guerra", 18, [{
+                "link": "https://link.clashofclans.com/pt?action=OpenLayout&id=TH18-OFICIAL",
+                "descricao": "Teste",
+            }])
+        self.assertEqual(resultado["status"], "APLICADO_E_CONFERIDO")
+        self.assertEqual(len(planilha.abas["Layouts"].linhas), 2)
+        self.assertEqual(len(planilha.abas["Layouts"].linhas[1]), 7)
 
 
 if __name__ == "__main__":
