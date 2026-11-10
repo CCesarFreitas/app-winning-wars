@@ -4,7 +4,7 @@ import { api, LayoutsDuplicadosError } from "./api";
 import { ErrorState, Loading, PageHeader, PlayerAvatar } from "./components";
 import { dataAtividade, numero, rotuloTipo, temporadaLabel } from "./format";
 import { useRanking } from "./RankingContext";
-import type { AdminLayoutDuplicate, AdminManualProposal, AdminManualResponse, AdminParticipationAccount, AdminParticipationResponse, AdminSummary, AuditActivity, ClanResponse, LayoutEntry, PlanningClan, PlanningEnvelope, PlanningMember, PlayerAuditResponse, RankingDetailsResponse, TournamentMatch, TournamentPlayer } from "./types";
+import type { AdminContributionRankingResponse, AdminLayoutDuplicate, AdminManualProposal, AdminManualResponse, AdminParticipationAccount, AdminParticipationResponse, AdminSummary, AuditActivity, ClanResponse, LayoutEntry, PlanningClan, PlanningEnvelope, PlanningMember, PlayerAuditResponse, RankingDetailsResponse, TournamentMatch, TournamentPlayer } from "./types";
 import { CREST_URL, townHallUrl } from "./assets";
 import { useAdmin } from "./AdminContext";
 import { exportCompactRanking, exportDetailedRanking } from "./rankingExport";
@@ -617,8 +617,58 @@ export function AdminPage() {
         <article><small>Nível de acesso</small><strong>{summary.admin.nivel}</strong><span>{summary.admin.usuario}</span></article>
       </section>
       <section className="admin-modules"><div className="section-title"><div><span className="eyebrow">Operação oficial</span><h2>Controles administrativos</h2><p>Módulos com acesso protegido, histórico e confirmação de gravação.</p></div></div><div>
-        {["Participação e vínculos", "Jogos do Clã e eventos", "Torneios Winning Wars", "Revisões de pontuação", "Fechamento mensal"].map((label, index) => <article key={label}><span>{String(index + 1).padStart(2, "0")}</span><strong>{index === 0 ? <Link to="/admin/participacao">{label}</Link> : index === 1 ? <Link to="/admin/lancamentos">{label}</Link> : index === 2 ? <Link to="/admin/torneios">{label}</Link> : label}</strong><small>{index <= 2 ? "Ativo e auditado" : "Permanece no app legado durante a migração"}</small></article>)}
+        {[
+          ["Participação e vínculos", "/admin/participacao", "Ativo e auditado"],
+          ["Jogos do Clã e eventos", "/admin/lancamentos", "Ativo e auditado"],
+          ["Ranking extra · sem Liga", "/admin/contribuicoes", "Prévia temporária do passe extra"],
+          ["Torneios Winning Wars", "/admin/torneios", "Ativo e auditado"],
+          ["Revisões de pontuação", "", "Permanece no app legado durante a migração"],
+          ["Fechamento mensal", "", "Permanece no app legado durante a migração"],
+        ].map(([label, path, status], index) => <article key={label}><span>{String(index + 1).padStart(2, "0")}</span><strong>{path ? <Link to={path}>{label}</Link> : label}</strong><small>{status}</small></article>)}
       </div></section>
+    </>}
+  </div>;
+}
+
+export function AdminContributionRankingPage() {
+  const [data, setData] = useState<AdminContributionRankingResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  const load = () => {
+    setLoading(true); setError(null);
+    api.adminContributionRanking().then(setData).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Falha ao montar o ranking extra.")).finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+
+  const players = useMemo(() => {
+    const term = search.trim().toLocaleLowerCase("pt-BR");
+    return (data?.jogadores || []).filter((player) => !term || `${player.nome} ${player.tag}`.toLocaleLowerCase("pt-BR").includes(term));
+  }, [data, search]);
+  const leader = data?.jogadores[0];
+
+  return <div className="page admin-page contribution-ranking-page">
+    <div className="admin-subnav"><Link to="/admin">← Voltar ao painel</Link><span>Somente administradores</span></div>
+    <PageHeader eyebrow="Passe extra · análise temporária" title="Contribuição fora da Liga" description="Ranking paralelo para avaliar quem ajudou o clã nas demais atividades e não participou de nenhuma rodada da Liga." />
+    <div className="contribution-disclaimer"><span>◎</span><div><strong>Esta página é uma prévia para decisão administrativa</strong><small>Não altera o ranking oficial, não grava pontos e não concede o passe automaticamente. Novas guerras, raides, Jogos do Clã e eventos entram após o processamento normal do motor.</small></div></div>
+    {loading && <Loading label="Separando contribuições fora da Liga…" />}
+    {error && <ErrorState message={error} onRetry={load} />}
+    {data && !loading && !error && <>
+      <section className="contribution-overview">
+        <article><small>Candidatos atuais</small><strong>{data.total}</strong><span>com contribuição positiva</span></article>
+        <article><small>Fora por participação na Liga</small><strong>{data.excluidos_liga}</strong><span>mesmo com zero ponto</span></article>
+        <article><small>Sem contribuição positiva</small><strong>{data.sem_contribuicao}</strong><span>não entram por enquanto</span></article>
+        <article className="leader"><small>Líder provisório</small><strong>{leader?.nome || "—"}</strong><span>{leader ? `${leader.total} pontos fora da Liga` : "Aguardando atividades"}</span></article>
+      </section>
+      <div className="contribution-rules"><div><strong>Quem entra</strong><span>{data.criterio}</span></div><div><strong>Desempate</strong><span>{data.desempate}</span></div><small>Dados atualizados em {dataAtividade(data.atualizado_em)} · {data.temporada_nome || temporadaLabel(data.temporada)}</small></div>
+      <div className="participation-toolbar"><label className="search-box"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar candidato por nome ou tag" /></label><span>{players.length} candidato(s) exibido(s)</span></div>
+      <section className="contribution-list"><header><span>Posição</span><span>Jogador</span><span>Guerras</span><span>Raides</span><span>Jogos</span><span>Eventos</span><span>Atividades</span><span>Total</span></header>{players.map((player) => <article className={player.posicao <= 3 ? `top-${player.posicao}` : ""} key={player.tag || player.participante_id}>
+        <span className="contribution-position">{player.posicao <= 3 ? ["🥇", "🥈", "🥉"][player.posicao - 1] : `${player.posicao}º`}</span>
+        <div className="participation-player">{player.cv ? <img src={townHallUrl(player.cv)} alt={`CV ${player.cv}`} /> : <span>?</span>}<div><strong>{player.nome}</strong><small>{player.tag || "Sem tag vinculada"}{player.cv ? ` · CV ${player.cv}` : ""}</small></div></div>
+        <span data-label="Guerras">{player.guerra}</span><span data-label="Raides">{player.raides}</span><span data-label="Jogos">{player.jogos}</span><span data-label="Eventos">{player.eventos}</span><span data-label="Atividades">{player.atividades_positivas}</span><b>{player.total}<small> pts</small></b>
+      </article>)}</section>
+      {!players.length && <div className="state-card"><strong>Nenhum candidato encontrado</strong><span>{search ? "Altere a busca informada." : "O ranking será preenchido quando houver contribuição positiva fora da Liga."}</span></div>}
     </>}
   </div>;
 }

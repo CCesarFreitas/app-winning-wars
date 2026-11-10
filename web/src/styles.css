@@ -596,6 +596,36 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
 .admin-modules article > small { color: #777067; font-size: .53rem; }
 .admin-modules article a { color: #eee4d5; }
 .admin-modules article a:hover { color: var(--gold-light); }
+.contribution-disclaimer { min-height: 66px; margin-bottom: 16px; padding: 13px 16px; display: flex; align-items: center; gap: 13px; color: #e4c77e; border: 1px solid rgba(240,183,53,.28); border-left: 3px solid var(--gold); border-radius: 5px; background: linear-gradient(90deg,rgba(102,70,18,.18),rgba(47,25,55,.15)); }
+.contribution-disclaimer > span { font-size: 1.2rem; }
+.contribution-disclaimer strong,.contribution-disclaimer small { display: block; }
+.contribution-disclaimer strong { font-size: .71rem; }
+.contribution-disclaimer small { margin-top: 4px; color: #92887c; font-size: .61rem; line-height: 1.45; }
+.contribution-overview { display: grid; grid-template-columns: repeat(4,1fr); gap: 9px; }
+.contribution-overview article { min-height: 113px; padding: 16px; display: flex; flex-direction: column; justify-content: center; border: 1px solid var(--line); border-radius: 5px; background: rgba(24,21,27,.9); }
+.contribution-overview article small,.contribution-overview article span { color: #827a71; }
+.contribution-overview article small { font-size: .51rem; font-weight: 900; text-transform: uppercase; }
+.contribution-overview article strong { margin: 7px 0 3px; color: var(--gold-light); font: 800 1.35rem "Cinzel"; }
+.contribution-overview article span { font-size: .57rem; }
+.contribution-overview article.leader { border-color: rgba(240,183,53,.4); background: radial-gradient(circle at 100% 0,rgba(240,183,53,.16),transparent 60%),rgba(30,24,25,.94); }
+.contribution-overview article.leader strong { overflow: hidden; font-size: .92rem; text-overflow: ellipsis; white-space: nowrap; }
+.contribution-rules { margin: 11px 0 17px; padding: 13px 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 11px 22px; border: 1px solid var(--line); border-radius: 5px; background: rgba(255,255,255,.018); }
+.contribution-rules > div { display: grid; gap: 4px; }
+.contribution-rules strong { color: #d8c294; font-size: .59rem; text-transform: uppercase; }
+.contribution-rules span,.contribution-rules > small { color: #817970; font-size: .6rem; line-height: 1.45; }
+.contribution-rules > small { grid-column: 1/-1; padding-top: 9px; border-top: 1px solid rgba(255,255,255,.06); }
+.contribution-ranking-page .participation-toolbar { grid-template-columns: minmax(260px,1fr) auto; }
+.contribution-list { overflow: hidden; border: 1px solid var(--line); border-radius: 5px; }
+.contribution-list > header,.contribution-list > article { padding: 0 13px; display: grid; grid-template-columns: 65px minmax(230px,1fr) repeat(5,70px) 72px; align-items: center; gap: 8px; }
+.contribution-list > header { min-height: 39px; color: #746d65; background: rgba(255,255,255,.025); font-size: .49rem; font-weight: 900; text-transform: uppercase; }
+.contribution-list > article { min-height: 76px; color: #aaa198; border-top: 1px solid rgba(255,255,255,.065); background: rgba(255,255,255,.012); font-size: .66rem; }
+.contribution-list > article.top-1 { background: linear-gradient(90deg,rgba(240,183,53,.13),rgba(255,255,255,.012) 58%); }
+.contribution-list > article.top-2 { background: linear-gradient(90deg,rgba(203,213,225,.08),rgba(255,255,255,.012) 58%); }
+.contribution-list > article.top-3 { background: linear-gradient(90deg,rgba(198,111,61,.09),rgba(255,255,255,.012) 58%); }
+.contribution-position { color: #c7b385; font: 800 .78rem "Cinzel"; }
+.contribution-list > article > span:not(.contribution-position) { text-align: center; }
+.contribution-list > article > b { color: var(--gold-light); text-align: right; font: 800 .94rem "Cinzel"; }
+.contribution-list > article > b small { display: block; color: #716a62; font: 700 .45rem "Nunito Sans"; }
 .admin-subnav { margin-bottom: 17px; display: flex; align-items: center; justify-content: space-between; }
 .admin-subnav a { color: var(--gold-light); font-size: .67rem; font-weight: 900; }
 .admin-subnav > span { padding: 5px 9px; color: #83d9b2; border: 1px solid rgba(93,206,153,.22); border-radius: 999px; font-size: .52rem; font-weight: 900; text-transform: uppercase; }
@@ -815,6 +845,18 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
   .toolbar { align-items: stretch; flex-direction: column; gap: 8px; }
   .ranking-export-bar { align-items: stretch; flex-direction: column; }
   .ranking-export-bar button { width: 100%; min-height: 42px; white-space: normal; }
+  .contribution-overview { grid-template-columns: 1fr 1fr; }
+  .contribution-rules { grid-template-columns: 1fr; }
+  .contribution-rules > small { grid-column: auto; }
+  .contribution-ranking-page .participation-toolbar { grid-template-columns: 1fr; }
+  .contribution-list { display: grid; gap: 8px; overflow: visible; border: 0; }
+  .contribution-list > header { display: none; }
+  .contribution-list > article { min-height: 152px; padding: 12px; grid-template-columns: 40px repeat(5,1fr) 55px; grid-template-rows: 58px 48px; gap: 6px; border: 1px solid var(--line); border-left: 2px solid var(--gold-dark); border-radius: 5px; }
+  .contribution-list .contribution-position { grid-column: 1; grid-row: 1; }
+  .contribution-list .participation-player { grid-column: 2/-1; grid-row: 1; }
+  .contribution-list > article > span[data-label] { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+  .contribution-list > article > span[data-label]::before { content: attr(data-label); color: #736c64; font-size: .43rem; font-weight: 900; text-transform: uppercase; }
+  .contribution-list > article > b { display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-end; }
   .ranking-table { display: grid; gap: 8px; overflow: visible; border: 0; background: transparent; box-shadow: none; }
   .ranking-head { display: none; }
   .ranking-row { min-height: 137px; padding: 12px; display: grid; grid-template-columns: 34px 1fr repeat(4,minmax(43px,auto)); grid-template-rows: 56px 46px; gap: 5px; position: relative; border: 1px solid var(--line); border-left: 2px solid var(--gold-dark); border-radius: 4px; background: rgba(24,22,28,.88); }

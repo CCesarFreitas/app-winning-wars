@@ -332,3 +332,86 @@ def montar_tabela_detalhada(caminho_sqlite: str | Path) -> dict[str, Any]:
         "jogadores": jogadores,
     }
 
+
+def montar_ranking_contribuicao_sem_liga(caminho_sqlite: str | Path) -> dict[str, Any]:
+    """Classifica contribuintes habilitados que nao participaram da Liga.
+
+    A presenca em uma atividade de Liga e verificada pelo documento aplicado,
+    inclusive quando o jogador recebeu zero ponto. A classificacao nao grava
+    premio nem altera o ranking oficial.
+    """
+    resultado = montar_ranking_atual(caminho_sqlite)
+    colunas = resultado["colunas_atividade"]
+    detalhes = resultado["detalhes_por_id"]
+    contribuicoes = resultado["contribuicoes_por_tag"]
+    colunas_guerra = [c for c in colunas if c.startswith("Guerra_")]
+    colunas_liga = [c for c in colunas if c.startswith("Liga_")]
+    colunas_raide = [c for c in colunas if c.startswith("Raide_")]
+
+    elegiveis: list[dict[str, Any]] = []
+    excluidos_liga = 0
+    sem_contribuicao = 0
+    for jogador in resultado["ranking"]:
+        pontos = detalhes.get(jogador["participante_id"], {})
+        colunas_observadas = contribuicoes.get(jogador.get("tag", ""), {}).get("colunas", {})
+        participou_liga = any(
+            coluna in colunas_observadas or _inteiro(pontos.get(coluna)) > 0
+            for coluna in colunas_liga
+        )
+        if participou_liga:
+            excluidos_liga += 1
+            continue
+
+        guerra = sum(_inteiro(pontos.get(c)) for c in colunas_guerra)
+        raides = sum(_inteiro(pontos.get(c)) for c in colunas_raide)
+        jogos = _inteiro(pontos.get("JogosCla"))
+        eventos = _inteiro(pontos.get("Eventos"))
+        total = guerra + raides + jogos + eventos
+        if total <= 0:
+            sem_contribuicao += 1
+            continue
+        atividades_positivas = sum(
+            _inteiro(pontos.get(coluna)) > 0
+            for coluna in [*colunas_guerra, *colunas_raide, "JogosCla", "Eventos"]
+        )
+        elegiveis.append({
+            "participante_id": jogador["participante_id"],
+            "tag": jogador.get("tag", ""),
+            "nome": jogador["nome"],
+            "cv": jogador.get("cv"),
+            "guerra": guerra,
+            "raides": raides,
+            "jogos": jogos,
+            "eventos": eventos,
+            "total": total,
+            "atividades_positivas": atividades_positivas,
+        })
+
+    elegiveis.sort(key=lambda item: (
+        item["total"], item["atividades_positivas"], item["guerra"],
+        item["raides"], item["jogos"], item["eventos"],
+        item["nome"].casefold(),
+    ), reverse=True)
+    for posicao, jogador in enumerate(elegiveis, 1):
+        jogador["posicao"] = posicao
+        jogador["temporada"] = resultado["temporada"]
+
+    return {
+        "temporada": resultado["temporada"],
+        "temporada_nome": resultado["temporada_nome"],
+        "atualizado_em": resultado["atualizado_em"],
+        "total": len(elegiveis),
+        "excluidos_liga": excluidos_liga,
+        "sem_contribuicao": sem_contribuicao,
+        "criterio": (
+            "Contas habilitadas com contribuição positiva em guerras comuns, "
+            "raides, Jogos do Clã ou eventos e sem participação em nenhuma "
+            "rodada da Liga na temporada."
+        ),
+        "desempate": (
+            "Maior total; mais atividades com pontuação; guerras; raides; "
+            "Jogos do Clã; eventos."
+        ),
+        "jogadores": elegiveis,
+    }
+

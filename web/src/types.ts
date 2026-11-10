@@ -232,6 +232,22 @@ export interface AdminSummary {
   modo: "SOMENTE_LEITURA" | "LEITURA_E_ESCRITA";
 }
 
+export interface AdminContributionEntry extends RankingEntry {
+  atividades_positivas: number;
+}
+
+export interface AdminContributionRankingResponse {
+  temporada: string;
+  temporada_nome: string;
+  atualizado_em: string;
+  total: number;
+  excluidos_liga: number;
+  sem_contribuicao: number;
+  criterio: string;
+  desempate: string;
+  jogadores: AdminContributionEntry[];
+}
+
 export interface AdminParticipationAccount {
   tag: string;
   nome: string;

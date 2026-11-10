@@ -4,7 +4,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from plataforma_api.ranking_atual import montar_ranking_atual, montar_tabela_detalhada
+from plataforma_api.ranking_atual import (
+    montar_ranking_atual, montar_ranking_contribuicao_sem_liga,
+    montar_tabela_detalhada,
+)
 
 
 class RankingAtual(unittest.TestCase):
@@ -143,6 +146,29 @@ class RankingAtual(unittest.TestCase):
         detalhada = montar_tabela_detalhada(self.banco)
         nova_detalhada = next(j for j in detalhada["jogadores"] if j["tag"] == "#NOVA")
         self.assertEqual(nova_detalhada["pontos"]["Liga_1"], 3)
+
+    def test_ranking_extra_exclui_liga_e_soma_demais_contribuicoes(self):
+        saida = montar_ranking_contribuicao_sem_liga(self.banco)
+        self.assertEqual(saida["total"], 1)
+        self.assertEqual(saida["excluidos_liga"], 1)
+        self.assertEqual(saida["jogadores"][0]["nome"], "Sem vinculo")
+        self.assertEqual(saida["jogadores"][0]["jogos"], 2)
+        self.assertEqual(saida["jogadores"][0]["total"], 2)
+
+    def test_presenca_na_liga_com_zero_ponto_tambem_exclui(self):
+        db = sqlite3.connect(self.banco)
+        db.execute(
+            "INSERT INTO versoes VALUES(?,?,?,?,?,?)",
+            (30, "atividade", "liga:zero", "sha", json.dumps({
+                "temporada": "2026-11", "status": "APLICADO", "tipo": "liga",
+                "coluna": "Liga_1", "jogadores": [
+                    {"tag": "#AAA", "nome": "Alpha", "pontos": 0}
+                ],
+            }), "2026-11-09T03:00:00+00:00"),
+        )
+        db.commit(); db.close()
+        saida = montar_ranking_contribuicao_sem_liga(self.banco)
+        self.assertNotIn("#AAA", [j["tag"] for j in saida["jogadores"]])
 
 
 if __name__ == "__main__":

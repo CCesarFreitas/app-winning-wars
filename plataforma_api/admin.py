@@ -25,7 +25,7 @@ from .operacoes_admin import (
     publicar_layouts,
 )
 from .participacao_admin import montar_participacao_admin
-from .ranking_atual import montar_ranking_atual
+from .ranking_atual import montar_ranking_atual, montar_ranking_contribuicao_sem_liga
 
 
 COOKIE = "ww_admin_session"
@@ -275,6 +275,16 @@ def instalar_rotas_admin(app, caminho_sqlite: str) -> None:
             "participacao": _resumo_participacao(),
             "modo": "LEITURA_E_ESCRITA",
         }
+
+    @app.get("/v1/admin/ranking-contribution")
+    def ranking_contribuicao_admin(request: Request):
+        _sessao(request)
+        try:
+            return montar_ranking_contribuicao_sem_liga(caminho_sqlite)
+        except (OSError, ValueError, sqlite3.Error) as erro:
+            raise HTTPException(
+                status_code=503, detail="ranking_contribuicao_indisponivel"
+            ) from erro
 
     @app.get("/v1/admin/audit/activities")
     def atividades_auditoria_admin(request: Request, limite: int = 50):

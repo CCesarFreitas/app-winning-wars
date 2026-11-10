@@ -17,6 +17,7 @@ import type {
   AdminLayoutsResult,
   AdminLayoutDuplicate,
   AdminLayoutDeleteResult,
+  AdminContributionRankingResponse,
 } from "./types";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
@@ -99,6 +100,7 @@ export const api = {
     postJson<AdminSession>("/v1/admin/login", { usuario, senha }),
   adminLogout: () => postJson<AdminSession>("/v1/admin/logout"),
   adminSummary: () => getJson<AdminSummary>("/v1/admin/summary"),
+  adminContributionRanking: () => getJson<AdminContributionRankingResponse>("/v1/admin/ranking-contribution"),
   adminParticipation: () => getJson<AdminParticipationResponse>("/v1/admin/participation"),
   adminParticipationToggle: (tag: string, habilitada: boolean, motivo: string, evento_anterior: string) =>
     postJson<AdminWriteResult>("/v1/admin/participation/toggle", { tag, habilitada, motivo, evento_anterior }),
