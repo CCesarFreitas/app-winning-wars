@@ -249,6 +249,13 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
 .player-cell small { margin-top: 3px; color: #736d65; font-size: .59rem; }
 .ranking-row > span:not(.player-cell) { font-size: .76rem; }
 .toolbar a { color: var(--gold-light); font-weight: 800; }
+.ranking-export-bar { margin: 0 0 14px; padding: 13px 15px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 1px solid rgba(240,183,53,.3); border-radius: 5px; background: linear-gradient(105deg,rgba(68,46,21,.42),rgba(28,20,31,.8)); }
+.ranking-export-bar > div { min-width: 0; display: grid; gap: 3px; }
+.ranking-export-bar strong { color: var(--gold-light); font: 800 .72rem "Cinzel"; }
+.ranking-export-bar span { color: #968d82; font-size: .6rem; }
+.ranking-export-bar button { flex: 0 0 auto; padding: 10px 15px; cursor: pointer; color: #17110a; border: 1px solid #ffdd7d; border-radius: 4px; background: linear-gradient(180deg,#ffd867,#c98d1c); box-shadow: 0 4px 12px #0006; font-size: .65rem; font-weight: 900; }
+.ranking-export-bar button:disabled { cursor: wait; opacity: .62; }
+.ranking-export-bar.detailed { margin-top: 2px; }
 
 .detail-controls { margin-bottom: 13px; display: grid; grid-template-columns: minmax(260px,1fr) auto; align-items: center; gap: 14px; }
 .detail-controls .filter-tabs { margin: 0; }
@@ -806,6 +813,8 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
   .section-title { align-items: flex-start; }
   .section-title > a { white-space: normal; text-align: right; }
   .toolbar { align-items: stretch; flex-direction: column; gap: 8px; }
+  .ranking-export-bar { align-items: stretch; flex-direction: column; }
+  .ranking-export-bar button { width: 100%; min-height: 42px; white-space: normal; }
   .ranking-table { display: grid; gap: 8px; overflow: visible; border: 0; background: transparent; box-shadow: none; }
   .ranking-head { display: none; }
   .ranking-row { min-height: 137px; padding: 12px; display: grid; grid-template-columns: 34px 1fr repeat(4,minmax(43px,auto)); grid-template-rows: 56px 46px; gap: 5px; position: relative; border: 1px solid var(--line); border-left: 2px solid var(--gold-dark); border-radius: 4px; background: rgba(24,22,28,.88); }

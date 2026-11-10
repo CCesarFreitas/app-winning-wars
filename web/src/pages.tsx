@@ -7,6 +7,7 @@ import { useRanking } from "./RankingContext";
 import type { AdminLayoutDuplicate, AdminManualProposal, AdminManualResponse, AdminParticipationAccount, AdminParticipationResponse, AdminSummary, AuditActivity, ClanResponse, LayoutEntry, PlanningClan, PlanningEnvelope, PlanningMember, PlayerAuditResponse, RankingDetailsResponse, TournamentMatch, TournamentPlayer } from "./types";
 import { CREST_URL, townHallUrl } from "./assets";
 import { useAdmin } from "./AdminContext";
+import { exportCompactRanking, exportDetailedRanking } from "./rankingExport";
 
 export function HomePage() {
   const { ranking, loading, error, recarregar } = useRanking();
@@ -88,7 +89,10 @@ export function HomePage() {
 
 export function RankingPage() {
   const { ranking, loading, error, recarregar } = useRanking();
+  const { session } = useAdmin();
   const [busca, setBusca] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
   const filtrado = useMemo(() => {
     const termo = busca.trim().toLocaleLowerCase("pt-BR");
     if (!termo) return ranking;
@@ -99,6 +103,8 @@ export function RankingPage() {
     <div className="page">
       <PageHeader eyebrow="Fortaleza Real" title="Ranking oficial da temporada" description="A classificação atual do Winning Wars, com Centro de Vila, desempenho por modalidade e pontuação validada pelo motor." />
       <div className="toolbar"><label className="search-box"><span>⌕</span><input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar jogador ou tag" /></label><span>{filtrado.length} jogadores · <Link to="/ranking/detalhado">ver pontos por atividade →</Link></span></div>
+      {session.autenticado && <div className="ranking-export-bar"><div><strong>Exportação administrativa</strong><span>A imagem compacta incluirá os jogadores visíveis neste filtro.</span></div><button type="button" disabled={exporting || !filtrado.length} onClick={async () => { setExporting(true); setExportError(""); try { await exportCompactRanking(filtrado); } catch (reason) { setExportError(reason instanceof Error ? reason.message : "Falha ao gerar a imagem."); } finally { setExporting(false); } }}>{exporting ? "Gerando PNG…" : "📸 Baixar tabela compacta · PNG HD"}</button></div>}
+      {exportError && <div className="state-card error-state"><strong>Não foi possível gerar a imagem</strong><span>{exportError}</span></div>}
       {loading && <Loading />}
       {error && <ErrorState message={error} onRetry={recarregar} />}
       {!loading && !error && !!filtrado.length && <FortressCvRanking ranking={filtrado} />}
@@ -108,11 +114,14 @@ export function RankingPage() {
 }
 
 export function DetailedRankingPage() {
+  const { session } = useAdmin();
   const [data, setData] = useState<RankingDetailsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [type, setType] = useState("todos");
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
 
   const load = () => {
     setLoading(true); setError(null);
@@ -141,6 +150,8 @@ export function DetailedRankingPage() {
     {error && <ErrorState message={error} onRetry={load} />}
     {data && !loading && !error && <>
       <div className="detail-summary"><span><strong>{players.length}</strong> jogadores</span><span><strong>{columns.length}</strong> atividades exibidas</span><small>Atualizado em {dataAtividade(data.atualizado_em)}</small></div>
+      {session.autenticado && <div className="ranking-export-bar detailed"><div><strong>Exportação administrativa</strong><span>O PNG respeitará a busca e as modalidades selecionadas acima.</span></div><button type="button" disabled={exporting || !players.length} onClick={async () => { setExporting(true); setExportError(""); try { await exportDetailedRanking(data, columns, players); } catch (reason) { setExportError(reason instanceof Error ? reason.message : "Falha ao gerar a imagem."); } finally { setExporting(false); } }}>{exporting ? "Montando tabela em alta resolução…" : "🖼️ Baixar tabela detalhada · PNG HD"}</button></div>}
+      {exportError && <div className="state-card error-state"><strong>Não foi possível gerar a imagem</strong><span>{exportError}</span></div>}
       <div className="detail-table" style={{ "--activity-count": Math.max(columns.length, 1) } as CSSProperties}>
         <div className="detail-head"><span>#</span><span>Jogador</span>{columns.map((column) => <span className={`kind-${column.tipo}`} key={column.chave}>{column.rotulo}</span>)}<span>Total</span></div>
         {players.map((player) => <article className="detail-row" key={player.tag}>
