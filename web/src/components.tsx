@@ -1,24 +1,27 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { iniciais, temporadaLabel } from "./format";
 import { useRanking } from "./RankingContext";
-import { CREST_URL } from "./assets";
+import { CREST_URL, townHallUrl } from "./assets";
 import { useAdmin } from "./AdminContext";
 
 const nav = [
-  { to: "/", icon: "⌂", label: "Quartel-general" },
-  { to: "/ranking", icon: "♛", label: "Ranking oficial" },
-  { to: "/ranking/detalhado", icon: "▦", label: "Tabela detalhada" },
-  { to: "/jogador", icon: "⚔", label: "Ficha do jogador" },
-  { to: "/auditoria", icon: "◈", label: "Arquivo de batalhas" },
-  { to: "/layouts/guerra", icon: "⬢", label: "Layouts de guerra" },
-  { to: "/layouts/rankeada", icon: "⌁", label: "Layouts de rankeada" },
-  { to: "/torneios", icon: "⚡", label: "Torneios Winning Wars" },
-  { to: "/admin", icon: "◆", label: "Painel Admin" },
+  { to: "/", icon: "⌂", label: "Quartel-general", image: CREST_URL },
+  { to: "/ranking", icon: "♛", label: "Ranking oficial", image: townHallUrl(16) },
+  { to: "/ranking/detalhado", icon: "▦", label: "Tabela detalhada", image: townHallUrl(15) },
+  { to: "/jogador", icon: "⚔", label: "Ficha do jogador", image: townHallUrl(14), admin: true },
+  { to: "/auditoria", icon: "◈", label: "Arquivo de batalhas", image: townHallUrl(13), admin: true },
+  { to: "/planejamento", icon: "⌖", label: "Planejador de guerras", image: townHallUrl(17) },
+  { to: "/layouts/guerra", icon: "⬢", label: "Layouts de guerra", image: townHallUrl(12) },
+  { to: "/layouts/rankeada", icon: "⌁", label: "Layouts de Liga", image: townHallUrl(11) },
+  { to: "/torneios", icon: "⚡", label: "Torneios", image: townHallUrl(10) },
+  { to: "/regras", icon: "▤", label: "Regras oficiais" },
+  { to: "/admin", icon: "◆", label: "Painel Admin", admin: true },
 ];
 
 export function Shell() {
   const { ranking } = useRanking();
   const { session } = useAdmin();
+  const visibleNav = nav.filter((item) => !item.admin || session.autenticado);
   const temporada = temporadaLabel(ranking[0]?.temporada);
   return (
     <div className="app-shell royal-shell">
@@ -26,12 +29,12 @@ export function Shell() {
         <div className="brand royal-brand">
           <img className="brand-crest" src={CREST_URL} alt="Brasão Winning Wars" />
           <span>
-            <strong>Winning Wars</strong>
-            <small>Clash · Compete · Conquer</small>
+            <strong>Winning Wars App</strong>
+            <small>Evolução · Alto desempenho · Competitividade</small>
           </span>
         </div>
         <div className="royal-status">
-          <span className="season-chip">Temporada · {temporada}</span>
+          <span className="season-chip royal-season"><b>Temporada em disputa</b><strong>{temporada}</strong></span>
           <span className="engine-status"><i className="live-dot" />Ranking em tempo real</span>
         </div>
         <div className="topbar-actions royal-actions">
@@ -40,9 +43,9 @@ export function Shell() {
         </div>
       </header>
       <nav className="royal-tabs" aria-label="Navegação principal">
-        {nav.map((item) => (
+        {visibleNav.map((item) => (
           <NavLink key={item.to} to={item.to} end={item.to === "/"}>
-            <span aria-hidden="true">{item.icon}</span>
+            {item.image ? <img className="clash-nav-icon" src={item.image} alt="" /> : <span aria-hidden="true">{item.icon}</span>}
             {item.label}
           </NavLink>
         ))}
@@ -51,7 +54,7 @@ export function Shell() {
         <Outlet />
       </main>
       <nav className="mobile-nav" aria-label="Navegação móvel">
-        {[nav[0], nav[1], nav[2], nav.find((item) => item.to === "/auditoria")!, nav.find((item) => item.to === "/admin")!].map((item) => (
+        {[nav[0], nav[1], nav[2], nav.find((item) => item.to === "/planejamento")!, nav.find((item) => item.to === "/admin")!].filter((item) => !item.admin || session.autenticado).map((item) => (
           <NavLink key={item.to} to={item.to} end={item.to === "/"}>
             <span aria-hidden="true">{item.icon}</span>
             <small>{item.label}</small>

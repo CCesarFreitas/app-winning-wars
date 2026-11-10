@@ -156,3 +156,40 @@ def obter_torneio(caminho_sqlite: str | Path) -> dict[str, Any]:
             ],
         }
     return {"torneio": torneio, "roster": roster_publico}
+
+
+def _ultima_versao(caminho: str | Path, tipo: str, chave: str) -> dict[str, Any]:
+    uri = f"file:{Path(caminho).resolve().as_posix()}?mode=ro"
+    with sqlite3.connect(uri, uri=True, timeout=10) as db:
+        linha = db.execute(
+            """SELECT conteudo FROM versoes WHERE tipo=? AND chave=?
+               ORDER BY sequencia DESC LIMIT 1""",
+            (tipo, chave),
+        ).fetchone()
+    if not linha:
+        raise ValueError(f"Documento ausente: {tipo}/{chave}")
+    documento = json.loads(linha[0])
+    if not isinstance(documento, dict):
+        raise ValueError(f"Documento invalido: {tipo}/{chave}")
+    return documento
+
+
+def obter_planejamento(caminho_sqlite: str | Path) -> dict[str, Any]:
+    documento = _ultima_versao(caminho_sqlite, "planejamento", "atual")
+    if documento.get("versao") != 1 or not isinstance(documento.get("guerras_liga"), list):
+        raise ValueError("Planejamento publico invalido")
+    return documento
+
+
+def obter_cla(caminho_sqlite: str | Path) -> dict[str, Any]:
+    roster = _ultima_versao(caminho_sqlite, "roster", "principal")
+    contas = roster.get("contas", [])
+    if not isinstance(contas, list):
+        raise ValueError("Roster publico invalido")
+    return {
+        "nome": roster.get("clan", "Winning Wars"),
+        "tag": roster.get("tag", "#YVLGUJQY"),
+        "nivel": roster.get("nivel"),
+        "membros": len(contas),
+        "consultado_em": roster.get("consultado_em", ""),
+    }

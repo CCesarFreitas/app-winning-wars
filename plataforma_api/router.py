@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import os
+import sqlite3
 
 from fastapi import HTTPException
 
 from .admin import instalar_rotas_admin
-from .conteudo import listar_layouts, obter_torneio
+from .conteudo import listar_layouts, obter_cla, obter_planejamento, obter_torneio
 from .ranking_atual import montar_ranking_atual, montar_tabela_detalhada
 
 
@@ -57,4 +58,18 @@ def instalar_rotas(app, caminho_sqlite: str | None = None) -> None:
             return obter_torneio(caminho)
         except (OSError, ValueError) as erro:
             raise HTTPException(status_code=503, detail="torneio_indisponivel") from erro
+
+    @app.get("/v1/planning")
+    def planejamento_v1():
+        try:
+            return obter_planejamento(caminho)
+        except (OSError, ValueError, sqlite3.Error) as erro:
+            raise HTTPException(status_code=503, detail="planejamento_indisponivel") from erro
+
+    @app.get("/v1/clan")
+    def cla_v1():
+        try:
+            return obter_cla(caminho)
+        except (OSError, ValueError, sqlite3.Error) as erro:
+            raise HTTPException(status_code=503, detail="cla_indisponivel") from erro
 

@@ -4,32 +4,35 @@ import { api } from "./api";
 import { ErrorState, Loading, PageHeader, PlayerAvatar } from "./components";
 import { dataAtividade, numero, rotuloTipo, temporadaLabel } from "./format";
 import { useRanking } from "./RankingContext";
-import type { AdminManualProposal, AdminManualResponse, AdminParticipationAccount, AdminParticipationResponse, AdminSummary, AuditActivity, LayoutEntry, PlayerAuditResponse, RankingDetailsResponse, TournamentMatch, TournamentPlayer } from "./types";
+import type { AdminManualProposal, AdminManualResponse, AdminParticipationAccount, AdminParticipationResponse, AdminSummary, AuditActivity, ClanResponse, LayoutEntry, PlanningClan, PlanningEnvelope, PlanningMember, PlayerAuditResponse, RankingDetailsResponse, TournamentMatch, TournamentPlayer } from "./types";
 import { CREST_URL, townHallUrl } from "./assets";
 import { useAdmin } from "./AdminContext";
 
 export function HomePage() {
   const { ranking, loading, error, recarregar } = useRanking();
+  const { session } = useAdmin();
   const lider = ranking[0];
   const pontos = ranking.reduce((total, player) => total + player.total, 0);
   const temporada = temporadaLabel(lider?.temporada);
+  const [clan, setClan] = useState<ClanResponse | null>(null);
+  useEffect(() => { api.clan().then(setClan).catch(() => undefined); }, []);
 
   return (
     <div className="page home-page">
       <section className="hero">
         <div className="hero-copy">
           <span className="battle-status"><i className="live-dot" /> Temporada em disputa · {temporada}</span>
-          <h1>Toda batalha conta.<br /><em>Toda vitória deixa um legado.</em></h1>
-          <p>A arena oficial da competição Winning Wars. Acompanhe sua evolução, confira cada ponto e lute pelo topo do clã.</p>
+          <h1>Seu centro de comando<br /><em>no Winning Wars.</em></h1>
+          <p>Acompanhe a competição dos passes em tempo real, consulte o desempenho individual dos membros e encontre layouts de guerra e Liga, informações sobre eventos e torneios da comunidade Winning Wars.</p>
           <div className="hero-actions">
             <Link className="primary-button" to="/ranking"><span>♛</span> Entrar no ranking</Link>
-            <Link className="secondary-button" to="/auditoria">Ver batalhas encerradas <span>→</span></Link>
+            <Link className="secondary-button" to={session.autenticado ? "/auditoria" : "/regras"}>{session.autenticado ? "Ver batalhas encerradas" : "Conhecer as regras"} <span>→</span></Link>
           </div>
         </div>
         <div className="hero-emblem" aria-hidden="true">
           <span className="emblem-glow" />
           <img src={CREST_URL} alt="" />
-          <div className="clan-level"><small>Nível do clã</small><strong>18</strong></div>
+          <div className="clan-level"><small>Nível do clã</small><strong>{clan?.nivel ?? "—"}</strong></div>
         </div>
       </section>
 
@@ -47,7 +50,7 @@ export function HomePage() {
             <div className="section-title"><div><span className="eyebrow">Salão dos campeões</span><h2>O pódio da temporada</h2><p>Os guerreiros que comandam a disputa neste momento.</p></div><Link to="/ranking">Ver classificação completa →</Link></div>
             <div className="podium-grid">
               {ranking.slice(0, 3).map((player) => (
-                <Link to={`/jogador/${encodeURIComponent(player.tag)}`} className={`podium-card place-${player.posicao}`} key={player.tag}>
+                <Link to={session.autenticado ? `/jogador/${encodeURIComponent(player.tag)}` : "/ranking"} className={`podium-card place-${player.posicao}`} key={player.tag}>
                   <span className="place-badge">{player.posicao}º</span>
                   <RankingTownHall player={player} compact />
                   <div><strong>{player.nome}</strong><small>{player.tag}</small></div>
@@ -60,11 +63,20 @@ export function HomePage() {
             <div className="section-title"><div><span className="eyebrow">Central de comando</span><h2>Seu caminho na competição</h2></div></div>
             <div className="war-room-grid">
               <Link to="/ranking"><span>♛</span><div><small>Classificação</small><strong>Ranking oficial</strong><p>Veja pontos por modalidade e sua posição na temporada.</p></div><b>→</b></Link>
-              <Link to="/jogador"><span>⚔</span><div><small>Desempenho</small><strong>Ficha do jogador</strong><p>Entenda sua pontuação e acompanhe cada batalha.</p></div><b>→</b></Link>
-              <Link to="/auditoria"><span>◈</span><div><small>Transparência</small><strong>Arquivo de batalhas</strong><p>Consulte resultados processados pelo motor Winning Wars.</p></div><b>→</b></Link>
+              {session.autenticado && <Link to="/jogador"><span>⚔</span><div><small>Administração</small><strong>Ficha do jogador</strong><p>Confira a origem da pontuação e cada batalha processada.</p></div><b>→</b></Link>}
+              {session.autenticado && <Link to="/auditoria"><span>◈</span><div><small>Administração</small><strong>Arquivo de batalhas</strong><p>Consulte os registros detalhados preservados pelo motor.</p></div><b>→</b></Link>}
+              <Link to="/planejamento"><span>⌖</span><div><small>Estratégia</small><strong>Planejador de guerras</strong><p>Compare os Centros de Vila inscritos e o desempenho observado dos adversários.</p></div><b>→</b></Link>
               <Link to="/layouts/guerra"><span>⬢</span><div><small>Defesas</small><strong>Layouts de guerra</strong><p>Bases organizadas por Centro de Vila para copiar no Clash.</p></div><b>→</b></Link>
               <Link to="/layouts/rankeada"><span>⌁</span><div><small>Rankeadas</small><strong>Layouts de rankeada</strong><p>Seleção oficial para proteger troféus e subir no ranking.</p></div><b>→</b></Link>
               <Link to="/torneios"><span>⚡</span><div><small>Arena ao vivo</small><strong>Torneios Winning Wars</strong><p>Chaveamento eliminatório oficial para as lives do clã.</p></div><b>→</b></Link>
+              <Link to="/regras"><span>▤</span><div><small>Regras oficiais</small><strong>Clã e competição dos passes</strong><p>Consulte os critérios de convivência, participação e premiação.</p></div><b>→</b></Link>
+            </div>
+          </section>
+          <section className="community-gates">
+            <div className="section-title"><div><span className="eyebrow">Portões da comunidade</span><h2>Entre no clã e conecte sua vila</h2><p>Acessos oficiais para jogar, acompanhar os avisos e participar das atividades.</p></div></div>
+            <div className="community-gates-grid">
+              <a className="community-gate supercell-gate" href="https://link.clashofclans.com/?action=OpenSCID&p=25-1cb8481f-3a79-4681-90f9-8914acef2d63" target="_blank" rel="noreferrer"><span className="scid-mark">ID</span><div><small>Conta oficial</small><strong>Adicionar ao Supercell ID</strong><p>Abra o Clash of Clans e adicione o perfil Winning Wars.</p></div><b>↗</b></a>
+              <a className="community-gate whatsapp-gate" href="https://chat.whatsapp.com/FKFc5y323PCBnTFdsjhv64" target="_blank" rel="noreferrer"><img src="/assets/whatsapp.svg" alt="WhatsApp" /><div><small>Comunidade</small><strong>Entrar no grupo do clã</strong><p>Receba convocações, avisos e informações das atividades.</p></div><b>↗</b></a>
             </div>
           </section>
         </>
@@ -268,6 +280,94 @@ export function LayoutsPage() {
   </div>;
 }
 
+const MAIN_CLAN_TAG = "#YVLGUJQY";
+
+function memberCv(member: PlanningMember) {
+  return Number(member.townHallLevel ?? member.townhallLevel ?? 0);
+}
+
+function cvDistribution(members: PlanningMember[]) {
+  const counts = new Map<number, number>();
+  members.forEach((member) => { const cv = memberCv(member); if (cv > 0) counts.set(cv, (counts.get(cv) || 0) + 1); });
+  return [...counts.entries()].sort((a, b) => b[0] - a[0]);
+}
+
+function CvBars({ members, label }: { members: PlanningMember[]; label: string }) {
+  const distribution = cvDistribution(members);
+  const maximum = Math.max(...distribution.map(([, count]) => count), 1);
+  return <div className="planning-cv-bars"><small>{label} · {members.length} vilas</small>{distribution.map(([cv, count]) => <div key={cv}><img src={townHallUrl(cv)} alt={`CV ${cv}`} /><span>CV {cv}</span><i><b style={{ width: `${Math.max(10, (count / maximum) * 100)}%` }} /></i><strong>{count}</strong></div>)}</div>;
+}
+
+function sideForClan(war: PlanningEnvelope, tag: string): PlanningClan | null {
+  if (war.dados.clan.tag === tag) return war.dados.clan;
+  if (war.dados.opponent.tag === tag) return war.dados.opponent;
+  return null;
+}
+
+export function PlanningPage() {
+  const [data, setData] = useState<Awaited<ReturnType<typeof api.planning>> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [opponentTag, setOpponentTag] = useState("");
+  const load = () => { setLoading(true); setError(null); api.planning().then(setData).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Falha ao carregar o planejamento.")).finally(() => setLoading(false)); };
+  useEffect(load, []);
+  const clans = data?.grupo?.dados.clans || [];
+  const opponents = clans.filter((clan) => clan.tag !== MAIN_CLAN_TAG);
+  const chosenTag = opponentTag || opponents[0]?.tag || "";
+  const chosen = opponents.find((clan) => clan.tag === chosenTag) || null;
+  const leagueWars = data?.guerras_liga || [];
+  const observedWars = chosen ? leagueWars.filter((war) => !!sideForClan(war, chosen.tag)) : [];
+  const observedAttacks = observedWars.flatMap((war) => sideForClan(war, chosenTag)?.members.flatMap((member) => member.attacks || []) || []);
+  const triples = observedAttacks.filter((attack) => attack.stars === 3).length;
+  const avgDestruction = observedAttacks.length ? observedAttacks.reduce((sum, attack) => sum + attack.destructionPercentage, 0) / observedAttacks.length : 0;
+  const durations = observedAttacks.map((attack) => attack.duration).filter((duration): duration is number => typeof duration === "number");
+  const avgDuration = durations.length ? durations.reduce((sum, duration) => sum + duration, 0) / durations.length : 0;
+  const latestWar = [...leagueWars].reverse().find((war) => !!sideForClan(war, MAIN_CLAN_TAG)) || null;
+  const wwSide = latestWar ? sideForClan(latestWar, MAIN_CLAN_TAG) : null;
+  const currentOpponent = latestWar ? (latestWar.dados.clan.tag === MAIN_CLAN_TAG ? latestWar.dados.opponent : latestWar.dados.clan) : null;
+
+  return <div className="page planning-page">
+    <PageHeader eyebrow="Sala de estratégia" title="Planejador de guerras e Liga" description="Compare as vilas inscritas e escaladas, analise o histórico observado dos adversários e prepare a melhor escalação e defesa." />
+    {loading && <Loading label="Montando o mapa estratégico…" />}
+    {error && <ErrorState message={error} onRetry={load} />}
+    {data && !loading && !error && <>
+      <section className="planning-status"><div><span className="live-dot" /><strong>{data.grupo ? `Liga ${data.grupo.dados.season}` : "Sem Liga ativa"}</strong><small>Atualizado em {dataAtividade(data.publicado_em)}</small></div><span>{data.pendencias.length ? `${data.pendencias.length} consultas pendentes` : "Dados conferidos"}</span></section>
+      {latestWar && wwSide && currentOpponent && <section className="planning-current"><div><span className="eyebrow">Escalação mais recente · rodada {latestWar.rodada}</span><h2>Winning Wars × {currentOpponent.name}</h2><p>{latestWar.dados.teamSize} × {latestWar.dados.teamSize} · {latestWar.dados.state === "warEnded" ? "encerrada" : latestWar.dados.state === "inWar" ? "em disputa" : "em preparação"}</p></div><div className="planning-duel"><CvBars members={wwSide.members} label="Winning Wars escalado" /><CvBars members={currentOpponent.members} label={`${currentOpponent.name} escalado`} /></div></section>}
+      <section className="section-block"><div className="section-title"><div><span className="eyebrow">Elencos inscritos</span><h2>Quantidade detalhada de CV por clã</h2><p>Distribuição completa do grupo de Liga informada pela Supercell.</p></div></div><div className="planning-clan-grid">{clans.map((clan) => <article className={clan.tag === MAIN_CLAN_TAG ? "ours" : ""} key={clan.tag}><header><div><small>{clan.tag === MAIN_CLAN_TAG ? "Nosso clã" : "Adversário"}</small><strong>{clan.name}</strong><span>{clan.tag}</span></div><b>{clan.members.length}</b></header><CvBars members={clan.members} label="Inscritos" /></article>)}</div></section>
+      {!!opponents.length && <section className="section-block opponent-intelligence"><div className="section-title"><div><span className="eyebrow">Inteligência de batalha</span><h2>Perfil observado do adversário</h2><p>Estatísticas calculadas apenas com ataques disponibilizados pela API oficial.</p></div><label><span>Selecionar clã</span><select value={chosenTag} onChange={(event) => setOpponentTag(event.target.value)}>{opponents.map((clan) => <option key={clan.tag} value={clan.tag}>{clan.name} · {clan.tag}</option>)}</select></label></div>{chosen && <><div className="planning-metrics"><article><small>Guerras observadas</small><strong>{observedWars.length}</strong></article><article><small>Ataques registrados</small><strong>{observedAttacks.length}</strong></article><article><small>Taxa de três estrelas</small><strong>{observedAttacks.length ? `${Math.round((triples / observedAttacks.length) * 100)}%` : "—"}</strong></article><article><small>Destruição média</small><strong>{observedAttacks.length ? `${avgDestruction.toFixed(1)}%` : "—"}</strong></article><article><small>Duração média</small><strong>{durations.length ? `${Math.round(avgDuration)} s` : "—"}</strong></article></div><CvBars members={chosen.members} label={`${chosen.name} · elenco inscrito`} /></>}</section>}
+      <div className="planning-disclaimer"><strong>Limite dos dados da Supercell</strong><span>A API informa CV, escalações, alvos, estrelas, destruição e duração. Ela não informa tropas, feitiços, máquinas ou composição do exército; por isso o app não inventa esses dados.</span></div>
+    </>}
+  </div>;
+}
+
+const CLAN_RULES = [
+  "Novatos devem ser avaliados antes de participar das guerras do clã.",
+  "Ataque uma vila do mesmo nível de Centro de Vila; o alvo não precisa ser o espelho.",
+  "Três dias de inatividade sem aviso podem resultar em remoção do clã.",
+  "Nos Jogos do Clã, faça no mínimo 2.000 pontos para permanecer elegível.",
+  "Promoções e cargos são concedidos por mérito, participação e confiança.",
+  "WhatsApp é obrigatório para Liga e para a competição dos passes.",
+  "Contas muito apressadas ou com heróis incompatíveis com o CV podem não ser aceitas.",
+  "Peça ajuda quando precisar e contribua para a evolução coletiva do clã.",
+];
+
+const PASS_RULES = [
+  "A competição é mensal e usa somente pontuações validadas pelos motores e lançamentos administrativos auditados.",
+  "A primeira pontuação positiva inscreve a conta automaticamente no ranking da temporada.",
+  "O administrador pode habilitar apenas uma conta por jogador e bloquear contas secundárias quando necessário.",
+  "Guerras, Liga e raides são processados automaticamente depois que a atividade termina e os dados são conferidos.",
+  "Jogos do Clã e eventos sem retorno oficial da Supercell são lançados manualmente pelo administrador.",
+  "Jogos do Clã: abaixo de 2.000 = 0; 2.000–3.999 = 2; 4.000–9.999 = 5; 10.000 = 10 pontos.",
+  "Correções substituem o total da atividade; nunca somam o mesmo resultado duas vezes.",
+  "Os três primeiros colocados elegíveis ao fim da temporada recebem o Passe Dourado, conforme validação da liderança.",
+  "O motor preserva o desempenho de todas as contas nas atividades automáticas. Contas desabilitadas ficam fora do ranking oficial; ao habilitar, a contribuição validada aparece sem duplicar lançamentos.",
+  "A tabela detalhada é pública. Fichas individuais e o arquivo técnico de batalhas são consultas administrativas protegidas.",
+];
+
+export function RulesPage() {
+  return <div className="page rules-page"><PageHeader eyebrow="Código da fortaleza" title="Regras oficiais" description="Critérios claros para convivência no clã e participação na competição mensal dos passes." /><section className="rules-hero"><div><span>▤</span><h2>Competir com transparência.<br />Evoluir com respeito.</h2><p>Estas regras protegem a comunidade, a justiça do ranking e a organização das atividades.</p></div><img src={CREST_URL} alt="Brasão Winning Wars" /></section><div className="official-rules-grid"><section><header><span>01</span><div><small>Comunidade</small><h2>Regras do clã</h2></div></header><ol>{CLAN_RULES.map((rule, index) => <li key={rule}><b>{String(index + 1).padStart(2, "0")}</b><span>{rule}</span></li>)}</ol></section><section><header><span>02</span><div><small>Temporada mensal</small><h2>Competição dos passes</h2></div></header><ol>{PASS_RULES.map((rule, index) => <li key={rule}><b>{String(index + 1).padStart(2, "0")}</b><span>{rule}</span></li>)}</ol></section></div></div>;
+}
+
 const REGRAS_TORNEIO = [
   "Respeite participantes, juiz e normas do torneio; comportamento antidesportivo pode causar eliminação.",
   "Os duelos são convocados pelo juiz e os desafios devem usar exatamente o modo de jogo anunciado.",
@@ -286,6 +386,7 @@ function TournamentMatchCard({ match, index }: { match: TournamentMatch; index: 
 }
 
 export function TournamentPage() {
+  const { session } = useAdmin();
   const [data, setData] = useState<Awaited<ReturnType<typeof api.torneio>> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -294,13 +395,34 @@ export function TournamentPage() {
   const torneio = data?.torneio;
   const roster = data?.roster;
   return <div className="page tournament-page">
-    <section className="tournament-hero"><div><span className="eyebrow">Arena oficial para lives</span><h1>Torneios Winning Wars</h1><p>Confrontos eliminatórios 1 × 1, da primeira batalha à grande final.</p><div><span>TorneiosWWars · #2CY88CCYU</span><a href="https://www.youtube.com/@winningwarscoc" target="_blank" rel="noreferrer">▶ YouTube @winningwarscoc</a></div></div><img src={CREST_URL} alt="Brasão Winning Wars" /></section>
+    <section className="tournament-hero"><div><span className="eyebrow">Arena oficial para lives</span><h1>Torneios Winning Wars</h1><p>Confrontos eliminatórios 1 × 1, da primeira batalha à grande final.</p><div><span>TorneiosWWars · #2CY88CCYU</span><a href="https://www.youtube.com/@winningwarscoc" target="_blank" rel="noreferrer">▶ YouTube @winningwarscoc</a>{session.autenticado && <Link className="tournament-admin-cta" to="/admin/torneios">⚙ Iniciar ou controlar torneio</Link>}</div></div><img src={CREST_URL} alt="Brasão Winning Wars" /></section>
     <details className="rules-panel" open><summary>Regras oficiais do torneio</summary><ol>{REGRAS_TORNEIO.map((regra, index) => <li key={regra}><b>{String(index + 1).padStart(2, "0")}</b><span>{regra}</span></li>)}</ol></details>
     {loading && <Loading label="Conectando à arena oficial…" />}{error && <ErrorState message={error} onRetry={load} />}
     {!loading && !error && roster && <section className="roster-summary"><div><span className="eyebrow">Elenco em tempo real</span><h2>{roster.clan}</h2><p>{roster.contas.length} contas · {roster.tag}</p></div><div className="roster-cvs">{CVS.map((value) => { const total = roster.contas.filter((p) => p.cv === value).length; return total ? <span key={value}><img src={townHallUrl(value)} alt="" />CV {value}: <b>{total}</b></span> : null; })}</div></section>}
     {!loading && !error && !torneio && <div className="state-card tournament-empty"><strong>A arena está preparada para o próximo torneio</strong><span>O chaveamento aparecerá aqui assim que a organização iniciar a competição.</span></div>}
     {torneio && <><section className="tournament-title"><div><span className="eyebrow">Chaveamento oficial</span><h2>{torneio.nome}</h2><p>{torneio.participantes.length} competidores · CV {torneio.cv} · {torneio.modo}</p></div>{torneio.campeao && <div className="champion-chip">🏆 {torneio.campeao.nome}</div>}</section><div className="bracket">{torneio.rodadas.map((round, roundIndex) => <section className="bracket-round" key={roundIndex}><h3>{torneio.rotulos[roundIndex]}</h3><div>{round.map((match, index) => <TournamentMatchCard key={index} match={match} index={index} />)}</div></section>)}</div></>}
   </div>;
+}
+
+export function AdminTournamentPage() {
+  const { session, loading: sessionLoading } = useAdmin();
+  const [data, setData] = useState<Awaited<ReturnType<typeof api.torneio>> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState("");
+  const [name, setName] = useState("Torneios Winning Wars");
+  const [mode, setMode] = useState("Desafio amistoso");
+  const [cv, setCv] = useState<number | "Todos">("Todos");
+  const [selected, setSelected] = useState<string[]>([]);
+  const load = () => { setLoading(true); api.torneio().then((result) => { setData(result); setSelected(result.roster?.contas.map((player) => player.tag) || []); }).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Falha ao carregar torneio.")).finally(() => setLoading(false)); };
+  useEffect(load, []);
+  if (sessionLoading) return <div className="page"><Loading /></div>;
+  if (!session.autenticado) return <div className="page"><ErrorState message="Entre como administrador para controlar o torneio." /></div>;
+  const roster = data?.roster?.contas || [];
+  const eligible = roster.filter((player) => cv === "Todos" || player.cv === cv);
+  const pending = data?.torneio?.rodadas.flatMap((round, roundIndex) => round.map((match, matchIndex) => ({ roundIndex, matchIndex, match }))).filter((item) => !item.match.vencedor && item.match.jogadores.every(Boolean)) || [];
+  const run = async (action: () => Promise<unknown>, message: string) => { setError(null); setNotice(""); try { await action(); setNotice(message); load(); } catch (reason) { setError(reason instanceof Error ? reason.message : "Operação não concluída."); } };
+  return <div className="page admin-page tournament-console"><div className="admin-subnav"><Link to="/torneios">← Voltar à arena</Link><span>Console não exibido na transmissão</span></div><PageHeader eyebrow="Console do organizador" title="Controle do torneio" description="Sorteie o chaveamento, confirme os vencedores e avance cada classificado com auditoria na planilha." />{loading && <Loading />}{error && <ErrorState message={error} />}{notice && <div className="admin-success">✓ {notice}</div>}{data && !data.torneio && <section className="tournament-create"><label><span>Nome do torneio</span><input value={name} onChange={(event) => setName(event.target.value)} /></label><label><span>Modo de jogo</span><input value={mode} onChange={(event) => setMode(event.target.value)} /></label><label><span>Centro de Vila</span><select value={cv} onChange={(event) => { const value = event.target.value; const next = value === "Todos" ? "Todos" : Number(value); setCv(next); setSelected(roster.filter((player) => next === "Todos" || player.cv === next).map((player) => player.tag)); }}><option value="Todos">Todos os CVs</option>{[...new Set(roster.map((player) => player.cv))].sort((a, b) => b - a).map((value) => <option value={value} key={value}>Somente CV {value}</option>)}</select></label><div className="tournament-select-list">{eligible.map((player) => <label key={player.tag}><input type="checkbox" checked={selected.includes(player.tag)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, player.tag] : current.filter((tag) => tag !== player.tag))} /><img src={townHallUrl(player.cv)} alt="" /><span><b>{player.nome}</b><small>{player.tag} · CV {player.cv}</small></span></label>)}</div><button className="primary-button" disabled={selected.length < 2} onClick={() => run(() => api.adminTournamentStart(name, mode, cv, selected), "Chaveamento sorteado e publicado na arena.")}>🎲 Sortear e iniciar torneio ({selected.length})</button>{roster.length < 2 && <div className="planning-disclaimer"><strong>Elenco insuficiente</strong><span>A Oracle está conectada ao clã TorneiosWWars. O torneio poderá começar quando houver pelo menos dois participantes.</span></div>}</section>}{data?.torneio && <><section className="tournament-title"><div><span className="eyebrow">Torneio ativo</span><h2>{data.torneio.nome}</h2><p>{pending.length} confronto(s) aguardando resultado.</p></div><button className="secondary-button" onClick={() => run(api.adminTournamentReset, "Torneio encerrado. O console está pronto para um novo sorteio.")}>Encerrar e criar outro</button></section><div className="tournament-pending">{pending.map(({ roundIndex, matchIndex, match }) => <article key={`${roundIndex}-${matchIndex}`}><small>{data.torneio?.rotulos[roundIndex]} · Jogo {matchIndex + 1}</small><h3>{match.jogadores[0]?.nome} × {match.jogadores[1]?.nome}</h3><div>{match.jogadores.map((player) => player && <button className="primary-button" key={player.tag} onClick={() => run(() => api.adminTournamentWinner(roundIndex, matchIndex, player.tag), `${player.nome} avançou no chaveamento.`)}>Confirmar {player.nome}</button>)}</div></article>)}</div></>}</div>;
 }
 
 type IdentityConcept = "fortaleza_cv" | "fortaleza" | "mapa" | "liga";
@@ -424,7 +546,7 @@ export function AdminLoginPage() {
           <button className="primary-button" type="submit" disabled={!ambienteSeguro || enviando || !usuario.trim() || !senha}>{enviando ? "Validando…" : "Entrar no painel"}</button>
         </form>
       </section>
-      <aside className="admin-security-card"><span>Proteções previstas</span><ul><li>Cookie de sessão inacessível ao JavaScript</li><li>Validação do administrador a cada operação</li><li>Limite de tentativas de login</li><li>Credenciais do Google apenas na Oracle</li><li>Primeira etapa estritamente somente leitura</li></ul></aside>
+      <aside className="admin-security-card"><span>Proteções ativas</span><ul><li>Cookie de sessão inacessível ao JavaScript</li><li>Validação do administrador a cada operação</li><li>Limite de tentativas de login</li><li>Credenciais do Google apenas na Oracle</li><li>Backup, auditoria e conferência após cada gravação</li></ul></aside>
     </div>
   </div>;
 }
@@ -453,7 +575,7 @@ export function AdminPage() {
 
   return <div className="page admin-page">
     <div className="admin-heading"><PageHeader eyebrow="Central de comando" title={`Olá, ${session.usuario}`} description="Visão protegida do estado atual da competição." /><button className="secondary-button" onClick={sair}>Encerrar sessão</button></div>
-    <div className="read-only-banner"><span>◉</span><div><strong>Homologação somente leitura</strong><small>Nenhuma alteração na planilha pode ser feita por esta versão.</small></div></div>
+    <div className="read-only-banner active-write"><span>✓</span><div><strong>Controles administrativos ativos</strong><small>As alterações autorizadas criam backup, auditoria e conferência na planilha oficial.</small></div></div>
     {loading && <Loading label="Carregando controles administrativos…" />}
     {error && <ErrorState message={error} />}
     {summary && <>
@@ -463,8 +585,8 @@ export function AdminPage() {
         <article><small>Bloqueios</small><strong>{summary.participacao.bloqueadas}</strong><span>decisões administrativas</span></article>
         <article><small>Nível de acesso</small><strong>{summary.admin.nivel}</strong><span>{summary.admin.usuario}</span></article>
       </section>
-      <section className="admin-modules"><div className="section-title"><div><span className="eyebrow">Próximas migrações</span><h2>Controles administrativos</h2><p>Cada módulo será liberado somente depois da validação em paralelo com o app oficial.</p></div></div><div>
-        {["Participação e vínculos", "Jogos do Clã e eventos", "Revisões de pontuação", "Layouts e torneios", "Comunicação e agenda", "Fechamento mensal"].map((label, index) => <article key={label}><span>{String(index + 1).padStart(2, "0")}</span><strong>{index === 0 ? <Link to="/admin/participacao">{label}</Link> : index === 1 ? <Link to="/admin/lancamentos">{label}</Link> : label}</strong><small>{index <= 1 ? "Disponível para consulta" : "Aguardando migração"}</small></article>)}
+      <section className="admin-modules"><div className="section-title"><div><span className="eyebrow">Operação oficial</span><h2>Controles administrativos</h2><p>Módulos com acesso protegido, histórico e confirmação de gravação.</p></div></div><div>
+        {["Participação e vínculos", "Jogos do Clã e eventos", "Torneios Winning Wars", "Revisões de pontuação", "Layouts", "Fechamento mensal"].map((label, index) => <article key={label}><span>{String(index + 1).padStart(2, "0")}</span><strong>{index === 0 ? <Link to="/admin/participacao">{label}</Link> : index === 1 ? <Link to="/admin/lancamentos">{label}</Link> : index === 2 ? <Link to="/admin/torneios">{label}</Link> : label}</strong><small>{index <= 2 ? "Ativo e auditado" : "Permanece no app legado durante a migração"}</small></article>)}
       </div></section>
     </>}
   </div>;
@@ -485,12 +607,27 @@ export function AdminParticipationPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("todas");
+  const [writingTag, setWritingTag] = useState("");
+  const [notice, setNotice] = useState("");
 
-  useEffect(() => {
+  const loadParticipation = () => {
     if (sessionLoading || !session.autenticado) return;
     setLoading(true); setError(null);
     api.adminParticipation().then(setData).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Falha ao carregar participação.")).finally(() => setLoading(false));
-  }, [session.autenticado, sessionLoading]);
+  };
+  useEffect(loadParticipation, [session.autenticado, sessionLoading]);
+
+  const toggleParticipation = async (account: AdminParticipationAccount) => {
+    if (!account.evento_id || writingTag) return;
+    setWritingTag(account.tag); setError(null); setNotice("");
+    try {
+      const enable = account.habilitada !== "TRUE";
+      await api.adminParticipationToggle(account.tag, enable, enable ? "Habilitada pelo painel administrativo" : "Desabilitada pelo painel administrativo", account.evento_id);
+      setNotice(`${account.nome} foi ${enable ? "habilitada" : "desabilitada"} e a decisão foi auditada.`);
+      await api.adminParticipation().then(setData);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Não foi possível alterar a participação."); }
+    finally { setWritingTag(""); }
+  };
 
   const accounts = useMemo(() => {
     const term = search.trim().toLocaleLowerCase("pt-BR");
@@ -510,10 +647,11 @@ export function AdminParticipationPage() {
   if (!session.autenticado) return <div className="page admin-page"><PageHeader eyebrow="Participação e vínculos" title="Acesso protegido" description="Esta relação contém decisões administrativas e exige autenticação." /><div className="state-card"><strong>Sessão administrativa necessária</strong><Link className="primary-button" to="/admin/login">Entrar como administrador</Link></div></div>;
 
   return <div className="page admin-page participation-page">
-    <div className="admin-subnav"><Link to="/admin">← Voltar ao painel</Link><span>Somente leitura</span></div>
+    <div className="admin-subnav"><Link to="/admin">← Voltar ao painel</Link><span>Controle ativo e auditado</span></div>
     <PageHeader eyebrow="Controle da competição" title="Participação e vínculos" description="Presença no clã é um alerta operacional. Somente uma decisão administrativa pode bloquear uma conta." />
     {loading && <Loading label="Conferindo contas, vínculos e presença…" />}
     {error && <ErrorState message={error} />}
+    {notice && <div className="admin-success">✓ {notice}</div>}
     {data && <>
       <section className="participation-stats">
         <article><small>Contas monitoradas</small><strong>{data.contagens.total}</strong></article>
@@ -528,9 +666,9 @@ export function AdminParticipationPage() {
       <section className="participation-list"><header><span>Conta</span><span>Presença</span><span>Competição</span><span>Última decisão</span><span>Pontos</span></header>{accounts.map((account) => <article key={account.tag}>
         <div className="participation-player">{account.cv ? <img src={townHallUrl(account.cv)} alt={`CV ${account.cv}`} /> : <span>?</span>}<div><strong>{account.nome}</strong><small>{account.tag} · ID {account.participante_id || "—"}{account.cv ? ` · CV ${account.cv}` : ""}</small></div></div>
         <div><span className={`status-chip ${account.no_cla ? "online" : "away"}`}>{PARTICIPATION_STATUS[account.situacao]}</span><small>{account.ultima_vista ? `Última presença: ${dataAtividade(account.ultima_vista)}` : "Sem histórico de presença"}</small></div>
-        <div><span className={`status-chip ${account.habilitada === "FALSE" ? "blocked" : account.habilitada === "TRUE" ? "enabled" : "neutral"}`}>{account.habilitada === "FALSE" ? "Bloqueada" : account.habilitada === "TRUE" ? "Habilitada" : "Sem decisão"}</span><small>{account.inscrita ? "Inscrita na temporada" : "Ainda não inscrita"}</small></div>
+        <div><button className={`status-chip participation-toggle ${account.habilitada === "FALSE" ? "blocked" : account.habilitada === "TRUE" ? "enabled" : "neutral"}`} onClick={() => toggleParticipation(account)} disabled={!account.evento_id || writingTag === account.tag}>{writingTag === account.tag ? "Gravando…" : account.habilitada === "TRUE" ? "Habilitada · clique para desabilitar" : "Desabilitada · clique para habilitar"}</button><small>{account.inscrita ? "Inscrita na temporada" : "Ainda não inscrita"}</small></div>
         <div className="decision-cell"><strong>{account.administrador || (account.origem_decisao === "CADASTRO" ? "Automática" : "—")}</strong><small>{account.motivo || "Nenhuma decisão administrativa"}</small></div>
-        <b>{account.pontos}<small> pts</small></b>
+        <b>{account.pontos}<small> pts</small>{account.contribuicao && <small className="contribution-breakdown">Guerras/Liga {account.contribuicao.guerra} · Raides {account.contribuicao.raides}<br />Jogos {account.contribuicao.jogos} · Eventos {account.contribuicao.eventos}</small>}</b>
       </article>)}</section>
       {!accounts.length && <div className="state-card"><strong>Nenhuma conta encontrada</strong><span>Altere a busca ou o filtro selecionado.</span></div>}
     </>}
@@ -547,6 +685,9 @@ export function AdminManualPage() {
   const [value, setValue] = useState("");
   const [proposal, setProposal] = useState<AdminManualProposal | null>(null);
   const [simulating, setSimulating] = useState(false);
+  const [batchValues, setBatchValues] = useState<Record<string, string>>({});
+  const [batchSubmitting, setBatchSubmitting] = useState(false);
+  const [batchNotice, setBatchNotice] = useState("");
   const [historySearch, setHistorySearch] = useState("");
   const secure = window.isSecureContext;
 
@@ -571,16 +712,32 @@ export function AdminManualPage() {
     finally { setSimulating(false); }
   };
 
+  const applyBatch = async () => {
+    if (!data || batchSubmitting) return;
+    const entries = data.contas.filter((account) => batchValues[account.tag] !== undefined && batchValues[account.tag] !== "").map((account) => ({ tag: account.tag, nome: account.nome, valor: Number(batchValues[account.tag]) }));
+    if (!entries.length || entries.some((entry) => !Number.isInteger(entry.valor))) { setError("Preencha ao menos uma conta usando somente números inteiros."); return; }
+    setBatchSubmitting(true); setError(null); setBatchNotice("");
+    try {
+      const result = await api.adminManualBatch(activity, entries);
+      setBatchNotice(`${result.aplicados || 0} lançamento(s) registrado(s), auditado(s) e conferido(s).`);
+      setBatchValues({});
+      setData(await api.adminManual());
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Não foi possível registrar o lote."); }
+    finally { setBatchSubmitting(false); }
+  };
+
   if (sessionLoading) return <div className="page"><Loading label="Conferindo sessão administrativa…" /></div>;
   if (!session.autenticado) return <div className="page admin-page"><PageHeader eyebrow="Lançamentos manuais" title="Acesso protegido" description="Jogos do Clã, eventos e auditoria exigem autenticação." /><div className="state-card"><strong>Sessão administrativa necessária</strong><Link className="primary-button" to="/admin/login">Entrar como administrador</Link></div></div>;
 
   return <div className="page admin-page manual-admin-page">
-    <div className="admin-subnav"><Link to="/admin">← Voltar ao painel</Link><span>Simulação sem envio</span></div>
-    <PageHeader eyebrow="Pontuação manual integrada" title="Jogos do Clã e eventos" description="Confira a conversão, o total anterior e a inscrição automática antes de qualquer futura gravação." />
+    <div className="admin-subnav"><Link to="/admin">← Voltar ao painel</Link><span>Gravação auditada e conferida</span></div>
+    <PageHeader eyebrow="Pontuação manual integrada" title="Jogos do Clã e eventos em lote" description="Preencha várias vilas de uma vez. Cada valor substitui o total da atividade e a operação é conferida na planilha oficial." />
     {loading && <Loading label="Carregando contas e auditoria manual…" />}
     {error && <ErrorState message={error} />}
     {data && <>
       <section className="manual-rules"><article><span>♟</span><div><small>Regra dos Jogos do Clã</small><strong>{data.regras.jogos}</strong></div></article><article><span>↻</span><div><small>Operação segura</small><strong>{data.regras.operacao}</strong></div></article></section>
+      {batchNotice && <div className="admin-success">✓ {batchNotice}</div>}
+      <section className="batch-manual"><header><div><span className="eyebrow">Lançamento oficial</span><h2>Preencher em lote</h2><p>Campos vazios não são alterados. Zero é um lançamento explícito.</p></div><label><span>Atividade do lote</span><select value={activity} onChange={(event) => { setActivity(event.target.value as "JogosCla" | "Eventos"); setBatchValues({}); }}><option value="JogosCla">Jogos do Clã</option><option value="Eventos">Evento manual</option></select></label></header><div className="batch-manual-grid">{data.contas.filter((account) => account.habilitada === "TRUE").map((account) => <label key={account.tag}><span>{account.cv ? <img src={townHallUrl(account.cv)} alt="" /> : <i>?</i>}<b>{account.nome}</b><small>{account.tag}</small></span><input aria-label={`Valor de ${account.nome}`} type="number" min="0" max={activity === "JogosCla" ? "10000" : "1000000"} step="1" placeholder="—" value={batchValues[account.tag] || ""} onChange={(event) => setBatchValues((current) => ({ ...current, [account.tag]: event.target.value }))} /></label>)}</div><footer><span>{Object.values(batchValues).filter((value) => value !== "").length} conta(s) preenchida(s)</span><button className="primary-button" onClick={applyBatch} disabled={batchSubmitting || !Object.values(batchValues).some((value) => value !== "")}>{batchSubmitting ? "Gravando e conferindo…" : "Registrar lote na planilha"}</button></footer></section>
       {!secure && <div className="security-warning"><strong>Simulação aguardando HTTPS</strong><span>Os dados podem ser consultados após o login, mas nenhuma proposta será transmitida por uma conexão HTTP.</span></div>}
       <section className="manual-workspace">
         <form className="manual-form" onSubmit={simulate}><span className="eyebrow">Nova proposta</span><h2>Simular lançamento</h2><label><span>Conta</span><select value={tag} onChange={(event) => { setTag(event.target.value); setProposal(null); }} disabled={!secure}>{data.contas.map((account) => <option value={account.tag} key={account.tag}>{account.nome} · {account.tag}{account.habilitada === "FALSE" ? " · bloqueada" : ""}</option>)}</select></label><label><span>Atividade</span><select value={activity} onChange={(event) => { setActivity(event.target.value as "JogosCla" | "Eventos"); setProposal(null); }} disabled={!secure}><option value="JogosCla">Jogos do Clã</option><option value="Eventos">Evento manual</option></select></label><label><span>{activity === "JogosCla" ? "Pontos feitos no jogo" : "Pontos na competição"}</span><input type="number" min="0" max={activity === "JogosCla" ? "10000" : "1000000"} step="1" value={value} onChange={(event) => { setValue(event.target.value); setProposal(null); }} disabled={!secure} /></label><button className="primary-button" type="submit" disabled={!secure || !tag || value === "" || simulating}>{simulating ? "Conferindo…" : "Gerar proposta sem enviar"}</button><small>Nenhum botão de gravação existe nesta versão.</small></form>

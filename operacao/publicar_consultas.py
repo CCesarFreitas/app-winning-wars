@@ -89,7 +89,8 @@ def executar():
         anterior = rosters.get(chave)
         if anterior and anterior.get('tag') != tag:
             anterior = None
-        if anterior and agora - datetime.fromisoformat(anterior['consultado_em']) < validade:
+        if (anterior and anterior.get('nivel') and
+                agora - datetime.fromisoformat(anterior['consultado_em']) < validade):
             return anterior
         try:
             from supercell import supercell_get
@@ -99,7 +100,7 @@ def executar():
                     or clan.get('members') != len(lista)):
                 raise ValueError('Lista de membros inválida')
             roster = {'consultado_em': agora.isoformat(), 'clan': clan.get('name', ''),
-                      'tag': tag, 'contas': [
+                      'tag': tag, 'nivel': clan.get('clanLevel'), 'contas': [
                 {'tag': m['tag'], 'nome': m['name'], 'cv': m.get('townHallLevel'),
                  'cargo': m.get('role')} for m in lista]}
             if (len({m['tag'] for m in roster['contas']}) != len(roster['contas'])

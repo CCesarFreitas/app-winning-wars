@@ -54,6 +54,13 @@ class RankingAtual(unittest.TestCase):
                 "contas": [{"tag": "#AAA", "nome": "Alpha", "cv": 16}]
             }), "2026-11-08T01:00:00+00:00"),
         )
+        db.execute(
+            "INSERT INTO versoes VALUES(?,?,?,?,?,?)",
+            (9, "roster", "principal", "sha", json.dumps({
+                "contas": [{"tag": "#AAA", "nome": "Alpha", "cv": 15},
+                           {"tag": "#BBB", "nome": "Beta", "cv": 14}]
+            }), "2026-11-07T01:00:00+00:00"),
+        )
         db.commit()
         db.close()
 
@@ -70,6 +77,23 @@ class RankingAtual(unittest.TestCase):
         self.assertEqual(saida["ranking"][0]["total"], 18)
         self.assertEqual(saida["ranking"][0]["cv"], 16)
         self.assertIsNone(saida["ranking"][1]["cv"])
+
+    def test_cv_usa_foto_mais_recente_em_qualquer_roster_historico(self):
+        db = sqlite3.connect(self.banco)
+        db.execute("DELETE FROM versoes WHERE chave='ParticipacaoCompeticao'")
+        db.execute(
+            "INSERT INTO versoes VALUES(?,?,?,?,?,?)",
+            (11, "fonte", "ParticipacaoCompeticao", "sha", json.dumps([
+                ["EventoID", "PlayerTag", "Nome", "Habilitada", "Administrador", "Motivo", "RegistradoEm", "Origem"],
+                ["p1", "#AAA", "Alpha", "TRUE", "motor", "cadastro", "2026-11-01T00:00:00+00:00", "CADASTRO"],
+                ["p2", "#BBB", "Beta", "TRUE", "motor", "cadastro", "2026-11-01T00:00:00+00:00", "CADASTRO"],
+            ]), "2026-11-08T02:00:00+00:00"),
+        )
+        db.commit(); db.close()
+        saida = montar_ranking_atual(self.banco)
+        por_tag = {j["tag"]: j for j in saida["ranking"]}
+        self.assertEqual(por_tag["#AAA"]["cv"], 16)
+        self.assertEqual(por_tag["#BBB"]["cv"], 14)
 
     def test_fonte_inexistente_falha_fechado(self):
         db = sqlite3.connect(self.banco)
@@ -91,6 +115,34 @@ class RankingAtual(unittest.TestCase):
         self.assertEqual(alpha["pontos"]["Liga_1"], 2)
         self.assertEqual(alpha["total"], 18)
         self.assertEqual(saida["total"], 2)
+
+    def test_habilitada_exibe_desempenho_preservado_sem_linha_no_ranking(self):
+        db = sqlite3.connect(self.banco)
+        db.execute(
+            "INSERT INTO versoes VALUES(?,?,?,?,?,?)",
+            (20, "fonte", "ParticipacaoCompeticao", "sha", json.dumps([
+                ["EventoID", "PlayerTag", "Nome", "Habilitada", "Administrador", "Motivo", "RegistradoEm", "Origem"],
+                ["p1", "#AAA", "Alpha", "TRUE", "motor", "cadastro", "2026-11-01T00:00:00+00:00", "CADASTRO"],
+                ["p5", "#NOVA", "Nova", "TRUE", "admin", "principal", "2026-11-09T00:00:00+00:00", "ADMIN"],
+            ]), "2026-11-09T00:00:00+00:00"),
+        )
+        db.execute(
+            "INSERT INTO versoes VALUES(?,?,?,?,?,?)",
+            (21, "atividade", "liga:1", "sha", json.dumps({
+                "temporada": "2026-11", "status": "APLICADO", "tipo": "liga",
+                "coluna": "Liga_1", "jogadores": [
+                    {"tag": "#NOVA", "nome": "Nova", "pontos": None, "pontos_calculados": 3}
+                ],
+            }), "2026-11-09T01:00:00+00:00"),
+        )
+        db.commit(); db.close()
+        saida = montar_ranking_atual(self.banco)
+        nova = next(j for j in saida["ranking"] if j["tag"] == "#NOVA")
+        self.assertEqual(nova["total"], 3)
+        self.assertEqual(nova["origem"], "desempenho_preservado")
+        detalhada = montar_tabela_detalhada(self.banco)
+        nova_detalhada = next(j for j in detalhada["jogadores"] if j["tag"] == "#NOVA")
+        self.assertEqual(nova_detalhada["pontos"]["Liga_1"], 3)
 
 
 if __name__ == "__main__":

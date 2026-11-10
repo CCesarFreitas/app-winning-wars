@@ -73,25 +73,91 @@ def _estado_participacao(linhas: list[list[str]]) -> dict[str, dict[str, str]]:
 
 
 def _cvs_roster(db: sqlite3.Connection) -> dict[str, int]:
-    linha = db.execute(
+    linhas = db.execute(
         """SELECT conteudo FROM versoes
            WHERE tipo='roster' AND chave='principal'
-           ORDER BY sequencia DESC LIMIT 1"""
-    ).fetchone()
-    if linha is None:
-        return {}
-    try:
-        roster = json.loads(linha[0])
-    except (TypeError, json.JSONDecodeError):
-        return {}
+           ORDER BY sequencia DESC"""
+    ).fetchall()
     resultado: dict[str, int] = {}
-    for conta in roster.get("contas", []) if isinstance(roster, dict) else []:
-        if not isinstance(conta, dict):
+    for linha in linhas:
+        try:
+            roster = json.loads(linha[0])
+        except (TypeError, json.JSONDecodeError):
             continue
-        tag = str(conta.get("tag", "")).strip().upper()
-        cv = conta.get("cv")
-        if tag and type(cv) is int and 1 <= cv <= 18:
-            resultado[tag] = cv
+        for conta in roster.get("contas", []) if isinstance(roster, dict) else []:
+            if not isinstance(conta, dict):
+                continue
+            tag = str(conta.get("tag", "")).strip().upper()
+            cv = conta.get("cv")
+            if tag and type(cv) is int and 1 <= cv <= 18:
+                # As versoes estao da mais nova para a mais antiga.
+                resultado.setdefault(tag, cv)
+    return resultado
+
+
+def _atividades(db: sqlite3.Connection) -> list[dict[str, Any]]:
+    linhas = db.execute(
+        """SELECT conteudo FROM versoes WHERE sequencia IN
+           (SELECT MAX(sequencia) FROM versoes WHERE tipo='atividade' GROUP BY chave)"""
+    ).fetchall()
+    documentos = []
+    for linha in linhas:
+        try:
+            documento = json.loads(linha[0])
+        except (TypeError, json.JSONDecodeError):
+            continue
+        if isinstance(documento, dict):
+            documentos.append(documento)
+    return documentos
+
+
+def _contribuicoes_atividades(
+    documentos: list[dict[str, Any]], temporada: str,
+) -> dict[str, dict[str, Any]]:
+    """Preserva desempenho de todos, sem transformar bloqueio em elegibilidade."""
+    resultado: dict[str, dict[str, Any]] = {}
+    for atividade in documentos:
+        if (atividade.get("temporada") != temporada
+                or atividade.get("status") != "APLICADO"
+                or atividade.get("tipo") not in {"guerra", "liga", "raide"}):
+            continue
+        coluna = str(atividade.get("coluna", "")).strip()
+        if not coluna:
+            continue
+        for jogador in atividade.get("jogadores", []):
+            if not isinstance(jogador, dict):
+                continue
+            tag = str(jogador.get("tag", "")).strip().upper()
+            if not tag:
+                continue
+            pontos = jogador.get("pontos")
+            if pontos is None:
+                if atividade["tipo"] == "raide":
+                    pontos = (_inteiro(jogador.get("quantidade_ataques"))
+                              + _inteiro(jogador.get("bonus")))
+                else:
+                    pontos = _inteiro(jogador.get("pontos_calculados"))
+            pontos = max(0, _inteiro(pontos))
+            conta = resultado.setdefault(tag, {
+                "tag": tag, "nome": str(jogador.get("nome", "")).strip(),
+                "colunas": {}, "guerra": 0, "raides": 0,
+                "jogos": 0, "eventos": 0, "total": 0,
+                "atividades": 0,
+            })
+            # Uma atividade possui uma coluna única. max evita duplicar versões.
+            anterior = _inteiro(conta["colunas"].get(coluna))
+            conta["colunas"][coluna] = max(anterior, pontos)
+            conta["atividades"] += 1
+    for conta in resultado.values():
+        conta["guerra"] = sum(
+            _inteiro(valor) for coluna, valor in conta["colunas"].items()
+            if coluna.startswith(("Guerra_", "Liga_"))
+        )
+        conta["raides"] = sum(
+            _inteiro(valor) for coluna, valor in conta["colunas"].items()
+            if coluna.startswith("Raide_")
+        )
+        conta["total"] = conta["guerra"] + conta["raides"]
     return resultado
 
 
@@ -105,6 +171,7 @@ def montar_ranking_atual(caminho_sqlite: str | Path) -> dict[str, Any]:
         vinculos_linhas, vinculos_em = _fonte(db, "VinculosParticipantes")
         participacao_linhas, participacao_em = _fonte(db, "ParticipacaoCompeticao")
         cvs_por_tag = _cvs_roster(db)
+        atividades = _atividades(db)
     finally:
         db.close()
 
@@ -127,6 +194,7 @@ def montar_ranking_atual(caminho_sqlite: str | Path) -> dict[str, Any]:
                 raise ValueError("Participante com tags divergentes")
 
     participacao = _estado_participacao(participacao_linhas)
+    contribuicoes = _contribuicoes_atividades(atividades, temporada)
     cabecalho = ranking_linhas[0] if ranking_linhas else []
     colunas_atividade = _colunas_atividade(cabecalho)
     colunas_guerra = [c for c in colunas_atividade if c.startswith(("Guerra_", "Liga_"))]
@@ -135,6 +203,7 @@ def montar_ranking_atual(caminho_sqlite: str | Path) -> dict[str, Any]:
     resultado: list[dict[str, Any]] = []
     detalhes_por_id: dict[str, dict[str, int]] = {}
     ids: set[str] = set()
+    tags_incluidas: set[str] = set()
     for linha in _registros(ranking_linhas):
         participante_id = str(linha.get("ID", linha.get("ParticipanteID", ""))).strip()
         if not participante_id or participante_id in ids:
@@ -144,13 +213,23 @@ def montar_ranking_atual(caminho_sqlite: str | Path) -> dict[str, Any]:
         if participacao.get(tag, {}).get("Habilitada") == "FALSE":
             continue
 
-        guerra = sum(_inteiro(linha.get(c)) for c in colunas_guerra)
-        raides = sum(_inteiro(linha.get(c)) for c in colunas_raide)
+        contribuicao = contribuicoes.get(tag, {})
+        pontos_por_coluna = {
+            coluna: (
+                _inteiro(contribuicao.get("colunas", {}).get(coluna))
+                if coluna in contribuicao.get("colunas", {})
+                else _inteiro(linha.get(coluna))
+            )
+            for coluna in colunas_atividade
+        }
+
+        guerra = sum(pontos_por_coluna[c] for c in colunas_guerra)
+        raides = sum(pontos_por_coluna[c] for c in colunas_raide)
         jogos = _inteiro(linha.get("JogosCla"))
         eventos = _inteiro(linha.get("Eventos"))
-        detalhes_por_id[participante_id] = {
-            coluna: _inteiro(linha.get(coluna)) for coluna in colunas_atividade
-        }
+        detalhes_por_id[participante_id] = pontos_por_coluna
+        if tag:
+            tags_incluidas.add(tag)
         resultado.append(
             {
                 "participante_id": participante_id,
@@ -164,6 +243,33 @@ def montar_ranking_atual(caminho_sqlite: str | Path) -> dict[str, Any]:
                 "total": guerra + raides + jogos + eventos,
             }
         )
+
+    # Contas que contribuíram enquanto estavam bloqueadas não possuíam linha no
+    # ranking. Quando o administrador as habilita, a projeção passa a exibir o
+    # desempenho já preservado no SQLite, sem reescrever a planilha nem duplicar
+    # lançamentos futuros.
+    for tag, contribuicao in contribuicoes.items():
+        if (tag in tags_incluidas
+                or participacao.get(tag, {}).get("Habilitada") != "TRUE"
+                or _inteiro(contribuicao.get("total")) <= 0):
+            continue
+        participante_id = f"desempenho:{tag}"
+        nome = (participacao.get(tag, {}).get("Nome")
+                or contribuicao.get("nome") or tag)
+        pontos_por_coluna = {
+            coluna: _inteiro(contribuicao.get("colunas", {}).get(coluna))
+            for coluna in colunas_atividade
+        }
+        detalhes_por_id[participante_id] = pontos_por_coluna
+        guerra = sum(pontos_por_coluna[c] for c in colunas_guerra)
+        raides = sum(pontos_por_coluna[c] for c in colunas_raide)
+        resultado.append({
+            "participante_id": participante_id, "tag": tag,
+            "nome": str(nome).strip(), "cv": cvs_por_tag.get(tag),
+            "guerra": guerra, "raides": raides, "jogos": 0,
+            "eventos": 0, "total": guerra + raides,
+            "origem": "desempenho_preservado",
+        })
 
     resultado.sort(
         key=lambda r: (r["total"], r["guerra"], r["raides"], r["jogos"], r["nome"].casefold()),
@@ -189,6 +295,7 @@ def montar_ranking_atual(caminho_sqlite: str | Path) -> dict[str, Any]:
         "ranking": resultado,
         "colunas_atividade": colunas_atividade,
         "detalhes_por_id": detalhes_por_id,
+        "contribuicoes_por_tag": contribuicoes,
     }
 
 

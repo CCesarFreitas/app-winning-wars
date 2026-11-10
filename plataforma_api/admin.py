@@ -17,8 +17,12 @@ from typing import Any
 from fastapi import HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
-from .conteudo import _linhas_planilha
+from .conteudo import _linhas_planilha, obter_torneio
 from .manual_admin import montar_manual_admin, propor_lancamento
+from .operacoes_admin import (
+    alterar_participacao, aplicar_lancamentos, avancar_torneio,
+    encerrar_torneio, iniciar_torneio,
+)
 from .participacao_admin import montar_participacao_admin
 from .ranking_atual import montar_ranking_atual
 
@@ -38,6 +42,37 @@ class PropostaManual(BaseModel):
     tag: str = Field(min_length=4, max_length=20)
     atividade: str = Field(min_length=4, max_length=20)
     valor: int = Field(ge=0, le=1_000_000)
+
+
+class AlteracaoParticipacao(BaseModel):
+    tag: str = Field(min_length=4, max_length=20)
+    habilitada: bool
+    motivo: str = Field(min_length=3, max_length=500)
+    evento_anterior: str = Field(min_length=1, max_length=100)
+
+
+class EntradaManual(BaseModel):
+    tag: str = Field(min_length=4, max_length=20)
+    nome: str = Field(min_length=1, max_length=120)
+    valor: int = Field(ge=0, le=1_000_000)
+
+
+class LoteManual(BaseModel):
+    atividade: str = Field(min_length=4, max_length=20)
+    entradas: list[EntradaManual] = Field(min_length=1, max_length=50)
+
+
+class NovoTorneio(BaseModel):
+    nome: str = Field(min_length=3, max_length=80)
+    modo: str = Field(min_length=3, max_length=80)
+    cv: int | str
+    tags: list[str] = Field(min_length=2, max_length=32)
+
+
+class VencedorTorneio(BaseModel):
+    rodada: int = Field(ge=0, le=10)
+    partida: int = Field(ge=0, le=31)
+    vencedor: str = Field(min_length=4, max_length=20)
 
 
 def _segredo() -> bytes:
@@ -218,8 +253,20 @@ def instalar_rotas_admin(app, caminho_sqlite: str) -> None:
             "temporada_nome": ranking["temporada_nome"],
             "ranking": {"jogadores": ranking["total"], "atualizado_em": ranking["atualizado_em"]},
             "participacao": _resumo_participacao(),
-            "modo": "SOMENTE_LEITURA",
+            "modo": "LEITURA_E_ESCRITA",
         }
+
+    @app.get("/v1/admin/audit/activities")
+    def atividades_auditoria_admin(request: Request, limite: int = 50):
+        _sessao(request)
+        from auditoria_historica import listar_atividades
+        return listar_atividades(limite=max(1, min(limite, 200)))
+
+    @app.get("/v1/admin/audit/player/{player_tag}")
+    def jogador_auditoria_admin(player_tag: str, request: Request, limite: int = 100):
+        _sessao(request)
+        from auditoria_historica import auditoria_jogador
+        return auditoria_jogador(player_tag, limite=max(1, min(limite, 200)))
 
     @app.get("/v1/admin/participation")
     def participacao_admin(request: Request):
@@ -228,6 +275,19 @@ def instalar_rotas_admin(app, caminho_sqlite: str) -> None:
             return montar_participacao_admin(caminho_sqlite)
         except (OSError, ValueError, sqlite3.Error) as erro:
             raise HTTPException(status_code=503, detail="participacao_indisponivel") from erro
+
+    @app.post("/v1/admin/participation/toggle")
+    def alterar_participacao_admin(dados: AlteracaoParticipacao, request: Request):
+        sessao = _sessao(request)
+        try:
+            return alterar_participacao(
+                sessao["usuario"], dados.tag, dados.habilitada,
+                dados.motivo, dados.evento_anterior,
+            )
+        except (ValueError, PermissionError) as erro:
+            raise HTTPException(status_code=409, detail=str(erro)) from erro
+        except (OSError, RuntimeError) as erro:
+            raise HTTPException(status_code=503, detail=str(erro)) from erro
 
     @app.get("/v1/admin/manual")
     def manual_admin(request: Request):
@@ -244,3 +304,47 @@ def instalar_rotas_admin(app, caminho_sqlite: str) -> None:
             return propor_lancamento(caminho_sqlite, dados.tag, dados.atividade, dados.valor)
         except ValueError as erro:
             raise HTTPException(status_code=422, detail="proposta_manual_invalida") from erro
+
+    @app.post("/v1/admin/manual/batch")
+    def lancamentos_manuais_lote(dados: LoteManual, request: Request):
+        sessao = _sessao(request)
+        try:
+            return aplicar_lancamentos(
+                sessao["usuario"], dados.atividade,
+                [entrada.dict() for entrada in dados.entradas],
+            )
+        except (ValueError, PermissionError) as erro:
+            raise HTTPException(status_code=409, detail=str(erro)) from erro
+        except (OSError, RuntimeError) as erro:
+            raise HTTPException(status_code=503, detail=str(erro)) from erro
+
+    @app.post("/v1/admin/tournament/start")
+    def iniciar_torneio_admin(dados: NovoTorneio, request: Request):
+        sessao = _sessao(request)
+        estado = obter_torneio(caminho_sqlite)
+        try:
+            return iniciar_torneio(
+                sessao["usuario"], estado.get("roster") or {}, dados.nome,
+                dados.modo, dados.cv, dados.tags,
+            )
+        except (ValueError, PermissionError) as erro:
+            raise HTTPException(status_code=409, detail=str(erro)) from erro
+
+    @app.post("/v1/admin/tournament/winner")
+    def vencedor_torneio_admin(dados: VencedorTorneio, request: Request):
+        sessao = _sessao(request)
+        estado = obter_torneio(caminho_sqlite)
+        if not estado.get("torneio"):
+            raise HTTPException(status_code=409, detail="Torneio ativo ausente")
+        try:
+            return avancar_torneio(
+                sessao["usuario"], estado["torneio"], dados.rodada,
+                dados.partida, dados.vencedor,
+            )
+        except ValueError as erro:
+            raise HTTPException(status_code=409, detail=str(erro)) from erro
+
+    @app.post("/v1/admin/tournament/reset")
+    def encerrar_torneio_admin(request: Request):
+        sessao = _sessao(request)
+        return encerrar_torneio(sessao["usuario"])

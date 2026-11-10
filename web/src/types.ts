@@ -139,6 +139,75 @@ export interface TournamentResponse {
   } | null;
 }
 
+export interface ClanResponse {
+  nome: string;
+  tag: string;
+  nivel?: number | null;
+  membros: number;
+  consultado_em: string;
+}
+
+export interface PlanningMember {
+  tag: string;
+  name: string;
+  townHallLevel?: number;
+  townhallLevel?: number;
+  mapPosition?: number;
+  attacks?: PlanningAttack[];
+}
+
+export interface PlanningAttack {
+  stars: number;
+  destructionPercentage: number;
+  duration?: number;
+  attackerTag: string;
+  defenderTag: string;
+}
+
+export interface PlanningClan {
+  tag: string;
+  name: string;
+  members: PlanningMember[];
+  attacks?: number;
+  stars?: number;
+  destructionPercentage?: number;
+}
+
+export interface PlanningWar {
+  state: string;
+  teamSize: number;
+  startTime: string;
+  endTime: string;
+  clan: PlanningClan;
+  opponent: PlanningClan;
+}
+
+export interface PlanningEnvelope {
+  consultado_em: string;
+  dados: PlanningWar;
+  tipo?: string;
+  rodada?: number;
+  warTag?: string;
+  temporada?: string;
+}
+
+export interface PlanningGroup {
+  state: string;
+  season: string;
+  clans: PlanningClan[];
+  rounds: Array<{ warTags: string[] }>;
+}
+
+export interface PlanningResponse {
+  versao: number;
+  publicado_em: string;
+  grupo: { consultado_em: string; dados: PlanningGroup } | null;
+  comum: PlanningEnvelope | null;
+  guerras_liga: PlanningEnvelope[];
+  historico_comum: PlanningEnvelope[];
+  pendencias: string[];
+}
+
 export interface AdminSession {
   autenticado: boolean;
   usuario?: string;
@@ -151,7 +220,7 @@ export interface AdminSummary {
   temporada_nome: string;
   ranking: { jogadores: number; atualizado_em: string };
   participacao: { total: number; habilitadas: number; bloqueadas: number };
-  modo: "SOMENTE_LEITURA";
+  modo: "SOMENTE_LEITURA" | "LEITURA_E_ESCRITA";
 }
 
 export interface AdminParticipationAccount {
@@ -172,6 +241,14 @@ export interface AdminParticipationAccount {
   motivo?: string;
   decidido_em?: string;
   evento_id?: string;
+  contribuicao?: {
+    guerra: number;
+    raides: number;
+    jogos: number;
+    eventos: number;
+    total: number;
+    atividades: number;
+  };
 }
 
 export interface AdminParticipationResponse {
@@ -236,4 +313,14 @@ export interface AdminManualProposal {
   antes: number;
   depois: number;
   inscreveria: boolean;
+}
+
+export interface AdminWriteResult {
+  status: string;
+  tag?: string;
+  habilitada?: boolean;
+  evento_id?: string;
+  aplicados?: number;
+  ignorados?: number;
+  resultados?: Array<{ tag: string; antes: number; depois: number }>;
 }
