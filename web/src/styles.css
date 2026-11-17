@@ -288,7 +288,9 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
 .total-cell { color: var(--gold-light); font: 800 1.08rem "Cinzel"; }
 .empty-state { padding: 50px 20px; text-align: center; color: var(--muted); }
 
-.player-picker { display: block; max-width: 650px; margin-bottom: 17px; }
+.player-picker-row { margin-bottom: 17px; display: flex; align-items: end; gap: 12px; }
+.player-picker-row .secondary-button { margin-bottom: 0; white-space: nowrap; }
+.player-picker { display: block; width: min(650px, 100%); margin-bottom: 0; }
 .player-picker > span { display: block; margin-bottom: 7px; color: #8d867b; font-size: .59rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
 .player-picker select { width: 100%; height: 46px; padding: 0 13px; color: #f3ecdf; outline: 0; border: 1px solid var(--line); border-radius: 4px; background: var(--stone-2); }
 .player-profile { padding: 25px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 18px; border: 1px solid var(--line-strong); border-top: 2px solid var(--gold); border-radius: 5px; background: radial-gradient(circle at 90% 10%,rgba(140,63,181,.14),transparent 35%),linear-gradient(115deg,rgba(49,37,24,.72),rgba(22,19,26,.92)); }
@@ -916,6 +918,8 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
   .contribution-overview { grid-template-columns: 1fr 1fr; }
   .contribution-actions { grid-template-columns: 1fr; }
   .contribution-actions .secondary-button,.contribution-actions .primary-button { width: 100%; }
+  .player-picker-row { display: grid; grid-template-columns: 1fr; }
+  .player-picker-row .secondary-button { width: 100%; }
   .contribution-rules { grid-template-columns: 1fr; }
   .contribution-rules > small { grid-column: auto; }
   .contribution-ranking-page .participation-toolbar { grid-template-columns: 1fr; }

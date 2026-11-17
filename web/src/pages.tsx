@@ -7,7 +7,7 @@ import { useRanking } from "./RankingContext";
 import type { AdminContributionRankingResponse, AdminDrawRecord, AdminDrawResponse, AdminLayoutDuplicate, AdminManualProposal, AdminManualResponse, AdminMonthCloseResponse, AdminParticipationAccount, AdminParticipationResponse, AdminSummary, AuditActivity, ClanResponse, LayoutEntry, PlanningClan, PlanningEnvelope, PlanningMember, PlayerAuditResponse, RankingDetailsResponse, TournamentMatch, TournamentPlayer } from "./types";
 import { CREST_URL, townHallUrl } from "./assets";
 import { useAdmin } from "./AdminContext";
-import { exportCompactRanking, exportContributionRanking, exportDetailedRanking } from "./rankingExport";
+import { exportCompactRanking, exportContributionRanking, exportDetailedRanking, exportPlayerFeedback } from "./rankingExport";
 
 export function HomePage() {
   const { ranking, loading, error, recarregar } = useRanking();
@@ -175,6 +175,8 @@ export function PlayerPage() {
   const [audit, setAudit] = useState<PlayerAuditResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!selected) return;
@@ -190,7 +192,8 @@ export function PlayerPage() {
   return (
     <div className="page">
       <PageHeader eyebrow="Jornada do guerreiro" title="Ficha do jogador" description="Pontuação consolidada, modalidades disputadas e justificativa de cada resultado." />
-      <label className="player-picker"><span>Selecionar jogador</span><select value={selected.tag} onChange={(event) => navigate(`/jogador/${encodeURIComponent(event.target.value)}`)}>{ranking.map((item) => <option key={item.tag} value={item.tag}>{item.posicao}º · {item.nome} · {item.tag}</option>)}</select></label>
+      <div className="player-picker-row"><label className="player-picker"><span>Selecionar jogador</span><select value={selected.tag} onChange={(event) => navigate(`/jogador/${encodeURIComponent(event.target.value)}`)}>{ranking.map((item) => <option key={item.tag} value={item.tag}>{item.posicao}º · {item.nome} · {item.tag}</option>)}</select></label><button className="secondary-button" disabled={!audit || exporting} onClick={async () => { if (!audit) return; setExporting(true); setExportError(null); try { await exportPlayerFeedback(selected, audit); } catch (reason) { setExportError(reason instanceof Error ? reason.message : "Não foi possível gerar a imagem."); } finally { setExporting(false); } }}>{exporting ? "Gerando imagem…" : "⬇ Baixar feedback em PNG"}</button></div>
+      {exportError && <div className="form-error" role="alert">{exportError}</div>}
       <section className="player-profile fortress-player-profile">
         <RankingTownHall player={selected} />
         <div><span className="eyebrow">{selected.posicao}º lugar na temporada</span><h2>{selected.nome}</h2><small>{selected.tag}</small></div>

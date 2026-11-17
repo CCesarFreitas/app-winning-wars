@@ -1,0 +1,11 @@
+[Unit]
+Description=Winning Wars - manutenção semanal do histórico técnico
+
+[Timer]
+OnCalendar=Sun *-*-* 05:00:00 UTC
+RandomizedDelaySec=10min
+Persistent=true
+Unit=winning-wars-retencao.service
+
+[Install]
+WantedBy=timers.target

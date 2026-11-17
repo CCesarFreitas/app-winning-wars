@@ -10,6 +10,24 @@ def serializar(valor):
     return json.dumps(valor, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
 
 
+def _sem_horario_de_consulta(tipo, texto):
+    """Normaliza somente a comparação de fotografias que não são eventos.
+
+    Planejamentos e rosters são consultados de tempos em tempos. O horário da
+    consulta prova que o coletor trabalhou, mas não é uma mudança no elenco ou
+    na guerra. Mantemos o JSON original e o seu hash de integridade; removemos
+    esse campo apenas para decidir se uma nova versão histórica é necessária.
+    """
+    if tipo not in {'planejamento_guerra', 'planejamento_grupo', 'roster'}:
+        return texto
+    valor = json.loads(texto)
+    if isinstance(valor, dict) and 'consultado_em' in valor:
+        valor = dict(valor)
+        valor.pop('consultado_em', None)
+        return serializar(valor)
+    return texto
+
+
 class Arquivo:
     def __init__(self, caminho):
         self.caminho = Path(caminho)
@@ -43,9 +61,12 @@ class Arquivo:
             return resumo
         with self.db:
             self.db.execute('BEGIN IMMEDIATE')
-            ultimo = self.db.execute('SELECT sha256 FROM versoes WHERE tipo=? AND chave=? ORDER BY sequencia DESC LIMIT 1',
+            ultimo = self.db.execute('SELECT sha256,conteudo FROM versoes WHERE tipo=? AND chave=? ORDER BY sequencia DESC LIMIT 1',
                                      (tipo, chave)).fetchone()
-            if ultimo != (resumo,):
+            repeticao_de_consulta = (ultimo is not None and
+                                     _sem_horario_de_consulta(tipo, ultimo[1]) ==
+                                     _sem_horario_de_consulta(tipo, texto))
+            if ultimo is None or (ultimo[0] != resumo and not repeticao_de_consulta):
                 self.db.execute('INSERT INTO versoes(tipo,chave,sha256,conteudo,registrado_em) VALUES(?,?,?,?,?)',
                                 (tipo, chave, resumo, texto, agora))
         return resumo

@@ -1,0 +1,16 @@
+[Unit]
+Description=Winning Wars - retenção segura do histórico técnico
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=opc
+WorkingDirectory=/opt/winning-wars-api
+ExecStart=/opt/winning-wars-api/venv/bin/python -B /opt/winning-wars-api/operacao/manutencao_historico.py --aplicar --dias 30
+TimeoutStartSec=30min
+Nice=15
+IOSchedulingClass=idle
+UMask=0077
+StandardOutput=journal
+StandardError=journal
