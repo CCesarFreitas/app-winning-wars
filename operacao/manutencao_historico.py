@@ -92,7 +92,10 @@ def _backup_previo(origem: Path, destino: Path) -> tuple[Path, str]:
     compactado = destino.with_suffix('.sqlite3.gz')
     with closing(sqlite3.connect(origem.as_uri() + '?mode=ro', uri=True)) as leitura:
         with closing(sqlite3.connect(temporario)) as copia:
-            leitura.backup(copia, pages=256, sleep=.05)
+            # A trava de publicação já garante que não há escritor concorrente.
+            # Blocos grandes evitam manter uma manutenção de alguns GiB ativa
+            # por dezenas de minutos em uma VM Always Free.
+            leitura.backup(copia, pages=8192, sleep=.005)
             if copia.execute('PRAGMA integrity_check').fetchone() != ('ok',):
                 raise RuntimeError('Backup SQLite inconsistente')
     assinatura = _hash(temporario)
