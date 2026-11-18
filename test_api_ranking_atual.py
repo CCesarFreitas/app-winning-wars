@@ -106,6 +106,23 @@ class RankingAtual(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Fonte ausente"):
             montar_ranking_atual(self.banco)
 
+    def test_cv19_atualiza_imagem_sem_mudar_pontos_ou_participantes(self):
+        antes = montar_ranking_atual(self.banco)
+        db = sqlite3.connect(self.banco)
+        try:
+            db.execute("INSERT INTO versoes VALUES(?,?,?,?,?,?)", (
+                100, "roster", "principal", "novo", json.dumps({
+                    "contas": [{"tag": "#AAA", "cv": 19}]
+                }), "2026-11-18T12:00:00+00:00"))
+            db.commit()
+        finally:
+            db.close()
+        depois = montar_ranking_atual(self.banco)
+        alpha = next(j for j in depois["ranking"] if j["tag"] == "#AAA")
+        self.assertEqual(alpha["cv"], 19)
+        self.assertEqual([(j["tag"], j["total"]) for j in antes["ranking"]],
+                         [(j["tag"], j["total"]) for j in depois["ranking"]])
+
     def test_tabela_detalhada_preserva_colunas_e_bloqueios(self):
         saida = montar_tabela_detalhada(self.banco)
         self.assertEqual(

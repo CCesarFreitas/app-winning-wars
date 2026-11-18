@@ -33,6 +33,29 @@ class _Planilha:
 
 
 class LayoutsAdmin(unittest.TestCase):
+    def test_cv19_publica_e_exclui_nas_duas_modalidades(self):
+        for tipo in ("Guerra", "Rankeada"):
+            with self.subTest(tipo=tipo):
+                planilha = _Planilha()
+                link = "https://link.clashofclans.com/pt?action=OpenLayout&id=TH19-TESTE"
+                with patch("plataforma_api.operacoes_admin._planilha_escrita", return_value=planilha), \
+                     patch("plataforma_api.operacoes_admin._backup", return_value="backup.json"), \
+                     patch("plataforma_api.operacoes_admin.invalidar_conteudo"):
+                    saida = publicar_layouts("Caio", tipo, 19, [{"link": link}])
+                    self.assertEqual(saida["status"], "APLICADO_E_CONFERIDO")
+                    self.assertEqual(planilha.abas["Layouts"].linhas[1][1], "CV 19")
+                    saida = excluir_layout("Caio", link, tipo, 19)
+                    self.assertEqual(saida["removidos"], 1)
+
+    def test_faixa_cv_preserva_anteriores_e_rejeita_invalidos(self):
+        link = "https://link.clashofclans.com/pt?action=OpenLayout&id=TH19-TESTE"
+        for cv in range(9, 20):
+            with self.subTest(cv=cv):
+                self.assertEqual(preparar_layouts_lote("Caio", "Guerra", cv, [{"link": link}], "agora")[0]["CV"], f"CV {cv}")
+        for cv in (8, 20, True, 19.5, "19"):
+            with self.subTest(cv=cv), self.assertRaises(ValueError):
+                preparar_layouts_lote("Caio", "Guerra", cv, [{"link": link}], "agora")
+
     def test_prepara_lote_mantendo_ordem_e_webp(self):
         webp = b"RIFF" + (8).to_bytes(4, "little") + b"WEBP" + b"1234"
         itens = preparar_layouts_lote("Caio", "Guerra", 18, [{

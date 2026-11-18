@@ -1,4 +1,4 @@
-import { CREST_URL, townHallUrl } from "./assets";
+import { CREST_URL, townHallUrl, TOWN_HALL_FALLBACK } from "./assets";
 import { dataAtividade, temporadaLabel } from "./format";
 import type { AdminContributionEntry, AdminContributionRankingResponse, PlayerAuditRecord, PlayerAuditResponse, RankingDetailColumn, RankingDetailEntry, RankingEntry } from "./types";
 
@@ -24,6 +24,10 @@ function fitText(ctx: CanvasRenderingContext2D, value: string, maxWidth: number)
   let text = value;
   while (text.length > 1 && ctx.measureText(`${text}…`).width > maxWidth) text = text.slice(0, -1);
   return `${text}…`;
+}
+
+async function loadTownHallImage(cv: number): Promise<HTMLImageElement | null> {
+  return (await loadImage(townHallUrl(cv))) ?? loadImage(TOWN_HALL_FALLBACK);
 }
 
 async function loadImage(url: string): Promise<HTMLImageElement | null> {
@@ -116,7 +120,7 @@ export async function exportCompactRanking(players: RankingEntry[]) {
   const crest = await loadImage(CREST_URL);
   const cvs = new Map<number, HTMLImageElement | null>();
   for (const cv of [...new Set(players.map((player) => player.cv).filter((value): value is number => !!value))]) {
-    cvs.set(cv, await loadImage(townHallUrl(cv)));
+    cvs.set(cv, await loadTownHallImage(cv));
   }
   header(ctx, width, "Ranking oficial", temporadaLabel(players[0]?.temporada), crest);
   const columns = [38, 135, 250, 985];
@@ -211,7 +215,7 @@ export async function exportContributionRanking(data: AdminContributionRankingRe
   const crest = await loadImage(CREST_URL);
   const cvs = new Map<number, HTMLImageElement | null>();
   for (const cv of [...new Set(players.map((player) => player.cv).filter((value): value is number => !!value))]) {
-    cvs.set(cv, await loadImage(townHallUrl(cv)));
+    cvs.set(cv, await loadTownHallImage(cv));
   }
   header(ctx, width, "Contribuição fora da Liga", `${data.temporada_nome} · prévia administrativa do passe extra`, crest);
   const columns = { position: 48, village: 137, player: 220, war: 900, raids: 1015, games: 1125, events: 1235, total: 1438 };
@@ -271,7 +275,7 @@ export async function exportPlayerFeedback(player: RankingEntry, audit: PlayerAu
   const height = 1710;
   const { canvas, ctx } = canvasFor(width, height);
   background(ctx, width, height);
-  const [crest, cv] = await Promise.all([loadImage(CREST_URL), player.cv ? loadImage(townHallUrl(player.cv)) : Promise.resolve(null)]);
+  const [crest, cv] = await Promise.all([loadImage(CREST_URL), player.cv ? loadTownHallImage(player.cv) : Promise.resolve(null)]);
   header(ctx, width, "Feedback individual", `${temporadaLabel(player.temporada)} · atividades encerradas e conferidas`, crest);
   const guerra = dadosGuerra(audit.registros);
   const raide = dadosRaide(audit.registros);

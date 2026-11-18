@@ -89,7 +89,7 @@ def _cvs_roster(db: sqlite3.Connection) -> dict[str, int]:
                 continue
             tag = str(conta.get("tag", "")).strip().upper()
             cv = conta.get("cv")
-            if tag and type(cv) is int and 1 <= cv <= 18:
+            if tag and type(cv) is int and 1 <= cv <= 19:
                 # As versoes estao da mais nova para a mais antiga.
                 resultado.setdefault(tag, cv)
     return resultado

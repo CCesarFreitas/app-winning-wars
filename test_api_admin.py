@@ -15,6 +15,17 @@ def hash_pbkdf2(senha, salt=b"0123456789abcdef"):
 
 
 class AdminApi(unittest.TestCase):
+    def test_modelos_layout_cv19_e_limites(self):
+        from pydantic import ValidationError
+        link = "https://link.clashofclans.com/pt?action=OpenLayout&id=TH19-TESTE"
+        for modelo, extra in ((admin.LayoutLote, {"itens": [{"link": link}]}),
+                              (admin.LayoutExcluir, {"link": link})):
+            for cv in (9, 18, 19):
+                self.assertEqual(modelo(tipo="Guerra", cv=cv, **extra).cv, cv)
+            for cv in (8, 20):
+                with self.assertRaises(ValidationError):
+                    modelo(tipo="Guerra", cv=cv, **extra)
+
     def setUp(self):
         self.segredo = patch.dict(os.environ, {"WW_ADMIN_SESSION_SECRET": "s" * 48})
         self.segredo.start()

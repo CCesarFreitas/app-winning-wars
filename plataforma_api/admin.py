@@ -86,14 +86,14 @@ class LayoutLoteItem(BaseModel):
 
 class LayoutLote(BaseModel):
     tipo: str
-    cv: int = Field(ge=9, le=18)
+    cv: int = Field(ge=9, le=19)
     itens: list[LayoutLoteItem] = Field(min_length=1, max_length=20)
 
 
 class LayoutExcluir(BaseModel):
     link: str = Field(min_length=10, max_length=2_000)
     tipo: str
-    cv: int = Field(ge=9, le=18)
+    cv: int = Field(ge=9, le=19)
 
 
 class SorteioDesempate(BaseModel):

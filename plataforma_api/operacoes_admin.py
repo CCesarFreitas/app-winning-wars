@@ -288,7 +288,7 @@ def _upload_cloudinary(dados: bytes, tipo: str, cv: int) -> str:
 
 def preparar_layouts_lote(admin: str, tipo: str, cv: int,
                            itens: list[dict[str, Any]], agora: str) -> list[dict[str, Any]]:
-    if tipo not in {"Guerra", "Rankeada"} or type(cv) is not int or not 9 <= cv <= 18:
+    if tipo not in {"Guerra", "Rankeada"} or type(cv) is not int or not 9 <= cv <= 19:
         raise ValueError("Tipo ou Centro de Vila invalido")
     if not 1 <= len(itens) <= 20:
         raise ValueError("O lote deve conter de 1 a 20 layouts")
@@ -397,7 +397,7 @@ def publicar_layouts(admin: str, tipo: str, cv: int,
 def excluir_layout(admin: str, link: str, tipo: str, cv: int) -> dict[str, Any]:
     """Remove da planilha todas as linhas do link, preservando a imagem externa."""
     link_validado = _url_layout_oficial(link)
-    if tipo not in {"Guerra", "Rankeada"} or type(cv) is not int or not 9 <= cv <= 18:
+    if tipo not in {"Guerra", "Rankeada"} or type(cv) is not int or not 9 <= cv <= 19:
         raise ValueError("Tipo ou Centro de Vila invalido")
     with _LOCK:
         planilha = _planilha_escrita()
