@@ -27,7 +27,7 @@ export function HomePage() {
       <section className="hero">
         <div className="hero-copy">
           <span className="battle-status"><i className="live-dot" /> Temporada em disputa · {temporada}</span>
-          <h1>Seu centro de comando<br /><em>no Winning Wars.</em></h1>
+          <h1>App de Suporte do Clã<br /><em>Winning Wars</em></h1>
           <p>Acompanhe a competição dos passes em tempo real, consulte o desempenho individual dos membros e encontre layouts de guerra e rankeada, informações sobre eventos e torneios da comunidade Winning Wars.</p>
           <div className="hero-actions">
             <Link className="primary-button" to="/ranking"><span>♛</span> Entrar no ranking</Link>
