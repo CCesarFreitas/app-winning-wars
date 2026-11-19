@@ -1,4 +1,5 @@
 export const CREST_URL = `${import.meta.env.BASE_URL}assets/ww-crest.png`;
+export const HEADER_CREST_URL = `${import.meta.env.BASE_URL}assets/favicon-level20.png`;
 export const MAX_TOWN_HALL = 19;
 export const LAYOUT_TOWN_HALLS = Array.from({ length: MAX_TOWN_HALL - 8 }, (_, i) => MAX_TOWN_HALL - i);
 export const hasTownHallImage = (cv: unknown): cv is number =>

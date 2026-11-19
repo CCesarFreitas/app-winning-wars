@@ -1,7 +1,7 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { iniciais, temporadaLabel } from "./format";
 import { useRanking } from "./RankingContext";
-import { CREST_URL } from "./assets";
+import { HEADER_CREST_URL } from "./assets";
 import { useAdmin } from "./AdminContext";
 import { useState } from "react";
 
@@ -34,7 +34,7 @@ export function Shell() {
     <div className="app-shell royal-shell">
       <header className="royal-header">
         <div className="brand royal-brand">
-          <img className="brand-crest" src={CREST_URL} alt="Brasão Winning Wars" />
+          <img className="brand-crest" src={HEADER_CREST_URL} alt="Brasão Winning Wars nível 20" />
           <span>
             <strong>Winning Wars App</strong>
             <small>Evolução · Alto desempenho · Competitividade</small>
