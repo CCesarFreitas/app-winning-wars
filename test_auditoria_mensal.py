@@ -44,6 +44,17 @@ class FichaMensal(unittest.TestCase):
                 'situacao': 'Pontuação registrada', 'ataques': [{'Estrelas': 3, 'CV alvo': 19, 'Destruição (%)': 100}],
                 'quantidade_ataques': 6, 'saque': 30000, 'bonus': 1}]})
 
+    def test_rodadas_disponiveis_nao_exigem_escalacao_do_jogador(self):
+        self.put('atividade', 'liga-reserva', {'id': 'liga-reserva', 'tipo': 'liga',
+            'temporada': '2026-11', 'status': 'APLICADO', 'rodada': 3,
+            'jogadores': [{'tag': '#BBB', 'ataques': []}]})
+        self.put('atividade', 'liga-pendente', {'id': 'liga-pendente', 'tipo': 'liga',
+            'temporada': '2026-11', 'status': 'AGUARDANDO_LANCAMENTO', 'rodada': 4, 'jogadores': []})
+        r = montar_ficha_mensal(self.db, '#AAA')
+        self.assertEqual(r['liga_rodadas_disponiveis'], [3])
+        self.assertFalse(any(x['tipo'] == 'liga' for x in r['registros']))
+        self.assertEqual(montar_ficha_mensal(self.db, '#AAA', '2026-10')['liga_rodadas_disponiveis'], [])
+
     def test_padrao_temporada_vigente_sem_mesclar_registros(self):
         r = montar_ficha_mensal(self.db, '#AAA')
         self.assertEqual(r['temporada'], '2026-11')

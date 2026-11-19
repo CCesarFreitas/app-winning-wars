@@ -17,6 +17,7 @@ def _registro(atividade, jogador):
     ataques = [{
         'ordem': a.get('Ordem'), 'alvo_nome': a.get('Alvo'),
         'cv_alvo': a.get('CV alvo'), 'estrelas': a.get('Estrelas'),
+        'cv_atacante': a.get('CV atacante', jogador.get('cv')),
         'percentual': a.get('Destruição (%)'), 'pontos': a.get('Pontos do ataque'),
         'tipo': a.get('Regra aplicada'),
     } for a in jogador.get('ataques', [])]
@@ -29,6 +30,7 @@ def _registro(atividade, jogador):
             'pontos_competicao': jogador.get('pontos'),
             'pontos_calculados': jogador.get('pontos_calculados'),
             'motivo': jogador.get('situacao'),
+            'limite_ataques': jogador.get('limite_ataques'),
             'ataques': jogador.get('quantidade_ataques', 0) if tipo == 'raide' else ataques,
             'capital_resources_looted': jogador.get('saque'),
             'bonus_top3': jogador.get('bonus'),
@@ -86,12 +88,15 @@ def montar_ficha_mensal(caminho, player_tag, temporada=None):
             raise ValueError('Temporada atual indisponivel')
         mes = temporada or atual
         registros = []
+        rodadas_liga = set()
         meses = {atual}
         # Uma única versão de cada atividade; filtro antes de qualquer limitação.
         for raw, in db.execute("SELECT conteudo FROM versoes WHERE tipo='atividade' AND sequencia IN (SELECT MAX(sequencia) FROM versoes WHERE tipo='atividade' GROUP BY chave)"):
             a = json.loads(raw)
             if a.get('status') != 'APLICADO' or a.get('tipo') not in {'guerra', 'liga', 'raide'} or not _mes(a.get('temporada')):
                 continue
+            if a['tipo'] == 'liga' and a['temporada'] == mes and type(a.get('rodada')) is int and 1 <= a['rodada'] <= 7:
+                rodadas_liga.add(a['rodada'])
             jogador = next((j for j in a.get('jogadores', []) if j.get('tag', '').upper() == tag), None)
             if jogador is None:
                 continue
@@ -120,5 +125,6 @@ def montar_ficha_mensal(caminho, player_tag, temporada=None):
         'ok': True, 'player_tag': tag, 'temporada': mes, 'temporada_atual': atual,
         'temporadas': sorted(meses | {mes}, reverse=True), 'resumo': resumo,
         'total': len(registros), 'registros': registros,
+        'liga_rodadas_disponiveis': sorted(rodadas_liga),
         'pontos_competicao': sum(r['jogador']['pontos_competicao'] or 0 for r in registros),
     }

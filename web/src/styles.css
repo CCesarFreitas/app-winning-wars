@@ -1067,3 +1067,17 @@ h1, h2 { font-family: "Cinzel", Georgia, serif; }
 @media (prefers-reduced-motion: reduce) {
   *,*::before,*::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+.battle-performance { display:grid; gap:18px; margin-top:24px; }
+.battle-panel { background:rgba(27,23,27,.8); border:1px solid #655039; border-radius:16px; padding:22px; }
+.battle-panel p,.battle-panel small { color:#bfb4a4; }
+.battle-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin:20px 0; }
+.battle-metrics div { display:flex; flex-direction:column; gap:5px; }
+.battle-metrics strong { font-size:1.6rem; color:#f0cc84; }
+.battle-metrics span { font-size:.85rem; }
+.star-distribution { display:grid; gap:8px; margin:16px 0; }
+.star-distribution div { display:flex; align-items:center; gap:14px; }
+.star-distribution meter { flex:1; height:20px; accent-color:#e6b953; }
+.league-rounds { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin:20px 0; }
+.league-rounds div { display:flex; flex-direction:column; gap:8px; border:1px solid #655039; padding:12px; border-radius:10px; }
+@media(max-width:600px) { .battle-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); } .battle-panel { padding:16px; } }

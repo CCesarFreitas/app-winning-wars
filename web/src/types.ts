@@ -51,6 +51,7 @@ export interface AuditActivitiesResponse {
 }
 
 export interface AttackAudit {
+  cv_atacante?: number;
   ordem?: number;
   alvo_nome?: string;
   cv_alvo?: number;
@@ -61,6 +62,7 @@ export interface AttackAudit {
 }
 
 export interface PlayerAuditDetail {
+  limite_ataques?: number;
   tag?: string;
   nome?: string;
   cv?: number;
@@ -79,6 +81,7 @@ export interface PlayerAuditRecord extends AuditActivity {
 }
 
 export interface PlayerAuditResponse {
+  liga_rodadas_disponiveis?: number[];
   ok: boolean;
   player_tag: string;
   total: number;

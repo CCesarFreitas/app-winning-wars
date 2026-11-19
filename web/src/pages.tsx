@@ -8,6 +8,8 @@ import type { AdminContributionRankingResponse, AdminDrawRecord, AdminDrawRespon
 import { CREST_URL, LAYOUT_TOWN_HALLS, MAX_TOWN_HALL, hasTownHallImage } from "./assets";
 import { TownHallImage } from "./TownHallImage";
 import { useAdmin } from "./AdminContext";
+import { PlayerBattles } from "./PlayerBattles";
+import { battlePerformance } from "./playerPerformance";
 import { playerForPeriod } from "./playerPeriod";
 import { exportCompactRanking, exportContributionRanking, exportDetailedRanking, exportPlayerFeedback } from "./rankingExport";
 
@@ -209,11 +211,13 @@ export function PlayerPage() {
         <strong>{profile?.total ?? "—"}<small> pontos</small></strong>
       </section>
       <section className="score-grid">
-        <article><span>⚔</span><div><small>Guerras e ligas</small><strong>{profile?.guerra ?? "—"}</strong></div></article>
+        <article><span>⚔</span><div><small>Guerras · pontos registrados</small><strong>{ready && audit ? battlePerformance(audit.registros, "guerra").points : "—"}</strong></div></article>
+        <article><span>♛</span><div><small>Liga · pontos registrados</small><strong>{ready && audit ? battlePerformance(audit.registros, "liga").points : "—"}</strong></div></article>
         <article><span>☄</span><div><small>Raides</small><strong>{profile?.raides ?? "—"}</strong></div></article>
         <article><span>♟</span><div><small>Jogos do Clã</small><strong>{profile?.jogos ?? "—"}</strong></div></article>
         <article><span>◆</span><div><small>Eventos</small><strong>{profile?.eventos ?? "—"}</strong></div></article>
       </section>
+      {ready && audit && <PlayerBattles audit={audit} />}
       {profile?.origem === "indisponivel" && <p className="planning-disclaimer">Os totais consolidados deste mês não estão disponíveis. As atividades preservadas aparecem abaixo; nenhum valor de outro mês foi utilizado.</p>}
       <section className="section-block">
         <div className="section-title"><div><span className="eyebrow">Livro de batalha</span><h2>Por que recebeu estes pontos?</h2><p>Somente atividades encerradas e lançadas da temporada {temporadaLabel(chosenMonth)}. Cada registro preserva a regra aplicada pelo motor.</p></div>{ready && audit && <span>{audit.total} registros</span>}</div>

@@ -1,3 +1,4 @@
+import { battlePerformance, leagueRounds, percent } from "./playerPerformance";
 import { CREST_URL, townHallUrl, TOWN_HALL_FALLBACK } from "./assets";
 import { dataAtividade, temporadaLabel } from "./format";
 import type { AdminContributionEntry, AdminContributionRankingResponse, PlayerAuditRecord, PlayerAuditResponse, PlayerFeedback, RankingDetailColumn, RankingDetailEntry, RankingEntry } from "./types";
@@ -245,19 +246,6 @@ function numeroSeguro(valor: number | undefined | null) {
   return typeof valor === "number" && Number.isFinite(valor) ? valor : 0;
 }
 
-function dadosGuerra(registros: PlayerAuditRecord[]) {
-  const guerras = registros.filter((registro) => registro.tipo === "guerra" || registro.tipo === "liga");
-  const ataques = guerras.flatMap((registro) => Array.isArray(registro.jogador.ataques) ? registro.jogador.ataques : []);
-  const estrelas = ataques.map((ataque) => numeroSeguro(ataque.estrelas));
-  return {
-    atividades: guerras.length,
-    ataques: ataques.length,
-    triplos: estrelas.filter((valor) => valor === 3).length,
-    media: estrelas.length ? estrelas.reduce((total, valor) => total + valor, 0) / estrelas.length : null,
-    pontos: guerras.reduce((total, registro) => total + numeroSeguro(registro.jogador.pontos_competicao), 0),
-  };
-}
-
 function dadosRaide(registros: PlayerAuditRecord[]) {
   const raides = registros.filter((registro) => (registro.tipo === "raide" || registro.tipo === "raid"));
   return {
@@ -273,12 +261,13 @@ export async function exportPlayerFeedback(player: PlayerFeedback, audit: Player
   if (player.temporada !== audit.temporada || player.tag !== audit.player_tag || audit.registros.some((r) => r.temporada !== audit.temporada)) throw new Error("Período da exportação divergente. Atualize a ficha.");
   await document.fonts.ready;
   const width = 1500;
-  const height = 1710;
+  const height = 2080;
   const { canvas, ctx } = canvasFor(width, height);
   background(ctx, width, height);
   const [crest, cv] = await Promise.all([loadImage(CREST_URL), player.cv ? loadTownHallImage(player.cv) : Promise.resolve(null)]);
   header(ctx, width, "Feedback individual", `${temporadaLabel(player.temporada)} · atividades encerradas e conferidas`, crest);
-  const guerra = dadosGuerra(audit.registros);
+  const guerra = battlePerformance(audit.registros, "guerra");
+  const liga = battlePerformance(audit.registros, "liga");
   const raide = dadosRaide(audit.registros);
   const card = (x: number, y: number, widthCard: number, label: string, value: string, sub: string, accent: string) => {
     roundedRect(ctx, x, y, widthCard, 132, 16);
@@ -312,30 +301,40 @@ export async function exportPlayerFeedback(player: PlayerFeedback, audit: Player
   ctx.fillStyle = MUTED; ctx.font = "800 15px 'Nunito Sans', sans-serif"; ctx.fillText("PONTOS NA COMPETIÇÃO", width - 78, 316); ctx.textAlign = "left";
 
   const cardsY = 400;
-  card(42, cardsY, 330, "Guerras e ligas", String(player.guerra ?? "—"), `${guerra.atividades} registro(s) automático(s)`, "#c77f35");
-  card(394, cardsY, 330, "Raides", String(player.raides ?? "—"), `${raide.atividades} fim(ns) de semana`, "#478d89");
-  card(746, cardsY, 330, "Jogos do Clã", String(player.jogos ?? "—"), player.origem === "fotografia_fechamento" ? "fotografia do fechamento" : "total consolidado do mês", "#8065b5");
-  card(1098, cardsY, 360, "Eventos", String(player.eventos ?? "—"), player.origem === "fotografia_fechamento" ? "fotografia do fechamento" : "total consolidado do mês", "#9b5365");
-
-  section(570, "⚔", "Guerras e Liga", "Desempenho em ataques registrados pelo motor", [
-    ["Atividades", String(guerra.atividades)], ["Ataques", String(guerra.ataques)], ["Triplos", String(guerra.triplos)],
-    ["Média de estrelas", guerra.media === null ? "—" : guerra.media.toFixed(2)], ["Pontos automáticos", String(guerra.pontos)], ["Registros conferidos", String(guerra.atividades)],
+  card(42, cardsY, 270, "Guerras · pontos", String(guerra.points), "atividades registradas", "#c77f35");
+  card(328, cardsY, 270, "Liga · pontos", String(liga.points), "atividades registradas", "#f0b735");
+  card(614, cardsY, 270, "Raides", String(player.raides ?? "—"), `${raide.atividades} fim(ns) de semana`, "#478d89");
+  card(900, cardsY, 270, "Jogos do Clã", String(player.jogos ?? "—"), "pontos na competição", "#8065b5");
+  card(1186, cardsY, 272, "Eventos", String(player.eventos ?? "—"), "pontos na competição", "#9b5365");
+  const battleSection = (y: number, title: string, stats: ReturnType<typeof battlePerformance>) => section(y, "⚔", title, "Somente escalações registradas; reservas não contam como falta", [
+    ["Escalações / ataques", `${stats.activities.length} / ${stats.attacks.length}`],
+    ["Sem atacar / ataques não usados", `${stats.noAttack} / ${stats.missing ?? '—'}`],
+    ["Taxa de 3★ por ataque", percent(stats.tripleRate)],
+    ["Ataques de 3★ / 2★", `${stats.distribution[3]} / ${stats.distribution[2]}`],
+    ["Ataques de 1★ / 0★", `${stats.distribution[1]} / ${stats.distribution[0]}`],
+    ["Média de estrelas", stats.average?.toFixed(2) ?? "—"],
   ], "#f0b735");
-  section(830, "☄", "Raides", "Participação e saque na Capital do Clã", [
+  battleSection(570, "Liga · desempenho individual", liga);
+  ctx.font = "700 15px 'Nunito Sans', sans-serif"; ctx.fillStyle = TEXT;
+  leagueRounds(audit.registros, audit.liga_rodadas_disponiveis).forEach((r, i) => {
+    ctx.fillText(`R${r.round}: ${r.label}`, 54 + i * 202, 830);
+  });
+  battleSection(870, "Guerras comuns", guerra);
+  section(1130, "☄", "Raides", "Participação e saque na Capital do Clã", [
     ["Raides registrados", String(raide.atividades)], ["Ataques usados", String(raide.ataques)], ["Saque total", raide.saque.toLocaleString("pt-BR")],
     ["Saque por ataque", raide.ataques ? Math.round(raide.saque / raide.ataques).toLocaleString("pt-BR") : "—"], ["Bônus Top 3", String(raide.bonus)], ["Pontos automáticos", String(raide.pontos)],
   ], "#6ac9c1");
-  section(1090, "♛", "Jogos do Clã e Eventos", "Lançamentos manuais substituem o total por atividade, sem somar duplicado", [
+  section(1390, "♛", "Jogos do Clã e Eventos", "Lançamentos manuais substituem o total por atividade, sem somar duplicado", [
     ["Pontos em Jogos", String(player.jogos ?? "—")], ["Pontos em Eventos", String(player.eventos ?? "—")], ["Total manual", player.jogos != null && player.eventos != null ? String(player.jogos + player.eventos) : "—"],
     ["Origem", player.origem === "fotografia_fechamento" ? "Fechamento preservado" : player.origem === "ranking_atual" ? "Ranking atual" : "Não disponível"], ["Registro automático", `${audit.total} atividade(s)`], ["Situação", player.total != null ? "Pontuação consolidada" : "Totais indisponíveis"],
   ], "#c786e2");
 
-  ctx.fillStyle = "#4b4038"; ctx.fillRect(42, 1360, width - 84, 2);
-  ctx.fillStyle = TEXT; ctx.font = "800 18px 'Cinzel', serif"; ctx.fillText("Leitura responsável do desempenho", 72, 1405);
+  ctx.fillStyle = "#4b4038"; ctx.fillRect(42, 1660, width - 84, 2);
+  ctx.fillStyle = TEXT; ctx.font = "800 18px 'Cinzel', serif"; ctx.fillText("Leitura responsável do desempenho", 72, 1705);
   ctx.fillStyle = MUTED; ctx.font = "700 15px 'Nunito Sans', sans-serif";
-  ctx.fillText("Este feedback usa somente atividades encerradas, preservadas e conferidas. A ausência no histórico não prova falta de participação.", 72, 1442);
-  ctx.fillText("Ataques, CVs e contexto de escalação devem ser considerados antes de qualquer conclusão. Jogos e Eventos têm auditoria na planilha.", 72, 1474);
-  ctx.fillText(`Gerado em ${new Date().toLocaleString("pt-BR")} · ${audit.total} registros automáticos analisados.`, 72, 1506);
+  ctx.fillText("Este feedback usa somente atividades encerradas, preservadas e conferidas. A ausência no histórico não prova falta de participação.", 72, 1742);
+  ctx.fillText("Taxas usam ataques com estrelas registradas. Sem registro não significa reserva ou falta. Considere CVs e tamanho da amostra.", 72, 1774);
+  ctx.fillText(`Gerado em ${new Date().toLocaleString("pt-BR")} · ${audit.total} registros automáticos analisados.`, 72, 1806);
   footer(ctx, width, height - 72);
   await download(canvas, `feedback_${player.nome.replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "").toLowerCase() || "jogador"}_${(player.temporada || "atual").replace("-", "_")}.png`);
 }
