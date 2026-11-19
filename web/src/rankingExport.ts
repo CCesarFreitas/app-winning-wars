@@ -1,6 +1,6 @@
 import { CREST_URL, townHallUrl, TOWN_HALL_FALLBACK } from "./assets";
 import { dataAtividade, temporadaLabel } from "./format";
-import type { AdminContributionEntry, AdminContributionRankingResponse, PlayerAuditRecord, PlayerAuditResponse, RankingDetailColumn, RankingDetailEntry, RankingEntry } from "./types";
+import type { AdminContributionEntry, AdminContributionRankingResponse, PlayerAuditRecord, PlayerAuditResponse, PlayerFeedback, RankingDetailColumn, RankingDetailEntry, RankingEntry } from "./types";
 
 const GOLD = "#f0b735";
 const GOLD_LIGHT = "#ffe7a0";
@@ -259,7 +259,7 @@ function dadosGuerra(registros: PlayerAuditRecord[]) {
 }
 
 function dadosRaide(registros: PlayerAuditRecord[]) {
-  const raides = registros.filter((registro) => registro.tipo === "raide");
+  const raides = registros.filter((registro) => (registro.tipo === "raide" || registro.tipo === "raid"));
   return {
     atividades: raides.length,
     ataques: raides.reduce((total, registro) => total + (typeof registro.jogador.ataques === "number" ? registro.jogador.ataques : 0), 0),
@@ -269,7 +269,8 @@ function dadosRaide(registros: PlayerAuditRecord[]) {
   };
 }
 
-export async function exportPlayerFeedback(player: RankingEntry, audit: PlayerAuditResponse) {
+export async function exportPlayerFeedback(player: PlayerFeedback, audit: PlayerAuditResponse) {
+  if (player.temporada !== audit.temporada || player.tag !== audit.player_tag || audit.registros.some((r) => r.temporada !== audit.temporada)) throw new Error("Período da exportação divergente. Atualize a ficha.");
   await document.fonts.ready;
   const width = 1500;
   const height = 1710;
@@ -304,17 +305,17 @@ export async function exportPlayerFeedback(player: RankingEntry, audit: PlayerAu
 
   roundedRect(ctx, 42, 205, width - 84, 164, 18); ctx.fillStyle = "rgba(39,30,23,.9)"; ctx.fill(); ctx.strokeStyle = "#805d29"; ctx.lineWidth = 2; ctx.stroke();
   if (cv) ctx.drawImage(cv, 72, 228, 108, 108);
-  ctx.fillStyle = GOLD; ctx.font = "800 15px 'Nunito Sans', sans-serif"; ctx.fillText(`${player.posicao}º LUGAR NA TEMPORADA`, cv ? 208 : 78, 237);
+  ctx.fillStyle = GOLD; ctx.font = "800 15px 'Nunito Sans', sans-serif"; ctx.fillText(player.posicao != null ? `${player.posicao}º LUGAR NA TEMPORADA` : "HISTÓRICO DO MÊS SELECIONADO", cv ? 208 : 78, 237);
   ctx.fillStyle = TEXT; ctx.font = "900 35px 'Cinzel', serif"; ctx.fillText(fitText(ctx, player.nome, 760), cv ? 208 : 78, 281);
   ctx.fillStyle = MUTED; ctx.font = "700 16px 'Nunito Sans', sans-serif"; ctx.fillText(`${player.tag}${player.cv ? ` · Centro de Vila ${player.cv}` : ""}`, cv ? 208 : 78, 316);
-  ctx.textAlign = "right"; ctx.fillStyle = GOLD_LIGHT; ctx.font = "900 62px 'Cinzel', serif"; ctx.fillText(String(player.total), width - 78, 277);
+  ctx.textAlign = "right"; ctx.fillStyle = GOLD_LIGHT; ctx.font = "900 62px 'Cinzel', serif"; ctx.fillText(String(player.total ?? "—"), width - 78, 277);
   ctx.fillStyle = MUTED; ctx.font = "800 15px 'Nunito Sans', sans-serif"; ctx.fillText("PONTOS NA COMPETIÇÃO", width - 78, 316); ctx.textAlign = "left";
 
   const cardsY = 400;
-  card(42, cardsY, 330, "Guerras e ligas", String(player.guerra), `${guerra.atividades} registro(s) automático(s)`, "#c77f35");
-  card(394, cardsY, 330, "Raides", String(player.raides), `${raide.atividades} fim(ns) de semana`, "#478d89");
-  card(746, cardsY, 330, "Jogos do Clã", String(player.jogos), "total manual auditável na planilha", "#8065b5");
-  card(1098, cardsY, 360, "Eventos", String(player.eventos), "total manual auditável na planilha", "#9b5365");
+  card(42, cardsY, 330, "Guerras e ligas", String(player.guerra ?? "—"), `${guerra.atividades} registro(s) automático(s)`, "#c77f35");
+  card(394, cardsY, 330, "Raides", String(player.raides ?? "—"), `${raide.atividades} fim(ns) de semana`, "#478d89");
+  card(746, cardsY, 330, "Jogos do Clã", String(player.jogos ?? "—"), player.origem === "fotografia_fechamento" ? "fotografia do fechamento" : "total consolidado do mês", "#8065b5");
+  card(1098, cardsY, 360, "Eventos", String(player.eventos ?? "—"), player.origem === "fotografia_fechamento" ? "fotografia do fechamento" : "total consolidado do mês", "#9b5365");
 
   section(570, "⚔", "Guerras e Liga", "Desempenho em ataques registrados pelo motor", [
     ["Atividades", String(guerra.atividades)], ["Ataques", String(guerra.ataques)], ["Triplos", String(guerra.triplos)],
@@ -325,8 +326,8 @@ export async function exportPlayerFeedback(player: RankingEntry, audit: PlayerAu
     ["Saque por ataque", raide.ataques ? Math.round(raide.saque / raide.ataques).toLocaleString("pt-BR") : "—"], ["Bônus Top 3", String(raide.bonus)], ["Pontos automáticos", String(raide.pontos)],
   ], "#6ac9c1");
   section(1090, "♛", "Jogos do Clã e Eventos", "Lançamentos manuais substituem o total por atividade, sem somar duplicado", [
-    ["Pontos em Jogos", String(player.jogos)], ["Pontos em Eventos", String(player.eventos)], ["Total manual", String(player.jogos + player.eventos)],
-    ["Origem", "LancamentosManuais"], ["Registro automático", `${audit.total} atividade(s)`], ["Situação", "Pontuação consolidada"],
+    ["Pontos em Jogos", String(player.jogos ?? "—")], ["Pontos em Eventos", String(player.eventos ?? "—")], ["Total manual", player.jogos != null && player.eventos != null ? String(player.jogos + player.eventos) : "—"],
+    ["Origem", player.origem === "fotografia_fechamento" ? "Fechamento preservado" : player.origem === "ranking_atual" ? "Ranking atual" : "Não disponível"], ["Registro automático", `${audit.total} atividade(s)`], ["Situação", player.total != null ? "Pontuação consolidada" : "Totais indisponíveis"],
   ], "#c786e2");
 
   ctx.fillStyle = "#4b4038"; ctx.fillRect(42, 1360, width - 84, 2);

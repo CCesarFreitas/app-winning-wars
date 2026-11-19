@@ -86,9 +86,9 @@ export const api = {
   rankingDetails: () => getJson<RankingDetailsResponse>("/v1/ranking/details"),
   atividades: (limite = 50) =>
     getJson<AuditActivitiesResponse>(`/v1/admin/audit/activities?limite=${limite}`),
-  jogador: (tag: string, limite = 100) =>
+  jogador: (tag: string, temporada?: string) =>
     getJson<PlayerAuditResponse>(
-      `/v1/admin/audit/player/${encodeURIComponent(tag)}?limite=${limite}`,
+      `/v1/admin/audit/player/${encodeURIComponent(tag)}${temporada ? `?temporada=${encodeURIComponent(temporada)}` : ""}`,
     ),
   layouts: (tipo: string, cv?: string, limit = 12, offset = 0) => {
     const params = new URLSearchParams({ tipo, limit: String(limit), offset: String(offset) });

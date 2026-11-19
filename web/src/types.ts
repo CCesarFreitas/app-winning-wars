@@ -84,7 +84,23 @@ export interface PlayerAuditResponse {
   total: number;
   pontos_competicao: number;
   registros: PlayerAuditRecord[];
+  temporada: string;
+  temporada_atual: string;
+  temporadas: string[];
+  resumo: PlayerPeriodSummary;
 }
+
+export interface PlayerPeriodSummary {
+  posicao: number | null;
+  total: number | null;
+  guerra: number | null;
+  raides: number | null;
+  jogos: number | null;
+  eventos: number | null;
+  origem: string;
+}
+
+export type PlayerFeedback = Omit<RankingEntry, keyof PlayerPeriodSummary> & PlayerPeriodSummary;
 
 export interface LayoutEntry {
   tipo: string;

@@ -8,6 +8,7 @@ import type { AdminContributionRankingResponse, AdminDrawRecord, AdminDrawRespon
 import { CREST_URL, LAYOUT_TOWN_HALLS, MAX_TOWN_HALL, hasTownHallImage } from "./assets";
 import { TownHallImage } from "./TownHallImage";
 import { useAdmin } from "./AdminContext";
+import { playerForPeriod } from "./playerPeriod";
 import { exportCompactRanking, exportContributionRanking, exportDetailedRanking, exportPlayerFeedback } from "./rankingExport";
 
 export function HomePage() {
@@ -173,6 +174,8 @@ export function PlayerPage() {
   const { ranking, loading: rankingLoading } = useRanking();
   const decodedTag = tag ? decodeURIComponent(tag) : "";
   const selected = ranking.find((item) => item.tag === decodedTag) || ranking[0];
+  const [period, setPeriod] = useState("");
+  const [months, setMonths] = useState<string[]>([]);
   const [audit, setAudit] = useState<PlayerAuditResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -183,34 +186,41 @@ export function PlayerPage() {
     if (!selected) return;
     let active = true;
     setLoading(true); setError(null); setAudit(null);
-    api.jogador(selected.tag).then((result) => active && setAudit(result)).catch((reason: unknown) => active && setError(reason instanceof Error ? reason.message : "Falha na auditoria.")).finally(() => active && setLoading(false));
+    api.jogador(selected.tag, period || undefined).then((result) => { if (active) { playerForPeriod(selected, result); setAudit(result); setMonths(result.temporadas); } }).catch((reason: unknown) => active && setError(reason instanceof Error ? reason.message : "Falha na auditoria.")).finally(() => active && setLoading(false));
     return () => { active = false; };
-  }, [selected?.tag]);
+  }, [selected?.tag, selected?.temporada, period]);
 
   if (rankingLoading) return <div className="page"><Loading /></div>;
   if (!selected) return <div className="page"><ErrorState message="O ranking não possui jogadores." /></div>;
 
+  const ready = audit && audit.player_tag === selected.tag && (!period || audit.temporada === period);
+  const profile = ready ? playerForPeriod(selected, audit) : null;
+  const chosenMonth = period || audit?.temporada_atual || selected.temporada || "";
+  const options = [...new Set([selected.temporada, chosenMonth, ...months].filter((m): m is string => !!m))].sort().reverse();
+
   return (
     <div className="page">
       <PageHeader eyebrow="Jornada do guerreiro" title="Ficha do jogador" description="Pontuação consolidada, modalidades disputadas e justificativa de cada resultado." />
-      <div className="player-picker-row"><label className="player-picker"><span>Selecionar jogador</span><select value={selected.tag} onChange={(event) => navigate(`/jogador/${encodeURIComponent(event.target.value)}`)}>{ranking.map((item) => <option key={item.tag} value={item.tag}>{item.posicao}º · {item.nome} · {item.tag}</option>)}</select></label><button className="secondary-button" disabled={!audit || exporting} onClick={async () => { if (!audit) return; setExporting(true); setExportError(null); try { await exportPlayerFeedback(selected, audit); } catch (reason) { setExportError(reason instanceof Error ? reason.message : "Não foi possível gerar a imagem."); } finally { setExporting(false); } }}>{exporting ? "Gerando imagem…" : "⬇ Baixar feedback em PNG"}</button></div>
+      <div className="player-picker-row"><label className="player-picker"><span>Selecionar jogador</span><select value={selected.tag} onChange={(event) => navigate(`/jogador/${encodeURIComponent(event.target.value)}`)}>{ranking.map((item) => <option key={item.tag} value={item.tag}>{item.posicao}º · {item.nome} · {item.tag}</option>)}</select></label><label className="player-picker"><span>Mês da competição</span><select aria-label="Mês da competição" value={chosenMonth} onChange={(event) => { setPeriod(event.target.value); setAudit(null); setExportError(null); }}>{options.map((month) => <option key={month} value={month}>{temporadaLabel(month)}{month === (audit?.temporada_atual || selected.temporada) ? " · atual" : ""}</option>)}</select></label><button className="secondary-button" disabled={!ready || !profile || loading || exporting} onClick={async () => { if (!audit || !profile) return; setExporting(true); setExportError(null); try { await exportPlayerFeedback(profile, audit); } catch (reason) { setExportError(reason instanceof Error ? reason.message : "Não foi possível gerar a imagem."); } finally { setExporting(false); } }}>{exporting ? "Gerando imagem…" : "⬇ Baixar feedback em PNG"}</button></div>
       {exportError && <div className="form-error" role="alert">{exportError}</div>}
       <section className="player-profile fortress-player-profile">
         <RankingTownHall player={selected} />
-        <div><span className="eyebrow">{selected.posicao}º lugar na temporada</span><h2>{selected.nome}</h2><small>{selected.tag}</small></div>
-        <strong>{selected.total}<small> pontos</small></strong>
+        <div><span className="eyebrow">{profile?.posicao != null ? `${profile.posicao}º lugar` : "Ficha mensal"} · {temporadaLabel(chosenMonth)}</span><h2>{selected.nome}</h2><small>{selected.tag}</small></div>
+        <strong>{profile?.total ?? "—"}<small> pontos</small></strong>
       </section>
       <section className="score-grid">
-        <article><span>⚔</span><div><small>Guerras e ligas</small><strong>{selected.guerra}</strong></div></article>
-        <article><span>☄</span><div><small>Raides</small><strong>{selected.raides}</strong></div></article>
-        <article><span>♟</span><div><small>Jogos do Clã</small><strong>{selected.jogos}</strong></div></article>
-        <article><span>◆</span><div><small>Eventos</small><strong>{selected.eventos}</strong></div></article>
+        <article><span>⚔</span><div><small>Guerras e ligas</small><strong>{profile?.guerra ?? "—"}</strong></div></article>
+        <article><span>☄</span><div><small>Raides</small><strong>{profile?.raides ?? "—"}</strong></div></article>
+        <article><span>♟</span><div><small>Jogos do Clã</small><strong>{profile?.jogos ?? "—"}</strong></div></article>
+        <article><span>◆</span><div><small>Eventos</small><strong>{profile?.eventos ?? "—"}</strong></div></article>
       </section>
+      {profile?.origem === "indisponivel" && <p className="planning-disclaimer">Os totais consolidados deste mês não estão disponíveis. As atividades preservadas aparecem abaixo; nenhum valor de outro mês foi utilizado.</p>}
       <section className="section-block">
-        <div className="section-title"><div><span className="eyebrow">Livro de batalha</span><h2>Por que recebeu estes pontos?</h2><p>Cada registro preserva a regra aplicada pelo motor.</p></div>{audit && <span>{audit.total} registros</span>}</div>
+        <div className="section-title"><div><span className="eyebrow">Livro de batalha</span><h2>Por que recebeu estes pontos?</h2><p>Somente atividades encerradas e lançadas da temporada {temporadaLabel(chosenMonth)}. Cada registro preserva a regra aplicada pelo motor.</p></div>{ready && audit && <span>{audit.total} registros</span>}</div>
         {loading && <Loading label="Buscando o histórico deste jogador…" />}
         {error && <ErrorState message={error} />}
-        {audit && <div className="timeline">{audit.registros.map((record) => <AuditRecord key={`${record.tipo}-${record.identificador}`} record={record} />)}</div>}
+        {ready && audit && !audit.total && <div className="empty-state">Nenhuma atividade encerrada e lançada para este jogador no mês selecionado.</div>}
+        {ready && audit && <div className="timeline">{audit.registros.map((record) => <AuditRecord key={`${record.tipo}-${record.identificador}`} record={record} />)}</div>}
       </section>
     </div>
   );
@@ -228,7 +238,7 @@ function AuditRecord({ record }: { record: PlayerAuditResponse["registros"][numb
         {!!ataques.length && <div className="attack-list">{ataques.map((attack, index) => <span key={`${attack.ordem}-${index}`}><b>{attack.estrelas}★</b> {attack.percentual}% · {attack.alvo_nome || "alvo"} {attack.cv_alvo ? `(CV${attack.cv_alvo})` : ""}</span>)}</div>}
         {typeof detail.capital_resources_looted === "number" && <small>{numero(detail.capital_resources_looted)} de capital saqueado · {typeof detail.ataques === "number" ? detail.ataques : 0} ataques</small>}
       </div>
-      <strong className="points-awarded">+{detail.pontos_competicao ?? 0}</strong>
+      <strong className="points-awarded">{detail.pontos_competicao == null ? "—" : `+${detail.pontos_competicao}`}</strong>
     </article>
   );
 }

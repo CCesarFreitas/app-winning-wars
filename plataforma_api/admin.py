@@ -397,10 +397,15 @@ def instalar_rotas_admin(app, caminho_sqlite: str) -> None:
         return listar_atividades(limite=max(1, min(limite, 200)))
 
     @app.get("/v1/admin/audit/player/{player_tag}")
-    def jogador_auditoria_admin(player_tag: str, request: Request, limite: int = 100):
+    def jogador_auditoria_admin(player_tag: str, request: Request, temporada: str | None = None):
         _sessao(request)
-        from auditoria_historica import auditoria_jogador
-        return auditoria_jogador(player_tag, limite=max(1, min(limite, 200)))
+        from .auditoria_mensal import montar_ficha_mensal
+        try:
+            return montar_ficha_mensal(caminho_sqlite, player_tag, temporada)
+        except ValueError as erro:
+            raise HTTPException(status_code=422, detail=str(erro)) from erro
+        except (OSError, sqlite3.Error) as erro:
+            raise HTTPException(status_code=503, detail="historico_mensal_indisponivel") from erro
 
     @app.get("/v1/admin/participation")
     def participacao_admin(request: Request):
